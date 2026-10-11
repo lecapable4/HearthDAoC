@@ -154,4 +154,95 @@ public static class QuestIndicators
             t_raw = false;
         }
     }
+
+    public static readonly IndicatorSentStore LastSent = new();
+
+    private static readonly Logger Log = LoggerManager.Create(typeof(QuestIndicators));
+
+    // Called by the quest effect's writer (PacketLib173.SendNPCsQuestEffect) with the value it was given: returns the
+    // value to send, recorded as the last one sent to the player for the NPC.
+    public static eQuestIndicator Sending(GamePlayer player, GameNPC npc, eQuestIndicator value)
+    {
+        eQuestIndicator wire = WireFor(player, npc, value);
+        LastSent.Record(player, npc, (byte)wire);
+        return wire;
+    }
+
+    // Called by the create packet's writer (PacketLib1124.SendNPCCreate): as Sending, but a value that differs from the
+    // last one sent also asks a refresh, whose quest effect draws it even on a client that still had the NPC.
+    public static eQuestIndicator SendingCreate(GamePlayer player, GameNPC npc, eQuestIndicator value)
+    {
+        eQuestIndicator wire = WireFor(player, npc, value);
+        if (LastSent.RecordCreate(player, npc, (byte)wire))
+            Refresh(player);
+        return wire;
+    }
+
+    private static readonly Action<GamePlayer> s_run = Run;
+
+    // Asks for the markers of every NPC the player's client has to be worked out again. Safe from any thread and under
+    // any lock; it only queues. However often it is asked between two game-loop ticks, the work runs once, at the start
+    // of the next tick (GameLoopService's posted actions, which run before ClientService sends the clients' packets),
+    // after the change that asked is complete. Posted actions run in parallel with each other; that is safe here (packet
+    // queues take concurrent senders, and only leaf locks are held), as long as no quest change itself runs as a
+    // GameLoopService posted action (none does), since a run in the same batch could read a half-finished change.
+    public static void Refresh(GamePlayer player)
+    {
+        if (player != null && LastSent.TryQueue(player))
+            GameLoopService.Instance.Post(s_run, player);
+    }
+
+    private static void Run(GamePlayer player)
+    {
+        if (!LastSent.Dequeue(player))
+            return;
+        // Not in the world or not playing (login, a region change's loading screen, link death): once in, the client
+        // gets every NPC again with its create packet.
+        if (player.ObjectState != GameObject.eObjectState.Active
+            || player.Client?.ClientState != GameClient.eClientState.Playing)
+            return;
+
+        // The NPCs the client has (ClientService's cache), copied under its lock; the NPCs are asked with no lock held.
+        PlayerObjectCache cache = player.PlayerObjectCache;
+        List<GameNPC> known;
+        lock (cache.NpcUpdateCacheLock)
+            known = new List<GameNPC>(cache.NpcUpdateCache.Keys);
+
+        // An NPC out of the world or in another region is off the client (and its object ID may be reused).
+        ushort region = player.CurrentRegionID;
+        LastSent.Prune(player, o => o is not GameNPC npc || npc.ObjectState != GameObject.eObjectState.Active
+            || npc.CurrentRegionID != region);
+        known.RemoveAll(npc => npc.ObjectState != GameObject.eObjectState.Active || npc.CurrentRegionID != region);
+
+        LastSent.SendChanges(player, known, o =>
+            {
+                GameNPC npc = (GameNPC)o;
+                try
+                {
+                    eQuestIndicator meaning = npc.GetQuestIndicator(player);
+                    return (meaning, (byte)WireFor(player, npc, meaning));
+                }
+                catch (Exception e)
+                {
+                    // One NPC's failure must not stop the others' markers: it keeps what it had.
+                    Log.Error($"Quest indicator of {npc.Name} for {player.Name}", e);
+                    return (eQuestIndicator.None, LastSent.Last(player, npc));
+                }
+            },
+            (o, meaning) => player.Out.SendNPCsQuestEffect((GameNPC)o, meaning));
+    }
+
+    [ScriptLoadedEvent]
+    public static void OnScriptLoaded(DOLEvent e, object sender, EventArgs args) =>
+        GameEventMgr.AddHandler(GamePlayerEvent.Quit, OnPlayerQuit);
+
+    [ScriptUnloadedEvent]
+    public static void OnScriptUnloaded(DOLEvent e, object sender, EventArgs args) =>
+        GameEventMgr.RemoveHandler(GamePlayerEvent.Quit, OnPlayerQuit);
+
+    private static void OnPlayerQuit(DOLEvent e, object sender, EventArgs args)
+    {
+        if (sender is GamePlayer player)
+            LastSent.Forget(player);
+    }
 }
