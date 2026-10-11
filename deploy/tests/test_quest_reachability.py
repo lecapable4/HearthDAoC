@@ -5,8 +5,9 @@ CheckOfferedQuestWhisper). The player does that by clicking a [keyword] the give
 (shown when the player qualifies) or in another quest text the giver says. A clicked keyword gets ClassicQuests' Chat
 reply for that NPC, which may offer more keywords. Upstream's generator lost lines and keys on the way, so seven quests
 (35 rows) could not be started, and many texts said <Player> (the player's name, in game) where the period named
-someone else, which left two more without a way in. The fixes are in deploy/hearthdaoc-quests.json (Chat) and
-deploy/bin/quest_dialogue.json (world texts).
+someone else, which left two more without a way in. It also wrote <Player> for plain words ("Aye, Well, it's") and
+the player's class, kept spaces in keys that a click never sends, and filed Kylirean's lines under another name. The
+fixes are in deploy/hearthdaoc-quests.json (Chat) and deploy/bin/quest_dialogue.json (world texts).
 
 The world tests run world_fixes on a copy of a clean classic world (HDC_TEST_WORLD) and merge upstream's Chat with the
 fork's as ClassicQuests.MergeChat does. Upstream's Chat is in its classic-quests.json, a server file the first start
@@ -111,6 +112,18 @@ def offered(texts, replies):
     return {" ".join(keyword.split()) for keyword in seen}
 
 
+def unanswered(texts, replies):
+    """The keywords a player can click from `texts` that get no Chat reply."""
+    return sorted(keyword for keyword in offered(texts, replies)
+                  if not (replies.get(whisper_key(keyword)) or "").strip())
+
+
+# The fork's replies that replace an upstream reply holding <Player> and still speak to the player, and how many
+# <Player> each keeps: Skorri's "Please <Player>, give Olvaerr his cloak" and Thorgil's "You cannot use a bow,
+# <Player>." (the guide's "Spiritmaster": a class as a title, which the fork leaves as <Player>).
+SPEAKS_TO_THE_PLAYER = {("skorri", "a cloak"): 1, ("thorgil", "staff"): 1}
+
+
 class PeriodChatTests(unittest.TestCase):
     """The fork's Chat lines for the classic quests."""
 
@@ -139,9 +152,44 @@ class PeriodChatTests(unittest.TestCase):
             for keyword in lines:
                 self.assertNotIn("<player>", keyword, npc)
 
+    def test_the_words_that_were_player_are_the_guides(self):
+        # Upstream's generator took a plain word for a name: the guides have "Aye, Well, it's" and "Yes, Yes, I know".
+        self.assertTrue(self.chat["crace"]["enchanted silver"].startswith("Aye, Well, it's mainly controlled by "))
+        self.assertIn("the Path of Focus. Yes, Yes, I know you already spoke with her", self.chat["keriann"]["hamlet"])
+
+    def test_a_class_said_as_a_noun_is_the_players_class(self):
+        # The guides' authors played a Hunter ("this fine Hunter") and a Spiritmaster ("a Spiritmaster like you"). The
+        # server replaces <Class> with the player's class (GetPersonalizedMessage), as it does <Player> with the name.
+        self.assertEqual(self.chat["skorri"]["a cloak"],
+                         "Look Olvaerr, this fine <Class> has found your cloak! Please <Player>, give Olvaerr his "
+                         "cloak so that he will no longer think that Ailsa stole it from him. Perhaps he will even "
+                         "apologize to Alisa.")
+        self.assertEqual(self.chat["thorgil"]["staff"],
+                         "You cannot use a bow, <Player>. Perhaps a <Class> like you would prefer a nice [staff]?")
+
+    def test_gral_bermorns_keywords_are_answered_without_their_spaces(self):
+        # Upstream's keys kept the guide's spaces (" switch "); a click on [ switch ] whispers "switch".
+        gral = self.chat["gral bermorn"]
+        self.assertEqual(offered(["[ switch ]"], gral), {"switch", "axis circle", "opened from the other side"})
+        self.assertEqual(unanswered(["[ switch ]"], gral), [])
+        self.assertTrue(gral["opened from the other side"].startswith("You must be ready for Glasan at this point."))
+
+    def test_nibalk_answers_ibicus(self):
+        # The guide: Nibalk asks "Are you hunting [Ibicus]?" and answers it; upstream's key was <Player>.
+        self.assertEqual(offered(["[Ibicus]"], self.chat["nibalk"]), {"Ibicus", "Mussalkan"})
+        self.assertTrue(self.chat["nibalk"]["ibicus"].startswith("Yes, that large sea beast"))
+
+    def test_kylirean_has_his_lines_under_the_spawns_name(self):
+        # Upstream filed them under "Kyrilean", the guide author's spelling; Mythic's (patch notes, the Prima guide)
+        # and the world's is Kylirean, and ClassicQuests finds an NPC's lines by its name.
+        kylirean = self.chat["kylirean"]
+        self.assertEqual(offered(["[experiment]"], kylirean), {"experiment", "down", "hide", "help me out"})
+        self.assertEqual(unanswered(["[experiment]", "[item]"], kylirean), [])
+
     @unittest.skipUnless(UPSTREAM_QUESTS, "needs upstream's classic-quests.json (HDC_CLASSIC_QUESTS)")
     def test_no_reply_the_fork_fixed_still_says_player(self):
-        # Every fork reply that replaces an upstream reply holding <Player> names the period's person instead.
+        # Every fork reply that replaces an upstream reply holding <Player> names the period's person or word instead,
+        # but where it still speaks to the player.
         with open(UPSTREAM_QUESTS, encoding="utf-8") as f:
             upstream = merged_chat(json.load(f).get("Chat"), {})
         fixed = 0
@@ -150,8 +198,23 @@ class PeriodChatTests(unittest.TestCase):
                 if "<Player>" in upstream.get(npc, {}).get(keyword, ""):
                     fixed += 1
                     with self.subTest(npc=npc, keyword=keyword):
-                        self.assertNotIn("<Player>", reply)
+                        self.assertEqual(reply.count("<Player>"), SPEAKS_TO_THE_PLAYER.get((npc, keyword), 0))
         self.assertGreater(fixed, 0)
+
+    @unittest.skipUnless(UPSTREAM_QUESTS, "needs upstream's classic-quests.json (HDC_CLASSIC_QUESTS)")
+    def test_the_moved_replies_are_upstreams(self):
+        # Gral Bermorn's trimmed keys, Nibalk's [Ibicus] and Kylirean's lines carry upstream's replies as they are.
+        with open(UPSTREAM_QUESTS, encoding="utf-8") as f:
+            upstream = merged_chat(json.load(f).get("Chat"), {})
+        moved = [("gral bermorn", " switch ", "gral bermorn", "switch"),
+                 ("gral bermorn", " axis circle ", "gral bermorn", "axis circle"),
+                 ("gral bermorn", " opened from the other side ", "gral bermorn", "opened from the other side"),
+                 ("nibalk", "<player>", "nibalk", "ibicus")]
+        moved += [("kyrilean", keyword, "kylirean", keyword) for keyword in upstream["kyrilean"]]
+        self.assertEqual(len(moved), 9)
+        for npc, key, ours, our_key in moved:
+            with self.subTest(npc=ours, keyword=our_key):
+                self.assertEqual(self.chat[ours][our_key], upstream[npc][key])
 
 
 @unittest.skipUnless(TEST_WORLD and UPSTREAM_QUESTS, "needs HDC_TEST_WORLD (a clean classic world database) and "
@@ -196,6 +259,30 @@ class ReachabilityTests(unittest.TestCase):
                              ("rollo", "retrieve the Brack item")):
             with self.subTest(npc=npc, keyword=keyword):
                 self.assertIn(keyword, offered(self.said[npc], self.chat[npc]))
+
+    def stage(self, qid, column, stage):
+        text, = self.conn.execute(f"SELECT {column} FROM DataQuest WHERE ID=?", (qid,)).fetchone()
+        return (text or "").split("|")[stage - 1]
+
+    def test_the_fixed_replies_are_offered_where_the_quests_show_them(self):
+        # Crace's [enchanted silver] (Silver Run, stage 1), Skorri's [a cloak] (Solving the Argument, sent on accept)
+        # and Gral Bermorn's three (Weakened Bonds, stages 2 and 13, said by him; every keyword there is answered).
+        shown = [(20288, "TargetText", 1, "crace", "enchanted silver"), (21142, "SourceText", 1, "skorri", "a cloak"),
+                 (20639, "TargetText", 2, "gral bermorn", "opened from the other side"),
+                 (20639, "TargetText", 13, "gral bermorn", "opened from the other side")]
+        for qid, column, stage, npc, keyword in shown:
+            with self.subTest(quest=qid, stage=stage, keyword=keyword):
+                text = self.stage(qid, column, stage)
+                self.assertIn(keyword, offered([text], self.chat[npc]))
+                self.assertEqual(unanswered([text], self.chat[npc]), [])
+
+    def test_every_npc_the_forks_chat_names_stands_in_the_world(self):
+        # ClassicQuests finds an NPC's lines by its name (without case): upstream's "Kyrilean" reached no one.
+        names = {name.lower() for (name,) in self.conn.execute("SELECT Name FROM Mob")}
+        self.assertEqual([npc for npc in extra_chat() if npc.lower() not in names], [])
+        giver, = self.conn.execute("SELECT StartName FROM DataQuest WHERE ID=20068").fetchone()
+        self.assertEqual(giver, "Kylirean")
+        self.assertIn("experiment", self.chat[giver.lower()])
 
 
 if __name__ == "__main__":
