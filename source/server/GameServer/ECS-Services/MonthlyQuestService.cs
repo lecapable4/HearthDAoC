@@ -73,6 +73,7 @@ namespace DOL.GS
                 {
                     GameClient client = clients[i];
                     client.Player?.RemoveFinishedQuests(x => x is Quests.MonthlyQuest);
+                    HearthDAoC.QuestIndicators.Refresh(client.Player); // HearthDAoC: the givers of monthly quests show their knot again at the rollover.
                 }
 
                 IList<DbQuest> existingMonthlyQuests = GameServer.Database.SelectObjects<DbQuest>(DB.Column("Name").IsLike("%MonthlyQuest%"));

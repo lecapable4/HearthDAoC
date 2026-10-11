@@ -155,6 +155,7 @@ namespace DOL.GS.Quests
                 m_dbQuest.Step = value;
                 SaveIntoDatabase();
                 m_questPlayer.Out.SendQuestUpdate(this);
+                HearthDAoC.QuestIndicators.Refresh(m_questPlayer); // HearthDAoC: quest markers change when a quest moves, finishes or is abandoned.
             }
         }
 

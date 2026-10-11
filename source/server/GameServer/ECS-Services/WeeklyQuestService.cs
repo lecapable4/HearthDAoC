@@ -75,6 +75,7 @@ namespace DOL.GS
                 {
                     GameClient client = clients[i];
                     client.Player?.RemoveFinishedQuests(x => x is Quests.WeeklyQuest);
+                    HearthDAoC.QuestIndicators.Refresh(client.Player); // HearthDAoC: the givers of weekly quests show their knot again at the rollover.
                 }
 
                 IList<DbQuest> existingWeeklyQuests = GameServer.Database.SelectObjects<DbQuest>(DB.Column("Name").IsLike("%WeeklyQuest%"));

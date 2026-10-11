@@ -118,5 +118,91 @@ class ProbeTests(unittest.TestCase):
         self.assertNotIn("SendNPCsQuestEffect(npc, (eQuestIndicator)request.Effect)", text)
 
 
+class RefreshHookTests(unittest.TestCase):
+    """Who asks for a refresh (spec 3.3)."""
+
+    def test_the_level_setter(self):
+        body = between(read(GAME_PLAYER), "public override byte Level", "\n        }\n")
+        marked(self, body, "HearthDAoC.QuestIndicators.Refresh(this);")
+        # After the level-up handling, on every change (up or down).
+        self.assertLess(body.index("Out.SendLevelUpSound();"), body.index("QuestIndicators.Refresh(this);"))
+
+    def test_the_class_change(self):
+        body = between(read(GAME_PLAYER), "public virtual bool SetCharacterClass(int id)", "\n        }\n")
+        marked(self, body, "HearthDAoC.QuestIndicators.Refresh(this);")
+        self.assertLess(body.index("m_characterClass = cl;"), body.index("QuestIndicators.Refresh(this);"))
+
+    def test_add_quest(self):
+        body = between(read(GAME_PLAYER), "public bool AddQuest(AbstractQuest quest)", "\n        }\n")
+        marked(self, body, "HearthDAoC.QuestIndicators.Refresh(this);")
+        self.assertLess(body.index("QuestList.TryAdd(quest, index);"), body.index("QuestIndicators.Refresh(this);"))
+
+    def test_the_step_setter_and_what_relies_on_it(self):
+        text = read(ABSTRACT_QUEST)
+        step = between(text, "public virtual int Step", "\n        }\n")
+        marked(self, step, "HearthDAoC.QuestIndicators.Refresh(m_questPlayer);")
+        # FinishQuest and AbortQuest go through the setter first, so they need no line of their own.
+        finish = between(text, "public virtual void FinishQuest()", "\n        }\n")
+        abort = between(text, "public virtual void AbortQuest()", "\n        }\n")
+        self.assertRegex(finish, r"\{\s*Step = -2;")
+        self.assertRegex(abort, r"\{\s*Step = -1;")
+
+    def test_the_data_quest_overrides_that_skip_the_base(self):
+        text = read(DATA_QUEST)
+        step = between(text, "public override int Step", "\n\t\t}\n")
+        marked(self, step, "HearthDAoC.QuestIndicators.Refresh(m_questPlayer);")
+        finish = between(text, "public virtual bool FinishQuest(GameObject obj, bool checkCustomStep)", "\n\t\t}\n")
+        marked(self, finish, "HearthDAoC.QuestIndicators.Refresh(m_questPlayer);")
+        self.assertLess(finish.index("QuestIndicators.Refresh"), finish.rindex("return true;"))
+        abort = between(text, "public override void AbortQuest()", "\n\t\t}\n")
+        marked(self, abort, "HearthDAoC.QuestIndicators.Refresh(m_questPlayer);")
+
+    def test_quests_finished_on_the_spot(self):
+        # InteractComplete (CheckOfferQuest) and KillComplete (OnLivingIsDying) fill the finished list directly.
+        text = read(DATA_QUEST)
+        self.assertEqual(len(re.findall(
+            r"player\.Out\.SendQuestListUpdate\(\);\n\t+HearthDAoC\.QuestIndicators\.Refresh\(player\); // HearthDAoC:",
+            text)), 2)
+
+    def test_the_daily_weekly_and_monthly_rollovers(self):
+        # The rollover makes those quests available again: their givers' knots come back (owner keeps them, 2026-10-11).
+        for path, kind in ((DAILY, "DailyQuest"), (WEEKLY, "WeeklyQuest"), (MONTHLY, "MonthlyQuest")):
+            text = read(path)
+            call = "HearthDAoC.QuestIndicators.Refresh(client.Player);"
+            marked(self, text, call)
+            self.assertLess(text.index(f"client.Player?.RemoveFinishedQuests(x => x is Quests.{kind});"),
+                            text.index(call), path)
+
+    def test_epic_done_and_reset(self):
+        text = read(EPIC)
+        for name in ("private void Done(", "private void Reset("):
+            body = between(text, name, "\n    }\n")
+            self.assertLess(body.index("target.Out.SendQuestListUpdate();"),
+                            body.index("QuestIndicators.Refresh(target);"), name)
+
+    def test_upstream_files_that_call_the_fork(self):
+        # Every hook in upstream files, for upstream syncs (FORK.md).
+        calls = {}
+        for folder, _, names in os.walk(GAME_SERVER):
+            if folder.startswith(FORK):
+                continue
+            for name in names:
+                if name.endswith(".cs"):
+                    count = len(re.findall(r"HearthDAoC\.QuestIndicators\.", read(os.path.join(folder, name))))
+                    if count:
+                        calls[name] = count
+        self.assertEqual(calls, {
+            "GameNPC.cs": 1,
+            "PacketLib1124.cs": 1,
+            "PacketLib173.cs": 1,
+            "GamePlayer.cs": 3,
+            "AbstractQuest.cs": 1,
+            "DataQuest.cs": 5,
+            "DailyQuestService.cs": 1,
+            "WeeklyQuestService.cs": 1,
+            "MonthlyQuestService.cs": 1,
+        })
+
+
 if __name__ == "__main__":
     unittest.main()

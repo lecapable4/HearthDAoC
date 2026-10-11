@@ -2666,6 +2666,7 @@ namespace DOL.GS
             {
                 Group.UpdateMember(this, false, true);
             }
+            HearthDAoC.QuestIndicators.Refresh(this); // HearthDAoC: quest markers follow a class change at once (trainer, /player class).
             return true;
         }
 
@@ -4474,6 +4475,8 @@ namespace DOL.GS
                         Out.SendLevelUpSound();
                     }
                 }
+
+                HearthDAoC.QuestIndicators.Refresh(this); // HearthDAoC: quest markers follow the level at once, up or down (quest indicators spec, 3.3).
             }
         }
 
@@ -11404,6 +11407,7 @@ namespace DOL.GS
             QuestList.TryAdd(quest, index);
             quest.OnQuestAssigned(this);
             Out.SendQuestUpdate(quest);
+            HearthDAoC.QuestIndicators.Refresh(this); // HearthDAoC: quest markers change when a quest is taken (quest indicators spec, 3.3).
             return true;
         }
 
