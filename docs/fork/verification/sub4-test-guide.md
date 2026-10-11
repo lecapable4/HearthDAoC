@@ -61,4 +61,24 @@ the stale case, a level-7 character standing by Elaru with nothing shown: `/indi
 way with her real indicator, then sends the quest effect; does it appear now? `/indicator clear` puts everything
 back. Report a short list: each command and what you saw.
 
+### Markers that stay current (quest indicators)
+
+The scheme: a yellow knot over an NPC offers a quest you can take, a white knot is the NPC your current step sends you
+to, a blue knot is where you turn a quest in; nothing else (no ring at the feet). Each of these should change at once,
+without a new login:
+
+1. A new Infiltrator in Caer Gothwaite, `/player level 7`: Elaru shows a yellow knot.
+2. Accept "Strange Beings": Elaru's knot goes and Tage shows a white knot; each next step's NPC turns white as the
+   quest moves (Kimmy Glaze); on the last step Adam Glaze shows a blue knot; after turning in, Elaru shows no knot
+   until level 11, then a yellow one for "Shades and Shadows".
+3. A level-30 character near Elaru: no knot (more than 15 levels above the quest's level 7).
+4. An Atlas master trainer: no knot.
+5. "Cleric Mulgrut" (Hugh Gallen at Prydwen Keep, level 5), on its last step: no blue knot on Mulgrut Maggot.
+6. `/epic reset`, then `/epic done 15`: the markers around you change at once.
+7. A level-50 character at Castle Sauvage (Albion's frontier gate in Forest Sauvage): Hector shows a yellow knot while
+   "[Group Daily] A Team Building Exercise" is open to you (daily quests have no level rule).
+8. `/indicator` on any NPC names its meaning and what the client draws, e.g. "available (a yellow knot): ...".
+9. A level-7 character by Elaru (yellow knot): walk about 4,000 units away, `/player level 23`, walk back: no knot on
+   her (the server's create for an NPC your client still drew is followed by a quest effect).
+
 Results go in `docs/fork/verification/sub4-ingame.md`.
