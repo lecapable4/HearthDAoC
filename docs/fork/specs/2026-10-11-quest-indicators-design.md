@@ -185,4 +185,4 @@ gains the in-game checks of 4.3.
 ## 7. Found while reading, separate
 
 `GamePlayer.AddQuest` starts with `if (QuestList.Count > 25)` followed by no statement of its own, so the next `if`
-becomes its body and the journal limit is never applied. To be filed as its own issue (upstream candidate).
+becomes its body and the journal limit is never applied. Filed as #112 (upstream candidate).
