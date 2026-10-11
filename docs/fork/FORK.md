@@ -21,6 +21,7 @@ old names (`odc`, `OFFLINEDAOC_*`, `offlinedaoc-*`) as written at the time.
 | What a world upgrade keeps besides upstream's progress tables, and `hdc carry-rvr` | `deploy/bin/world_admin.py`, `deploy/bin/carry_rvr.py`, `deploy/hdc` | none: upstream's import engine copies only the progress tables of `progress-policy.json` and clears `Ban`, `SinglePermission` and `KeepCaptureLog`. `upgrade-world` then copies bans and single permissions, and the RvR state that came from play, so upstream's own changes to untouched keeps and relics stay: for keeps in play in the old world (Realm is not OriginalRealm, or claimed; matched by Name and Region, not KeepID), `Keep` Realm, Level and ClaimedGuildName, Health and State of their `Door` rows (both from the old row; Health at most the door's full health in the new world at the carried Level, by the server's formula), and their `KeepHookPointItem` rows (with the new KeepID); for relics away from home, `Relic` position and holder; and `KeepCaptureLog`. A table or needed column missing in either world leaves that part out, with a note in the report. `hdc carry-rvr <archive>` copies the same state from an archived world into the live one, after a backup, leaving out a claim whose guild holds another keep there. `battlegrounds.py` step 3 lowers a central keep's gates to Level 1's full health when it puts the keep back to Level 1 |
 | Player setup, and Linux client updates at launch (see Client updates) | `client/`, `deploy/build_bundles.sh` (the bundle's `VERSION`) | none |
 | Classic character creation and splash (client patch set) | `client/patches/`, `client/windows/patch-client.*` | none: patches each player's own client files (see Client patches) |
+| Window layout for new characters (client patch set, owner's choice 2026-10-11: new characters only) | `client/patches/layout.py` (the generator), `client/patches/default-layout.json`, applied by the same launchers and appliers, tests `client/patches/tests/test_layout.py` | none: puts the owner's character Charles Martel's layout (1920x1080, no hotkeys) at the top of each player's own `default.ini`, which the client reads for a character that has no settings file yet; characters that have one keep theirs (see Client patches, The default layout) |
 | Leveling spawns (owner's choice) | `deploy/bin/spawns.py`, `hdc spawns`; the twin removal run by `deploy/bin/world_fixes.py` (every start); tests `deploy/tests/test_spawns.py` | none: restores rows upstream's setup archived in `offline_classic165_removed_mobs`. Its "creature still in the world" check compares names without case, so it brought back twins of named quest monsters: an "arawnite messenger" 170 units from level 20's "Arawnite Messenger", and quests then matched a kill's name exactly, so killing it counted for nothing (owner test 2026-10-10; quests now match names without case, see "Quest targets and givers match a spawn's name without case", but the twins stay left out as duplicates). The restore leaves out an archived row within 1000 units (X, Y) of a live monster whose name differs from its own only in case and is a quest's kill target (a stage of StepType 0 or 1, the name part of TargetName, without case); on the clean 0.35 world that is the messenger at levels 1-20 (12,873 restored), with six "cornwall hunter" near the Cornwall hunters at 1-25 (14,840), 14 at 1-50. A world an earlier restore gave twins loses them at its next start: only rows listed in `fork_restored_mobs`, removed from `Mob` and untracked as `hdc spawns undo` does, so they stay in the archive ("Restored spawns: N twins of quest targets removed ...") |
 | Duplicate townspeople in the world data (every start) | `deploy/bin/world_fixes.py` (`remove_duplicate_townspeople`), tests `deploy/tests/test_world_fixes.py` | none: removes the plain `GameNPC` copy of Ley Manton and Tria Ellowis standing exactly on their `GameMerchant`, archived in `fork_removed_mobs` (FixId `duplicate-townspeople`); Albion's two town merchants showed twice in game (owner test 2026-10-09) |
 | Classic battlegrounds 15-35, world data (once per world, marker `classic-battlegrounds-v2`) | `deploy/bin/battlegrounds.py` (run by `deploy/bin/world_fixes.py`) | none: on the 0.35 world it levels all four central keeps (upstream's Dun Abermenai and Dun Murdaigean included) and their gates, adds the portal keep guards, and six wall casters and a hastener in each of upstream's two keeps, and removes the Atlas leftovers ([spec](specs/2026-10-07-classic-battlegrounds-design.md), section 7) |
@@ -53,24 +54,32 @@ listed here, so upstream syncs can account for it:
 
 The patch set `client/patches/classic-creation.json` gives the OfflineDAoC 0.35 classic client a classic
 character creation screen and the HearthDAoC loading splash (sub-project 2, see
-[its spec](specs/2026-10-06-classic-character-creation-design.md)). It holds only SHA-256 hashes, byte and text edits
-and our own code, never an EA file. The launchers apply it at every launch, just before the game starts, so
-files that something put back (a repair, OfflineDAoC's own launcher) are patched again:
+[its spec](specs/2026-10-06-classic-character-creation-design.md)). The patch set
+`client/patches/default-layout.json` gives new characters a window layout (The default layout, below). Both hold
+only SHA-256 hashes, byte and text edits and our own code, never an EA file. The launchers apply each at every
+launch, just before the game starts, so files that something put back (a repair, OfflineDAoC's own launcher, an
+update) are patched again:
 
 - Linux: `setup.sh` installs the bundle's `patches/` (`apply_patches.py`, `patchset.py`, `classic-creation.json`,
-  `splash.mpk`) as `<dest>/patches`, a fresh copy on every run, and applies it from there. `play.sh` runs
-  `<dest>/patches/apply_patches.py` before every launch.
+  `default-layout.json`, `splash.mpk`) as `<dest>/patches`, a fresh copy on every run, and applies each set from
+  there. `play.sh` runs `<dest>/patches/apply_patches.py` once for each set before every launch.
 - Windows: `connect-hearthdaoc.bat` runs `patch-client.ps1` (`client/windows/`, same rules as the Linux
-  applier) from its own folder before every start of `connect.exe`. `patch-client.bat` runs it by hand, for
-  example `-Restore`, or once as administrator when the install is under Program Files.
+  applier) from its own folder once for each set before every start of `connect.exe`. `patch-client.bat` runs it
+  by hand, once for each set with the player's options (`-Restore`, `-Check`), or once for the set `-PatchSet`
+  names; for example once as administrator when the install is under Program Files.
 
-An already patched client is only read. Exit 3 (a client file the patch set doesn't know) starts the game with
-the standard creation screen; any other failure warns and still starts it. Without the installed patches
-(`<dest>/patches`, or `patch-client.ps1` next to the .bat) the launchers don't patch: that is how a player opts
-out, after a restore. Both appliers refuse any other client file, such as the b edition's `game.dll` or an older
+A refusal is all or nothing for a set, so each set is applied by a run of its own and reported on its own: one
+refused or failed never stops the other (the b edition's client gets the layout, and a `default.ini` changed by
+hand doesn't stop classic creation). An already patched client is only read. Exit 3 (a client file the set
+doesn't know) starts the game without that set, with one line on Linux; any other failure warns and still starts
+it. Without the installed patches (`<dest>/patches`, or `patch-client.ps1` next to the .bat), or without a set's
+JSON, the launchers don't apply it: that is how a player opts out of a set, after a restore of it (the player
+guide says how). Both appliers refuse any other client file, such as the b edition's `game.dll` or an older
 or newer upstream client's, and then change nothing. Both keep each original as `<file>.hearthdaoc-orig` and put it back with `--restore` /
 `-Restore`, but only over the patched file: when a file has changed since it was patched (for example a newer
-upstream client), the restore says so and changes nothing.
+upstream client), the restore says so and changes nothing. A set's optional `"refused"` text is what follows
+"Not patched: <file> is not the file this HearthDAoC release supports " for a refused file (which clients those
+are, and what the player gets instead); without it, the appliers print classic creation's.
 
 | What is patched | Where | Why |
 |---|---|---|
@@ -153,6 +162,46 @@ player keeps the old patch and is told the client isn't supported), and a restor
 since it was patched. The same holds for any patched file whose "after" changes. Such a change must also teach
 both appliers to upgrade: recognise the older patched file, put its verified backup back, then apply the new
 set.
+
+### The default layout
+
+When a character has no settings file (`<FirstName>-5.ini` in the profile folder, on Windows
+`%APPDATA%\Electronic Arts\Dark Age of Camelot\<profile>`), the 1.127 client (EA's code, the same in stock
+`game1127.dll` and in our `game.dll`, at `0x4c5fe9`) takes its layout from the client folder's `default.ini`: the
+section `[Panels-<width>x<height>]` for the screen size, and `[Quickbar]` to `[ToolTips]` from the first section of
+each name in the file. It writes the character's own file the first time the character leaves the world
+(`0x4c1163`), and reads that from then on. The server stores no layout, hotkey or macro.
+
+`default-layout.json` puts one block in front of `default.ini`'s first line, `[Panels-800x600]`, so each of its
+sections is the first of its name: the owner's character Charles Martel's `[Panels]` as `[Panels-1920x1080]`
+(every key in the client's order; the looking-for-group keys, which follow the character's level, at a new
+character's values), empty quickbars (`GroupSize=10`), `[Macros]`, `[QuickBinds]` and `[HouseHelp]`, and that
+character's `[Chat]`, `[NameOptions]`, `[Camera]` and `[ToolTips]`, in CRLF lines as the client writes them. A
+new character at 1920x1080 starts with that layout and empty quickbars; at another screen size, with the stock
+layout (the 26 stock blocks stay below) and our name plate settings. `default.ini` is the same EA file in both
+OfflineDAoC 0.35 editions (the release manifest pins it once, `f43e1b5d…`), so the set supports both. The set
+carries the 18-byte anchor line, as `classic-creation.json` carries `from` bytes, and nothing else of EA's.
+
+**Rebuilding it.** `client/patches/layout.py` (the generator) reads a character's settings file and OfflineDAoC
+0.35's `default.ini` (it refuses any other) and writes the set; twice gives the same bytes. Charles's file is in
+the owner's profile folder, not in the repository: when the owner changes that character's layout, rebuild and
+commit the JSON (a release then offers it as a client update; Linux players get it at their next launch after
+accepting).
+
+```bash
+c="$(mktemp -d)"  # an EA file from the pinned release, verified; never commit or share it
+python3 tools/linux/odaoc_fetch.py --lock deploy/upstream.lock extract runtime/client-opendaoc/app/default.ini "$c/default.ini"
+python3 client/patches/layout.py --from "<profile folder>/Charles-5.ini" --client "$c" --out client/patches/default-layout.json
+HDC_CLIENT_FILES="$c" HDC_LAYOUT_FROM="<profile folder>/Charles-5.ini" python3 -m unittest discover -s client/patches/tests -t client/patches
+rm -rf "$c"
+```
+
+CI fetches `default.ini` with the classic files (into `HDC_CLIENT_FILES`), and `test_layout.py` then checks the
+committed set against it: its hashes, the client's lookup for a new character, apply, re-apply and restore, and
+that `layout.py` rebuilds the same file from the set's own block (so a hand edit, or a block that breaks the
+rules, fails). `HDC_LAYOUT_FROM` adds the check against Charles's own file: the same set, and a new character
+reads every value of that file but the hotkeys and the looking-for-group level range. Only 1920x1080 has the
+layout (other sizes would need scaled blocks: untested). Not yet checked in game.
 
 ## Client updates
 

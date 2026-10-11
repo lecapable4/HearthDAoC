@@ -14,6 +14,10 @@ Operations, applied in order to an in-memory copy of the file:
 - file: the whole file becomes <bundle folder>/<source>. "after": "source" means "equals that
   bundled file".
 
+A patch set may also say, in "refused" (text), what follows "Not patched: <file> is not the file this
+HearthDAoC release supports " when a file is refused: which clients those are, and what the player gets
+instead. apply_patches.py has classic-creation.json's as the default.
+
 Rules (client/windows/patch-client.ps1 follows the same ones):
 - A file whose SHA-256 is its "after" hash is already patched and is skipped.
 - A file that is missing, or whose hash is neither "before" nor "after", is refused. Then
@@ -105,6 +109,8 @@ def load(path):
         raise PatchError(f"cannot read patch set {path}: {e}") from e
     if not isinstance(data, dict) or type(data.get("format")) is not int or data["format"] != FORMAT:
         raise PatchError(f"{path}: not a format {FORMAT} patch set")
+    if not isinstance(data.get("refused", ""), str):
+        raise PatchError(f"{path}: 'refused' must be text")
     files = data.get("files")
     if not isinstance(files, list) or not files:
         raise PatchError(f"{path}: the patch set lists no files")

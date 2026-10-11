@@ -21,18 +21,20 @@ PWSH = os.environ.get("HDC_PWSH") or shutil.which("pwsh")
 TAG = "v0.34b-hearth.99"
 CLIENT_FILES = {
     "README.md", "VERSION", "CONTENT_ID", "setup.sh", "play.sh.in", "odaoc_fetch.py", "upstream.lock",
-    "patches/classic-creation.json", "patches/apply_patches.py", "patches/patchset.py", "patches/splash.mpk",
-    "windows/connect-hearthdaoc.bat", "windows/patch-client.bat", "windows/patch-client.ps1",
-    "windows/patches/classic-creation.json", "windows/patches/splash.mpk",
+    "patches/classic-creation.json", "patches/default-layout.json", "patches/apply_patches.py", "patches/patchset.py",
+    "patches/splash.mpk", "windows/connect-hearthdaoc.bat", "windows/patch-client.bat", "windows/patch-client.ps1",
+    "windows/patches/classic-creation.json", "windows/patches/default-layout.json", "windows/patches/splash.mpk",
 }
 FROM_REPO = {  # bundled byte for byte (the .bat and .ps1 keep their CRLF line ends)
     "patches/classic-creation.json": "client/patches/classic-creation.json",
+    "patches/default-layout.json": "client/patches/default-layout.json",
     "patches/apply_patches.py": "client/patches/apply_patches.py",
     "patches/patchset.py": "client/patches/patchset.py",
     "patches/splash.mpk": "client/patches/splash.mpk",
     "windows/patch-client.bat": "client/windows/patch-client.bat",
     "windows/patch-client.ps1": "client/windows/patch-client.ps1",
     "windows/patches/classic-creation.json": "client/patches/classic-creation.json",
+    "windows/patches/default-layout.json": "client/patches/default-layout.json",
     "windows/patches/splash.mpk": "client/patches/splash.mpk",
 }
 EXECUTABLE = {"setup.sh", "patches/apply_patches.py"}

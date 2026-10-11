@@ -57,17 +57,18 @@ jobs:
       - name: Fetch a clean classic world for tests (database only)
         run: python3 deploy/bin/init_world.py --lock deploy/upstream.lock --data "$RUNNER_TEMP/world" --edition classic --skip-navmesh
 
-      # The files client/patches/classic-creation.json patches (the classic edition's game.dll and two
-      # pregame files), from the pinned release and verified like every download, for the client patch
-      # tests and the patch-set check. They are EA files: they stay in $RUNNER_TEMP, outside the checkout
-      # (so never in the image's build context), for this run only, and no step uploads them.
-      - name: Fetch the classic client files the patch set patches (tests only, never published)
+      # The files the client patch sets patch (classic-creation.json: the classic edition's game.dll and two
+      # pregame files; default-layout.json: default.ini), from the pinned release and verified like every
+      # download, for the client patch tests and the patch-set check. They are EA files: they stay in
+      # $RUNNER_TEMP, outside the checkout (so never in the image's build context), for this run only, and
+      # no step uploads them.
+      - name: Fetch the classic client files the patch sets patch (tests only, never published)
         run: |
           lock=deploy/upstream.lock
           app="$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["client_prefix"])' "$lock")"
           dll="$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["editions"]["classic"]["game_dll"])' "$lock")"
           python3 tools/linux/odaoc_fetch.py --lock "$lock" extract "$dll" "$RUNNER_TEMP/classic-client/game.dll"
-          for f in pregame/character_customize_stats.xml pregame/splash.mpk; do
+          for f in pregame/character_customize_stats.xml pregame/splash.mpk default.ini; do
             python3 tools/linux/odaoc_fetch.py --lock "$lock" extract "$app$f" "$RUNNER_TEMP/classic-client/$f"
           done
 

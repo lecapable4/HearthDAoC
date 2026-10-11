@@ -38,6 +38,11 @@ SPLASH = b"stock splash"
 SPLASH_NEW = b"HEARTH DAoC splash"
 REFUSED_NOTE = ("play.sh: HearthDAoC's client patches don't support this client (for example the b edition); "
                 "playing with the standard creation screen.\n")
+# A fake default.ini and a patch set for it, in the shape of client/patches/default-layout.json.
+INI = b"[Panels-800x600]\r\nVersion=1\r\n[Chat]\r\nChannelVer=1\r\n"
+INI_PATCHED = b"[Panels-1920x1080]\r\nVersion=1\r\n" + INI
+LAYOUT_NOTE = ("play.sh: HearthDAoC's default layout doesn't support this client's default.ini; new characters start "
+               "with the game's standard window layout.\n")
 
 
 def sha(data):
@@ -166,11 +171,13 @@ class LaunchPatchTests(FakeSteamTestCase):
         self.patches = os.path.join(self.dest, "patches")
         write_bytes(os.path.join(self.client, "game.dll"), DLL)
         write_bytes(os.path.join(self.client, "pregame", "splash.mpk"), SPLASH)
+        write_bytes(os.path.join(self.client, "default.ini"), INI)
         os.makedirs(self.patches)
         for name in ("apply_patches.py", "patchset.py"):
             shutil.copy(os.path.join(PATCHES, name), self.patches)
         write_bytes(os.path.join(self.patches, "splash.mpk"), SPLASH_NEW)
         self.write_patchset(sha(DLL))
+        self.write_layout_set(sha(INI))
 
     def write_patchset(self, dll_before):
         data = {
@@ -188,10 +195,25 @@ class LaunchPatchTests(FakeSteamTestCase):
         with open(os.path.join(self.patches, "classic-creation.json"), "w", encoding="utf-8") as f:
             json.dump(data, f, indent=1)
 
+    def write_layout_set(self, ini_before):
+        find = "[Panels-800x600]\r\n"
+        data = {
+            "format": 1,
+            "name": "default-layout",
+            "client": "test fixture",
+            "refused": "(for example one changed by hand). New characters start with the game's standard window layout.",
+            "files": [{"path": "default.ini", "before": ini_before, "after": sha(INI_PATCHED),
+                       "ops": [{"op": "text-replace", "find": find,
+                                "replace": "[Panels-1920x1080]\r\nVersion=1\r\n" + find}]}],
+        }
+        with open(os.path.join(self.patches, "default-layout.json"), "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=1)
+
     def apply(self):
-        r = subprocess.run(["python3", os.path.join(self.patches, "apply_patches.py"), "--client", self.client],
-                           capture_output=True, text=True)
-        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        for name in ("classic-creation.json", "default-layout.json"):
+            r = subprocess.run(["python3", os.path.join(self.patches, "apply_patches.py"), "--client", self.client,
+                                "--patchset", os.path.join(self.patches, name)], capture_output=True, text=True)
+            self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
 
     def assert_launched_once(self, r):
         self.assertEqual(r.returncode, 0, r.stderr)
@@ -203,24 +225,34 @@ class LaunchPatchTests(FakeSteamTestCase):
         self.assertEqual(read(os.path.join(self.client, "game.dll")), DLL)
         self.assertEqual(read(os.path.join(self.client, "pregame", "splash.mpk")), SPLASH)
 
+    def assert_classic_patched(self):
+        self.assertEqual(read(os.path.join(self.client, "game.dll")), DLL_PATCHED)
+        self.assertEqual(read(os.path.join(self.client, "pregame", "splash.mpk")), SPLASH_NEW)
+
+    def default_ini(self):
+        return read(os.path.join(self.client, "default.ini"))
+
     def test_patches_the_client_again_when_its_files_were_put_back(self):
         self.apply()
-        # Something (a repair, another launcher) puts the original files back; the backups stay.
+        # Something (a repair, another launcher, an update) puts the original files back; the backups stay.
         write_bytes(os.path.join(self.client, "game.dll"), DLL)
         write_bytes(os.path.join(self.client, "pregame", "splash.mpk"), SPLASH)
+        write_bytes(os.path.join(self.client, "default.ini"), INI)
         r = self.run_play()
         self.assert_launched_once(r)
         self.assertEqual(r.stderr, "")
         self.assertIn("Patched: game.dll", r.stdout)
-        self.assertEqual(read(os.path.join(self.client, "game.dll")), DLL_PATCHED)
-        self.assertEqual(read(os.path.join(self.client, "pregame", "splash.mpk")), SPLASH_NEW)
+        self.assertIn("Patched: default.ini (original saved as default.ini.hearthdaoc-orig)\n", r.stdout)
+        self.assert_classic_patched()
+        self.assertEqual(self.default_ini(), INI_PATCHED)
         self.assertEqual(read(os.path.join(self.client, "game.dll.hearthdaoc-orig")), DLL)
+        self.assertEqual(read(os.path.join(self.client, "default.ini.hearthdaoc-orig")), INI)
 
     def test_patches_a_client_that_was_never_patched(self):
         r = self.run_play()
         self.assert_launched_once(r)
-        self.assertEqual(read(os.path.join(self.client, "game.dll")), DLL_PATCHED)
-        self.assertEqual(read(os.path.join(self.client, "pregame", "splash.mpk")), SPLASH_NEW)
+        self.assert_classic_patched()
+        self.assertEqual(self.default_ini(), INI_PATCHED)
 
     def test_an_already_patched_client_launches_without_any_write(self):
         self.apply()
@@ -239,6 +271,18 @@ class LaunchPatchTests(FakeSteamTestCase):
         self.assertNotIn("Not patched", r.stdout)
         self.assert_unpatched()
         self.assertFalse(os.path.exists(os.path.join(self.client, "game.dll.hearthdaoc-orig")))
+        # The default layout is a set of its own: the b edition's client gets it.
+        self.assertIn("Patched: default.ini (original saved as default.ini.hearthdaoc-orig)\n", r.stdout)
+        self.assertEqual(self.default_ini(), INI_PATCHED)
+
+    def test_a_refused_default_ini_starts_new_characters_with_the_standard_layout_and_one_short_note(self):
+        write_bytes(os.path.join(self.client, "default.ini"), b"a default.ini changed by hand")
+        r = self.run_play()
+        self.assert_launched_once(r)
+        self.assertEqual(r.stderr, LAYOUT_NOTE)
+        self.assertNotIn("Not patched", r.stdout)
+        self.assertEqual(self.default_ini(), b"a default.ini changed by hand")
+        self.assert_classic_patched()  # classic creation is a set of its own
 
     def test_a_failed_patch_warns_and_the_game_still_launches(self):
         os.remove(os.path.join(self.patches, "splash.mpk"))  # exit 2: the patch set can't be used
@@ -248,9 +292,21 @@ class LaunchPatchTests(FakeSteamTestCase):
         self.assertIn("play.sh: Warning: HearthDAoC's client patches could not be applied (apply_patches.py exit 2)",
                       r.stderr)
         self.assert_unpatched()
+        self.assertEqual(self.default_ini(), INI_PATCHED)
+
+    def test_a_failed_layout_set_warns_and_the_classic_patches_still_apply(self):
+        with open(os.path.join(self.patches, "default-layout.json"), "w", encoding="utf-8") as f:
+            f.write('{"format": 2}')  # exit 2: the patch set can't be used
+        r = self.run_play()
+        self.assert_launched_once(r)
+        self.assertIn("play.sh: Warning: HearthDAoC's default layout could not be applied (apply_patches.py exit 2), so "
+                      "new characters may start with the game's standard window layout. The game starts anyway.", r.stderr)
+        self.assertNotIn("client patches could not be applied", r.stderr)
+        self.assert_classic_patched()
+        self.assertEqual(self.default_ini(), INI)
 
     def test_a_write_failure_warns_in_a_dialog_without_a_terminal_and_the_game_still_launches(self):
-        # A stand-in applier that fails like a client folder it can't write (exit 1).
+        # A stand-in applier that fails like a client folder it can't write (exit 1), for each set.
         with open(os.path.join(self.patches, "apply_patches.py"), "w", encoding="utf-8") as f:
             f.write("import sys\nprint('Error: [Errno 13] Permission denied', file=sys.stderr)\nsys.exit(1)\n")
         bin_dir = os.path.join(self.tmp.name, "bin")
@@ -263,10 +319,11 @@ class LaunchPatchTests(FakeSteamTestCase):
         with open(self.calls, encoding="utf-8") as f:
             calls = f.read().splitlines()
         dialogs = [n for n, line in enumerate(calls) if line.startswith("zenity ")]
-        self.assertEqual(len(dialogs), 1, calls)
-        self.assertIn("--warning", calls[dialogs[0]])
-        self.assertIn("could not be applied", calls[dialogs[0]])
-        self.assertLess(dialogs[0], next(n for n, line in enumerate(calls) if "connect.exe" in line))
+        self.assertEqual(len(dialogs), 2, calls)  # one for each set
+        for n, name in zip(dialogs, ("HearthDAoC's client patches", "HearthDAoC's default layout")):
+            self.assertIn("--warning", calls[n])
+            self.assertIn(f"{name} could not be applied", calls[n])
+        self.assertLess(dialogs[1], next(n for n, line in enumerate(calls) if "connect.exe" in line))
 
     def test_without_a_patches_folder_nothing_is_patched(self):
         shutil.rmtree(self.patches)
@@ -274,7 +331,29 @@ class LaunchPatchTests(FakeSteamTestCase):
         self.assert_launched_once(r)
         self.assertEqual(r.stderr, "")
         self.assert_unpatched()
-        self.assertEqual(sorted(os.listdir(self.client)), ["game.dll", "paths.dat", "pregame"])
+        self.assertEqual(sorted(os.listdir(self.client)), ["default.ini", "game.dll", "paths.dat", "pregame"])
+        self.assertEqual(self.default_ini(), INI)
+
+    def test_without_a_set_s_file_only_the_other_set_is_applied(self):
+        # A player who restored a set and deleted its file keeps the game's own, quietly.
+        for name in ("default-layout.json", "classic-creation.json"):
+            with self.subTest(name):
+                self.apply()
+                for rel, data in (("game.dll", DLL), ("pregame/splash.mpk", SPLASH), ("default.ini", INI)):
+                    write_bytes(os.path.join(self.client, *rel.split("/")), data)
+                aside = os.path.join(self.tmp.name, name)
+                os.replace(os.path.join(self.patches, name), aside)
+                try:
+                    r = self.run_play()
+                finally:
+                    os.replace(aside, os.path.join(self.patches, name))
+                self.assertEqual(r.stderr, "")
+                if name == "default-layout.json":
+                    self.assert_classic_patched()
+                    self.assertEqual(self.default_ini(), INI)
+                else:
+                    self.assert_unpatched()
+                    self.assertEqual(self.default_ini(), INI_PATCHED)
 
 
 # A stand-in for the next release's setup.sh: it logs its arguments, one per line, and the folder it runs

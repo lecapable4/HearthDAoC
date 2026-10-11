@@ -222,20 +222,32 @@ if [[ ! -f "$PROFILE/user.dat" ]]; then
     printf '[main]\r\nfullscreen_windowed=1\r\n' > "$PROFILE/user.dat"
 fi
 
-# HearthDAoC's client patches (classic character creation, loading splash), installed by setup.sh:
-# files that something put back are patched again; an already patched client is only read. The
-# game starts whatever happens: 3 means a client the patches don't support (e.g. the b edition),
-# which plays with the standard creation screen. No patches folder, no patching.
-if [[ -f "$HERE/patches/apply_patches.py" ]]; then
-    rc=0; out="$(python3 "$HERE/patches/apply_patches.py" --client "$CL" 2>&1)" || rc=$?
+# HearthDAoC's client patch sets, installed by setup.sh: classic-creation.json (classic character creation,
+# loading splash) and default-layout.json (the window layout new characters start with). Each is applied on its
+# own, so one refused or failed never stops the other. Files that something put back are patched again; an
+# already patched client is only read. The game starts whatever happens: 3 means a client file the set doesn't
+# support (e.g. the b edition's game.dll), and nothing of that set was changed. No patches folder, no patching;
+# no set (a player who restored it and deleted it), no patching with it.
+patch_client() {  # patch_client <patch set> <note when refused> <the set, in a warning> <what may be missing>
+    local rc=0 out
+    [[ -f "$HERE/patches/$1" ]] || return 0
+    out="$(python3 "$HERE/patches/apply_patches.py" --client "$CL" --patchset "$HERE/patches/$1" 2>&1)" || rc=$?
     if [[ $rc -eq 0 ]]; then
         grep -v '^Already patched: ' <<<"$out" || true
     elif [[ $rc -eq 3 ]]; then
-        echo "play.sh: HearthDAoC's client patches don't support this client (for example the b edition); playing with the standard creation screen." >&2
+        echo "play.sh: $2" >&2
     else
         [[ -z "$out" ]] || echo "$out" >&2
-        tell warning "Warning: HearthDAoC's client patches could not be applied (apply_patches.py exit $rc), so the classic creation screen may be missing. The game starts anyway. Run $HERE/play.sh in a terminal to see the details."
+        tell warning "Warning: $3 could not be applied (apply_patches.py exit $rc), so $4. The game starts anyway. Run $HERE/play.sh in a terminal to see the details."
     fi
+}
+if [[ -f "$HERE/patches/apply_patches.py" ]]; then
+    patch_client classic-creation.json \
+        "HearthDAoC's client patches don't support this client (for example the b edition); playing with the standard creation screen." \
+        "HearthDAoC's client patches" "the classic creation screen may be missing"
+    patch_client default-layout.json \
+        "HearthDAoC's default layout doesn't support this client's default.ini; new characters start with the game's standard window layout." \
+        "HearthDAoC's default layout" "new characters may start with the game's standard window layout"
 fi
 
 cd "$CL"
