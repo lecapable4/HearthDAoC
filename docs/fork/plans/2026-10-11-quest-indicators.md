@@ -8,7 +8,10 @@
 > called. The review's five minors were then fixed too (owner, 2026-10-11): pure, unit-tested decisions for raw values
 > and for the adapter's rules, source checks of their wiring and of the hooks' nesting (each proven against a broken
 > copy), no quest effect after a GM's `/indicator create` value, and NPCs that left the world or whose object ID is
-> reused get their marker sent again. Rulings are in the PR.
+> reused get their marker sent again. A second adversarial review of those fixes found seven more minors, all fixed:
+> an NPC's move to a new object ID (a respawn) counts as a change and its old ID stays watched; no quest effect goes for
+> an NPC out of the world or in another region; tighter source checks (every one shown to fail on a broken copy).
+> Rulings are in the PR.
 
 **Goal:** Every NPC shows one quest marker from one set of rules (a yellow knot for a quest to take, a white knot for
 the player's current step, a blue knot to turn in), and the marker changes the moment the player's level, class or

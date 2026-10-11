@@ -161,7 +161,8 @@ As planned from the code research (2026-10-11):
 - The last-sent map is pruned at each refresh and dropped when the player quits, rather than cleared with the client's
   NPC cache: values sent in another region, and of NPCs that moved to another region, are dropped; an NPC that left the
   world (killed, removed) is marked unknown, because a client out of its range then still draws it, so its marker is
-  sent again when it comes back. Each value also keeps the object ID and region it was sent under.
+  sent again when it comes back. Each value also keeps the object ID and region it was sent under; when an NPC is
+  sent under a new ID (a respawn gets one), its old ID stays watched until the region changes.
 - `AbstractQuest.FinishQuest` and `AbortQuest` need no line of their own: both start by setting `Step`.
 - Further callers, which change quests without the hooks above: the two data-quest start types that finish on the spot
   (InteractComplete, KillComplete), and the daily, weekly and monthly rollovers, which make those quests available
@@ -169,8 +170,12 @@ As planned from the code research (2026-10-11):
 - A create packet whose value differs from the last one sent to that client, or that comes under an object ID another
   NPC was sent under in that region (object IDs are reused), also asks a refresh: an NPC that left the server's range
   lingers on the client, which may take its next create as an update and keep the old drawing; the refresh's quest
-  effect draws it (and costs one extra packet when an NPC with a marker first comes into view). Not for a GM's
-  `/indicator create` value: that create alone is what the GM is looking at.
+  effect draws it (and costs one extra packet when an NPC with a marker first comes into view). The same for a create
+  under an old ID of an NPC that moved, and for an NPC's own move to a new ID (the new ID may hold an unmarked object
+  the client still draws). Not for a GM's `/indicator create` value: that create alone is what the GM is looking at.
+- No quest effect goes for an NPC out of the world or in another region than the player: the packet carries only the
+  object ID, which there means another object on the client (upstream sends the start NPC's effect wherever it is, e.g.
+  when a quest whose giver is in Camelot is abandoned on the mainland).
 - An NPC whose indicator throws is logged and keeps its marker; the refresh goes on with the others.
 - Clients older than 1.124 use another create packet, which this does not change; the owner's launcher ships 1.127.
 - Talk steps can target attackable creatures (373 steps in 191 quests, e.g. moss sheeries during "Sile's Sight"); they
