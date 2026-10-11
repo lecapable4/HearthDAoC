@@ -56,7 +56,7 @@ public sealed class IndicatorCommandHandler : AbstractCommandHandler, ICommandHa
                 Show(client, npc);
                 break;
             case IndicatorAction.Effect:
-                gm.Out.SendNPCsQuestEffect(npc, (eQuestIndicator)request.Effect);
+                QuestIndicators.SendRawEffect(gm, npc, request.Effect);
                 Say(client, $"Sent {npc.Name}'s quest effect with byte {request.Effect} (0x{request.Effect:X2}), to you only. " +
                     "/indicator refresh puts the real one back.");
                 break;
@@ -114,12 +114,14 @@ public sealed class IndicatorCommandHandler : AbstractCommandHandler, ICommandHa
         }, RecreateDelay);
     }
 
-    // What the create packet just sent said: GetQuestIndicator is what PacketLib1124.SendNPCCreate asked.
+    // What the create packet just sent said: GetQuestIndicator is what PacketLib1124.SendNPCCreate asked, and
+    // QuestIndicators.WireFor what it put in the flags (the table, or an /indicator create value as it is).
     private static string Created(GameNPC npc, GamePlayer gm, out eQuestIndicator sent)
     {
         sent = npc.GetQuestIndicator(gm);
-        return $"{npc.Name} is back on your client; its create packet said {QuestIndicatorProbe.Name(sent)} " +
-            $"({QuestIndicatorProbe.CreateFlag(sent)}).";
+        eQuestIndicator wire = QuestIndicators.WireFor(gm, npc, sent);
+        return $"{npc.Name} is back on your client; its create packet said {QuestIndicatorProbe.Name(wire)} " +
+            $"({QuestIndicatorProbe.CreateFlag(wire)}: {QuestIndicatorProbe.Drawn(wire)}).";
     }
 
     private static void Create(GameClient client, GameNPC npc, eQuestIndicator indicator)
@@ -149,7 +151,7 @@ public sealed class IndicatorCommandHandler : AbstractCommandHandler, ICommandHa
         {
             string text = Created(npc, gm, out eQuestIndicator real);
             gm.Out.SendNPCsQuestEffect(npc, real);
-            Say(client, $"{text} Then the quest effect: byte {(byte)real}.");
+            Say(client, $"{text} Then the quest effect: byte {(byte)QuestIndicators.WireFor(gm, npc, real)}.");
         });
     }
 
@@ -212,7 +214,8 @@ public sealed class IndicatorCommandHandler : AbstractCommandHandler, ICommandHa
         {
             Type type = quest.GetType();
             scripted.Add(new GivenScriptedQuest(quest.Name, quest.CheckQuestQualification(player),
-                player.HasFinishedQuest(type), player.IsDoingQuest(type) != null, quest.MaxQuestCount));
+                player.HasFinishedQuest(type), player.IsDoingQuest(type) != null, quest.MaxQuestCount,
+                QuestIndicators.ScriptedMinLevel(quest)));
         }
 
         // GameNPC.CanFinishOneQuest's test, for every step type.

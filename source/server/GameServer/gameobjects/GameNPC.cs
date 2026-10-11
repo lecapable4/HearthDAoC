@@ -1664,15 +1664,15 @@ namespace DOL.GS
 			if (HearthDAoC.IndicatorOverrides.TryGet(player, this, out eQuestIndicator forced))
 				return forced;
 
-			// Available one ?
-			if (CanShowOneQuest(player))
-				return eQuestIndicator.Available;
-
-			// Finishing one ?
-			if (CanFinishOneQuest(player))
-				return eQuestIndicator.Finish;
-
-			return eQuestIndicator.None;
+			// HearthDAoC: one set of rules for every NPC (QuestIndicators.For): turn in, then the current step, then a quest
+			// to take whose minimum level is at most 15 below the player's. The quest lists are copied under their locks.
+			AbstractQuest[] scripted;
+			lock (_questListToGiveLock)
+				scripted = m_questListToGive.Cast<AbstractQuest>().ToArray();
+			DataQuest[] offered;
+			lock (_dataQuestsLock)
+				offered = DataQuestList.ToArray();
+			return HearthDAoC.QuestIndicators.For(this, player, scripted, offered);
 		}
 
 		/// <summary>

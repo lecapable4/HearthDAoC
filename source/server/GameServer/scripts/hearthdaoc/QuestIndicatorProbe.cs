@@ -28,8 +28,10 @@ public sealed record GivenDataQuest(int Id, string Name, string StartType, bool 
     string Dependency);
 
 // A scripted quest the NPC gives. Qualifies is the quest's CheckQuestQualification; it shows only while the times
-// finished and the one being done stay under MaxCount (GameNPC.CanShowOneQuest).
-public sealed record GivenScriptedQuest(string Name, bool Qualifies, int Finished, bool Doing, int MaxCount);
+// finished and the one being done stay under MaxCount (GameNPC.CanShowOneQuest). MinLevel: its Level when its class
+// declares one (QuestIndicators.ScriptedMinLevel), else null.
+public sealed record GivenScriptedQuest(string Name, bool Qualifies, int Finished, bool Doing, int MaxCount,
+    int? MinLevel = null);
 
 // A data quest of the player's whose current step targets this NPC.
 public sealed record StepAtNpc(int QuestId, string QuestName, int Step, DataQuest.eStepType StepType);
@@ -62,13 +64,6 @@ public static class QuestIndicatorProbe
     // NO_INDICATOR in its SourceName.
     private static readonly IReadOnlySet<string> HiddenStartTypes =
         new HashSet<string> { "Collection", "KillComplete", "InteractComplete", "SearchStart" };
-
-    // The step types that finish a quest at their target (GameNPC.CanFinishOneQuest).
-    private static readonly IReadOnlySet<DataQuest.eStepType> FinishSteps = new HashSet<DataQuest.eStepType>
-    {
-        DataQuest.eStepType.DeliverFinish, DataQuest.eStepType.InteractFinish, DataQuest.eStepType.KillFinish,
-        DataQuest.eStepType.WhisperFinish, DataQuest.eStepType.CollectFinish,
-    };
 
     public static string CreateNeeds => "create needs one of: " + string.Join(", ", Names);
 
@@ -129,25 +124,58 @@ public static class QuestIndicatorProbe
         _ => "no flag",
     };
 
-    public static bool Finishes(DataQuest.eStepType stepType) => FinishSteps.Contains(stepType);
+    // What the 1.127 client draws for a value on the wire (owner's /indicator test, 2026-10-10).
+    public static string Drawn(eQuestIndicator wire) => wire switch
+    {
+        eQuestIndicator.None => "nothing",
+        eQuestIndicator.Available => "a yellow ring at the feet",
+        eQuestIndicator.Finish => "a blue knot",
+        eQuestIndicator.Lesson => "a yellow book",
+        eQuestIndicator.Lore => "a yellow knot",
+        eQuestIndicator.Pending => "a white knot",
+        _ => "nothing known",
+    };
+
+    // A meaning and what it draws (QuestIndicators.Wire): "available (a yellow knot)".
+    public static string Meaning(eQuestIndicator meaning) => $"{Name(meaning)} ({Drawn(QuestIndicators.Wire(meaning))})";
+
+    // The step types that turn in a quest at their target (blue), and the earlier ones that see it (white).
+    public static bool Finishes(DataQuest.eStepType stepType) => QuestIndicators.FinishesHere(stepType);
+
+    public static bool Pends(DataQuest.eStepType stepType) => QuestIndicators.PendsHere(stepType);
 
     public static bool Shows(GivenScriptedQuest quest) =>
-        quest.Qualifies && quest.Finished + (quest.Doing ? 1 : 0) < quest.MaxCount;
+        QuestIndicators.ScriptedOffer(quest.MinLevel, quest.Qualifies, quest.Finished, quest.Doing, quest.MaxCount).Qualifies;
 
-    // GameNPC.GetQuestIndicator's rules: available if a quest can be given, else finish if one ends here, else none.
+    // A quest lights the NPC (yellow) when it shows and its minimum level is at most 15 below the player's.
+    public static bool Lights(GivenScriptedQuest quest, int level) =>
+        Shows(quest) && QuestIndicators.Shows(new QuestOffer(quest.MinLevel, true), level);
+
+    public static bool Lights(GivenDataQuest quest, int level) =>
+        quest.ShowsIndicator && QuestIndicators.Shows(new QuestOffer(quest.MinLevel, quest.Qualifies), level);
+
+    private static bool TooLow(int? minLevel, int level) => minLevel is int min && level - min > QuestIndicators.AvailableLevelSpan;
+
+    private static string TooLowText(int minLevel) =>
+        $"qualifies, but its level {minLevel} is more than {QuestIndicators.AvailableLevelSpan} below yours";
+
+    // GameNPC.GetQuestIndicator's rules (QuestIndicators.For): turn in, then the current step, then a quest to take.
     public static eQuestIndicator RulesIndicator(IndicatorFacts facts)
     {
-        if (facts.ScriptedQuests.Any(Shows) || facts.DataQuests.Any(q => q.ShowsIndicator && q.Qualifies))
-            return eQuestIndicator.Available;
         if (facts.StepsHere.Any(s => Finishes(s.StepType)) || facts.RewardQuestsDone.Count > 0)
             return eQuestIndicator.Finish;
+        if (facts.StepsHere.Any(s => Pends(s.StepType)))
+            return eQuestIndicator.Pending;
+        if (facts.ScriptedQuests.Any(q => Lights(q, facts.Level)) || facts.DataQuests.Any(q => Lights(q, facts.Level)))
+            return eQuestIndicator.Available;
         return eQuestIndicator.None;
     }
 
     // Why a data quest does or doesn't light the NPC, in DataQuest.CheckQuestQualification's order.
     public static string Why(GivenDataQuest quest, int level)
     {
-        string why = quest.Qualifies ? "qualifies" : WhyNot(quest, level);
+        string why = !quest.Qualifies ? WhyNot(quest, level)
+            : TooLow(quest.MinLevel, level) ? TooLowText(quest.MinLevel) : "qualifies";
         if (quest.ShowsIndicator)
             return why;
         string hidden = HiddenStartTypes.Contains(quest.StartType) ? $"a {quest.StartType} quest" : "NO_INDICATOR";
@@ -171,10 +199,10 @@ public static class QuestIndicatorProbe
         return "its custom step check refuses";
     }
 
-    public static string Why(GivenScriptedQuest quest)
+    public static string Why(GivenScriptedQuest quest, int level = 0)
     {
         if (Shows(quest))
-            return "qualifies";
+            return TooLow(quest.MinLevel, level) ? TooLowText(quest.MinLevel.Value) : "qualifies";
         if (!quest.Qualifies)
             return "its own check refuses";
         return quest.Doing ? "you are doing it" : "already done";
@@ -186,16 +214,16 @@ public static class QuestIndicatorProbe
     {
         var lines = new List<string>();
         if (facts.Forced is eQuestIndicator forced)
-            lines.Add($"You see {Name(forced)} ({CreateFlag(forced)}), set by /indicator create for you only; the real one:");
+            lines.Add($"You see {Name(forced)} ({CreateFlag(forced)}: {Drawn(forced)}), set by /indicator create for you only; the real one:");
 
         eQuestIndicator rules = RulesIndicator(facts);
         object named = null;
         string reason;
         if (rules == eQuestIndicator.Available)
         {
-            GivenScriptedQuest scripted = facts.ScriptedQuests.FirstOrDefault(Shows);
-            GivenDataQuest data = facts.DataQuests.FirstOrDefault(q => q.ShowsIndicator && q.Qualifies);
-            int count = facts.ScriptedQuests.Count(Shows) + facts.DataQuests.Count(q => q.ShowsIndicator && q.Qualifies);
+            GivenScriptedQuest scripted = facts.ScriptedQuests.FirstOrDefault(q => Lights(q, facts.Level));
+            GivenDataQuest data = facts.DataQuests.FirstOrDefault(q => Lights(q, facts.Level));
+            int count = facts.ScriptedQuests.Count(q => Lights(q, facts.Level)) + facts.DataQuests.Count(q => Lights(q, facts.Level));
             named = (object)scripted ?? data;
             reason = (scripted != null ? $"scripted quest {scripted.Name}" : $"data quest {data.Id} {data.Name}") +
                 " (qualifies)" + (count > 1 ? $" and {count - 1} more" : string.Empty);
@@ -208,18 +236,24 @@ public static class QuestIndicatorProbe
                 ? $"data quest {step.QuestId} step {step.Step} targets this NPC"
                 : $"reward quest {facts.RewardQuestsDone[0]} has every goal done";
         }
+        else if (rules == eQuestIndicator.Pending)
+        {
+            StepAtNpc step = facts.StepsHere.First(s => Pends(s.StepType));
+            named = step;
+            reason = $"data quest {step.QuestId} step {step.Step} ({step.StepType}) is at this NPC";
+        }
         else
             reason = NoneReason(facts);
 
         if (facts.Actual == rules)
-            lines.Add($"{Name(facts.Actual)}: {reason}");
+            lines.Add($"{Meaning(facts.Actual)}: {reason}");
         else
-            lines.Add($"{Name(facts.Actual)}: {facts.OverridingClass ?? "the NPC"} decides; GameNPC's rules give {Name(rules)}: {reason}");
+            lines.Add($"{Meaning(facts.Actual)}: {facts.OverridingClass ?? "the NPC"} decides; GameNPC's rules give {Name(rules)}: {reason}");
 
         if (rules != eQuestIndicator.None)
         {
             foreach (GivenScriptedQuest quest in facts.ScriptedQuests.Where(q => !ReferenceEquals(q, named)))
-                lines.Add($"  scripted quest {quest.Name}: {Why(quest)}");
+                lines.Add($"  scripted quest {quest.Name}: {Why(quest, facts.Level)}");
             foreach (GivenDataQuest quest in facts.DataQuests.Where(q => !ReferenceEquals(q, named)))
                 lines.Add($"  data quest {quest.Id} {quest.Name}: {Why(quest, facts.Level)}");
         }
@@ -227,7 +261,7 @@ public static class QuestIndicatorProbe
             lines.Add($"  reward quest {quest} has every goal done");
         foreach (StepAtNpc step in facts.StepsHere.Where(s => !ReferenceEquals(s, named)))
             lines.Add($"  your data quest {step.QuestId} {step.QuestName} is at step {step.Step} ({step.StepType}) here" +
-                (Finishes(step.StepType) ? string.Empty : ", not a finishing step"));
+                (Finishes(step.StepType) || Pends(step.StepType) ? string.Empty : ", a step that shows no marker"));
         if (facts.OverridingClass != null)
             lines.Add($"  {facts.OverridingClass} overrides GetQuestIndicator" +
                 (facts.Actual == rules ? "; here it agrees with GameNPC's rules" : string.Empty));
@@ -244,7 +278,7 @@ public static class QuestIndicatorProbe
             counts.Add(data == 1 ? "1 data quest" : $"{data} data quests");
         if (scripted > 0)
             counts.Add(scripted == 1 ? "1 scripted quest" : $"{scripted} scripted quests");
-        IEnumerable<string> why = facts.ScriptedQuests.Select(q => $"{q.Name}: {Why(q)}")
+        IEnumerable<string> why = facts.ScriptedQuests.Select(q => $"{q.Name}: {Why(q, facts.Level)}")
             .Concat(facts.DataQuests.Select(q => $"{q.Id}: {Why(q, facts.Level)}"));
         return $"{string.Join(" and ", counts)}, none qualifies ({string.Join("; ", why)})";
     }

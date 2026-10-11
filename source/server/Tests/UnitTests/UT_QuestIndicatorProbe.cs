@@ -220,7 +220,7 @@ public sealed class UT_QuestIndicatorProbe
         Assert.That(QuestIndicatorProbe.RulesIndicator(facts), Is.EqualTo(eQuestIndicator.Available));
         Assert.That(QuestIndicatorProbe.Explain(facts), Is.EqualTo(new[]
         {
-            "available: data quest 20478 Strange Beings (qualifies)",
+            "available (a yellow knot): data quest 20478 Strange Beings (qualifies)",
             "  data quest 21500 Traveler's Way -- Supply Run: dependencies !#20478/21324 not met",
         }));
     }
@@ -233,7 +233,7 @@ public sealed class UT_QuestIndicatorProbe
             Data(20478, "Strange Beings", qualifies: true),
             Data(20001, "Some Errand", qualifies: true),
         });
-        Assert.That(QuestIndicatorProbe.Explain(facts)[0], Is.EqualTo("available: data quest 20478 Strange Beings (qualifies) and 1 more"));
+        Assert.That(QuestIndicatorProbe.Explain(facts)[0], Is.EqualTo("available (a yellow knot): data quest 20478 Strange Beings (qualifies) and 1 more"));
         Assert.That(QuestIndicatorProbe.Explain(facts)[1], Is.EqualTo("  data quest 20001 Some Errand: qualifies"));
     }
 
@@ -249,9 +249,9 @@ public sealed class UT_QuestIndicatorProbe
             });
         Assert.That(QuestIndicatorProbe.Explain(facts), Is.EqualTo(new[]
         {
-            "finish: data quest 20157 step 6 targets this NPC",
+            "finish (a blue knot): data quest 20157 step 6 targets this NPC",
             "  data quest 20157 Entry Into Tomorrow: needs level 11",
-            "  your data quest 20188 Rebellion Accepted is at step 2 (Kill) here, not a finishing step",
+            "  your data quest 20188 Rebellion Accepted is at step 2 (Kill) here, a step that shows no marker",
         }));
     }
 
@@ -259,17 +259,67 @@ public sealed class UT_QuestIndicatorProbe
     public void ARewardQuestWithEveryGoalDoneFinishes()
     {
         IndicatorFacts facts = Facts(eQuestIndicator.Finish, rewards: new[] { "Wolf Pelts" });
-        Assert.That(QuestIndicatorProbe.Explain(facts), Is.EqualTo(new[] { "finish: reward quest Wolf Pelts has every goal done" }));
+        Assert.That(QuestIndicatorProbe.Explain(facts), Is.EqualTo(new[] { "finish (a blue knot): reward quest Wolf Pelts has every goal done" }));
     }
 
     [Test]
-    public void AvailableComesBeforeFinish()
+    public void FinishComesBeforePendingAndAvailable()
     {
-        IndicatorFacts facts = Facts(eQuestIndicator.Available, new[] { Data(20478, "Strange Beings", qualifies: true) },
-            steps: new[] { new StepAtNpc(20157, "Entry Into Tomorrow", 6, DataQuest.eStepType.InteractFinish) });
-        Assert.That(QuestIndicatorProbe.RulesIndicator(facts), Is.EqualTo(eQuestIndicator.Available));
-        Assert.That(QuestIndicatorProbe.Explain(facts)[^1],
-            Is.EqualTo("  your data quest 20157 Entry Into Tomorrow is at step 6 (InteractFinish) here"));
+        IndicatorFacts facts = Facts(eQuestIndicator.Finish, new[] { Data(20478, "Strange Beings", qualifies: true) },
+            steps: new[]
+            {
+                new StepAtNpc(20469, "Shades and Shadows", 2, DataQuest.eStepType.Interact),
+                new StepAtNpc(20157, "Entry Into Tomorrow", 6, DataQuest.eStepType.InteractFinish),
+            });
+        Assert.That(QuestIndicatorProbe.RulesIndicator(facts), Is.EqualTo(eQuestIndicator.Finish));
+        Assert.That(QuestIndicatorProbe.Explain(facts), Is.EqualTo(new[]
+        {
+            "finish (a blue knot): data quest 20157 step 6 targets this NPC",
+            "  data quest 20478 Strange Beings: qualifies",
+            "  your data quest 20469 Shades and Shadows is at step 2 (Interact) here",
+        }));
+    }
+
+    [Test]
+    public void PendingNamesTheStepAndComesBeforeAvailable()
+    {
+        IndicatorFacts facts = Facts(eQuestIndicator.Pending, new[] { Data(20478, "Strange Beings", qualifies: true) },
+            steps: new[] { new StepAtNpc(20478, "Strange Beings", 1, DataQuest.eStepType.Interact) });
+        Assert.That(QuestIndicatorProbe.RulesIndicator(facts), Is.EqualTo(eQuestIndicator.Pending));
+        Assert.That(QuestIndicatorProbe.Explain(facts), Is.EqualTo(new[]
+        {
+            "pending (a white knot): data quest 20478 step 1 (Interact) is at this NPC",
+            "  data quest 20478 Strange Beings: qualifies",
+        }));
+    }
+
+    [Test]
+    public void AQuestMoreThanFifteenLevelsBelowShowsNothing()
+    {
+        IndicatorFacts facts = Facts(eQuestIndicator.None, new[] { Data(20478, "Strange Beings", qualifies: true) },
+            level: 30);
+        Assert.That(QuestIndicatorProbe.RulesIndicator(facts), Is.EqualTo(eQuestIndicator.None));
+        Assert.That(QuestIndicatorProbe.Explain(facts), Is.EqualTo(new[]
+        {
+            "none (nothing): 1 data quest, none qualifies (20478: qualifies, but its level 7 is more than 15 below yours)",
+        }));
+        Assert.That(QuestIndicatorProbe.RulesIndicator(facts with { Level = 22 }), Is.EqualTo(eQuestIndicator.Available));
+
+        var epic = new GivenScriptedQuest("AncestralSecrets", true, 0, false, 1, MinLevel: 48);
+        Assert.That(QuestIndicatorProbe.Lights(epic, 50), Is.True);
+        Assert.That(QuestIndicatorProbe.Lights(epic with { MinLevel = 20 }, 50), Is.False);
+        Assert.That(QuestIndicatorProbe.Lights(epic with { MinLevel = null }, 50), Is.True);
+    }
+
+    [Test]
+    public void EachValueSaysWhatIsDrawn()
+    {
+        Assert.That(QuestIndicatorProbe.Drawn(eQuestIndicator.Available), Is.EqualTo("a yellow ring at the feet"));
+        Assert.That(QuestIndicatorProbe.Drawn(eQuestIndicator.Lore), Is.EqualTo("a yellow knot"));
+        Assert.That(QuestIndicatorProbe.Meaning(eQuestIndicator.Available), Is.EqualTo("available (a yellow knot)"));
+        Assert.That(QuestIndicatorProbe.Meaning(eQuestIndicator.Pending), Is.EqualTo("pending (a white knot)"));
+        Assert.That(QuestIndicatorProbe.Meaning(eQuestIndicator.Finish), Is.EqualTo("finish (a blue knot)"));
+        Assert.That(QuestIndicatorProbe.Meaning(eQuestIndicator.Lore), Is.EqualTo("lore (nothing)"));
     }
 
     [Test]
@@ -283,7 +333,7 @@ public sealed class UT_QuestIndicatorProbe
         }, level: 6);
         Assert.That(QuestIndicatorProbe.Explain(facts), Is.EqualTo(new[]
         {
-            "none: 3 data quests, none qualifies (20478: needs level 7; 20157: needs level 11; 20001: already done)",
+            "none (nothing): 3 data quests, none qualifies (20478: needs level 7; 20157: needs level 11; 20001: already done)",
         }));
     }
 
@@ -291,7 +341,7 @@ public sealed class UT_QuestIndicatorProbe
     public void NoneWithNoQuests()
     {
         Assert.That(QuestIndicatorProbe.Explain(Facts(eQuestIndicator.None)),
-            Is.EqualTo(new[] { "none: this NPC gives no quests, and no quest of yours finishes here" }));
+            Is.EqualTo(new[] { "none (nothing): this NPC gives no quests, and no quest of yours finishes here" }));
     }
 
     [Test]
@@ -300,13 +350,13 @@ public sealed class UT_QuestIndicatorProbe
         IndicatorFacts none = Facts(eQuestIndicator.None, new[] { Data(20478, "Strange Beings", doing: true) },
             new[] { new GivenScriptedQuest("Shadows_50", true, 1, false, 1) });
         Assert.That(QuestIndicatorProbe.Explain(none)[0], Is.EqualTo(
-            "none: 1 data quest and 1 scripted quest, none qualifies (Shadows_50: already done; 20478: you are doing it)"));
+            "none (nothing): 1 data quest and 1 scripted quest, none qualifies (Shadows_50: already done; 20478: you are doing it)"));
 
         IndicatorFacts available = Facts(eQuestIndicator.Available, new[] { Data(20478, "Strange Beings", qualifies: true) },
             new[] { new GivenScriptedQuest("Academy_50", true, 0, false, 1), new GivenScriptedQuest("Viking_50", false, 0, false, 1) });
         Assert.That(QuestIndicatorProbe.Explain(available), Is.EqualTo(new[]
         {
-            "available: scripted quest Academy_50 (qualifies) and 1 more",
+            "available (a yellow knot): scripted quest Academy_50 (qualifies) and 1 more",
             "  scripted quest Viking_50: its own check refuses",
             "  data quest 20478 Strange Beings: qualifies",
         }));
@@ -349,15 +399,20 @@ public sealed class UT_QuestIndicatorProbe
     }
 
     [Test]
-    public void OnlyFinishStepsFinish()
+    public void OnlyTalkStepsFinishOrPend()
     {
-        foreach (DataQuest.eStepType step in new[] { DataQuest.eStepType.KillFinish, DataQuest.eStepType.DeliverFinish,
-                     DataQuest.eStepType.InteractFinish, DataQuest.eStepType.WhisperFinish, DataQuest.eStepType.CollectFinish })
+        foreach (DataQuest.eStepType step in new[] { DataQuest.eStepType.DeliverFinish, DataQuest.eStepType.InteractFinish,
+                     DataQuest.eStepType.WhisperFinish, DataQuest.eStepType.CollectFinish })
             Assert.That(QuestIndicatorProbe.Finishes(step), Is.True, step.ToString());
-        foreach (DataQuest.eStepType step in new[] { DataQuest.eStepType.Kill, DataQuest.eStepType.Deliver,
-                     DataQuest.eStepType.Interact, DataQuest.eStepType.Whisper, DataQuest.eStepType.Collect,
+        foreach (DataQuest.eStepType step in new[] { DataQuest.eStepType.Deliver, DataQuest.eStepType.Interact,
+                     DataQuest.eStepType.Whisper, DataQuest.eStepType.Collect })
+            Assert.That(QuestIndicatorProbe.Pends(step), Is.True, step.ToString());
+        foreach (DataQuest.eStepType step in new[] { DataQuest.eStepType.Kill, DataQuest.eStepType.KillFinish,
                      DataQuest.eStepType.Search, DataQuest.eStepType.SearchFinish })
+        {
             Assert.That(QuestIndicatorProbe.Finishes(step), Is.False, step.ToString());
+            Assert.That(QuestIndicatorProbe.Pends(step), Is.False, step.ToString());
+        }
     }
 
     [Test]
@@ -366,7 +421,7 @@ public sealed class UT_QuestIndicatorProbe
         IndicatorFacts differs = Facts(eQuestIndicator.Available, overriding: "BountyMaster");
         Assert.That(QuestIndicatorProbe.Explain(differs), Is.EqualTo(new[]
         {
-            "available: BountyMaster decides; GameNPC's rules give none: this NPC gives no quests, and no quest of yours finishes here",
+            "available (a yellow knot): BountyMaster decides; GameNPC's rules give none: this NPC gives no quests, and no quest of yours finishes here",
             "  BountyMaster overrides GetQuestIndicator",
         }));
 
@@ -374,7 +429,7 @@ public sealed class UT_QuestIndicatorProbe
             overriding: "SluaghbinderTrainer");
         Assert.That(QuestIndicatorProbe.Explain(agrees), Is.EqualTo(new[]
         {
-            "available: data quest 20478 Strange Beings (qualifies)",
+            "available (a yellow knot): data quest 20478 Strange Beings (qualifies)",
             "  SluaghbinderTrainer overrides GetQuestIndicator; here it agrees with GameNPC's rules",
         }));
     }
@@ -385,8 +440,8 @@ public sealed class UT_QuestIndicatorProbe
         IndicatorFacts facts = Facts(eQuestIndicator.None, forced: eQuestIndicator.Lore);
         Assert.That(QuestIndicatorProbe.Explain(facts), Is.EqualTo(new[]
         {
-            "You see lore (flags3 0x02), set by /indicator create for you only; the real one:",
-            "none: this NPC gives no quests, and no quest of yours finishes here",
+            "You see lore (flags3 0x02: a yellow knot), set by /indicator create for you only; the real one:",
+            "none (nothing): this NPC gives no quests, and no quest of yours finishes here",
         }));
     }
 }

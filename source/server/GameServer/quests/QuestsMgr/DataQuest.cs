@@ -952,6 +952,7 @@ namespace DOL.GS.Quests
 					if (m_charQuest.Step != oldStep)
 					{
 						GameServer.Database.SaveObject(m_charQuest);
+						HearthDAoC.QuestIndicators.Refresh(m_questPlayer); // HearthDAoC: quest markers change when a data quest moves to its next step.
 					}
 				}
 			}
@@ -2180,6 +2181,7 @@ namespace DOL.GS.Quests
 								player.AddFinishedQuest(this);
 
 							player.Out.SendQuestListUpdate();
+							HearthDAoC.QuestIndicators.Refresh(player); // HearthDAoC: a quest finished on the spot can unlock another NPC's quest.
 							player.Out.SendMessage(string.Format(LanguageMgr.GetTranslation(player.Client.Account.Language, "AbstractQuest.FinishQuest.Completed", Name)), eChatType.CT_ScreenCenter, eChatLoc.CL_SystemWindow);
 							player.Out.SendMessage(string.Format(LanguageMgr.GetTranslation(player.Client.Account.Language, "AbstractQuest.FinishQuest.Completed", Name)), eChatType.CT_Important, eChatLoc.CL_SystemWindow);
 						}
@@ -2929,6 +2931,7 @@ namespace DOL.GS.Quests
 									player.AddFinishedQuest(this);
 
 								player.Out.SendQuestListUpdate();
+								HearthDAoC.QuestIndicators.Refresh(player); // HearthDAoC: a quest finished on the spot can unlock another NPC's quest.
 								player.Out.SendMessage(string.Format(LanguageMgr.GetTranslation(player.Client.Account.Language, "AbstractQuest.FinishQuest.Completed", Name)), eChatType.CT_ScreenCenter, eChatLoc.CL_SystemWindow);
 								player.Out.SendMessage(string.Format(LanguageMgr.GetTranslation(player.Client.Account.Language, "AbstractQuest.FinishQuest.Completed", Name)), eChatType.CT_Important, eChatLoc.CL_SystemWindow);
 							}
@@ -3343,6 +3346,7 @@ namespace DOL.GS.Quests
 				UpdateQuestIndicator(npc, m_questPlayer);
 			}
 
+			HearthDAoC.QuestIndicators.Refresh(m_questPlayer); // HearthDAoC: quest markers change when a data quest is finished.
 			return true;
 		}
 
@@ -3385,6 +3389,7 @@ namespace DOL.GS.Quests
 
 			if (m_startNPC != null)
 				UpdateQuestIndicator(m_startNPC, m_questPlayer);
+			HearthDAoC.QuestIndicators.Refresh(m_questPlayer); // HearthDAoC: quest markers change when a data quest is abandoned.
 		}
 
 		/// <summary>

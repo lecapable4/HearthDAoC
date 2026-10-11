@@ -103,6 +103,7 @@ public sealed class EpicCommandHandler : AbstractCommandHandler, ICommandHandler
             target.AddFinishedQuest(new DataQuest(target, row, finished));
         }
         target.Out.SendQuestListUpdate();
+        QuestIndicators.Refresh(target); // the markers around the character follow the new quest lists at once
         DisplayMessage(client, ids.Count == 0
             ? $"Nothing below level {level} to mark for {target.Name}."
             : $"{target.Name}: marked finished {string.Join(", ", ids)}. See /epic.");
@@ -155,6 +156,7 @@ public sealed class EpicCommandHandler : AbstractCommandHandler, ICommandHandler
         }
         target.RemoveFinishedQuests(q => q is DataQuest dataQuest && ids.Contains(dataQuest.ID));
         target.Out.SendQuestListUpdate();
+        QuestIndicators.Refresh(target); // the markers around the character follow the new quest lists at once
         DisplayMessage(client, $"{target.Name}: the chain is reset." +
             (hadLast ? $" That removed the finished {chain[^1].Name} ({last}): its reward can be given again." : string.Empty));
     }

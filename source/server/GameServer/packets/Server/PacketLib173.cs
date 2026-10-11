@@ -493,6 +493,10 @@ namespace DOL.GS.PacketHandler
 			if (m_gameClient.Player == null || npc == null)
 				return;
 
+			// HearthDAoC: the meaning becomes the value the client draws, recorded as sent to this player; nothing goes for an NPC out of the world or in another region, whose object ID is another object on this client (QuestIndicators.cs; /indicator's values stay raw).
+			if (!HearthDAoC.QuestIndicators.Sending(m_gameClient.Player, npc, ref indicator))
+				return;
+
 			using (var pak = PooledObjectFactory.GetForTick<GSTCPPacketOut>().Init(GetPacketCode(eServerPackets.VisualEffect)))
 			{
 
