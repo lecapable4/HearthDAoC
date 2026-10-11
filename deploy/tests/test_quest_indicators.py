@@ -111,5 +111,12 @@ class EndingsTests(unittest.TestCase):
             self.assertFalse(raw.startswith(b"\xef\xbb\xbf"), path)
 
 
+class ProbeTests(unittest.TestCase):
+    def test_indicator_effect_stays_raw(self):
+        text = read(INDICATOR)
+        self.assertIn("QuestIndicators.SendRawEffect(gm, npc, request.Effect);", text)
+        self.assertNotIn("SendNPCsQuestEffect(npc, (eQuestIndicator)request.Effect)", text)
+
+
 if __name__ == "__main__":
     unittest.main()
