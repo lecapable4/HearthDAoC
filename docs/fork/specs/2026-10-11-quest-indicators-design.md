@@ -158,16 +158,19 @@ itself unused): `QuestIndicators` repeats their tests, and FORK.md tells upstrea
 As planned from the code research (2026-10-11):
 - The refresh runs as a posted action of `GameLoopService`, which runs first and alone in each tick, so it never
   overlaps a client's packet sending; a request queues at most one run per player, in the next tick (about 33 ms).
-- The last-sent map is pruned at each refresh (NPCs out of the world or in another region) and dropped when the player
-  quits, rather than cleared with the client's NPC cache: every NPC that comes back on the client comes with a create
-  packet, which overwrites its value.
+- The last-sent map is pruned at each refresh and dropped when the player quits, rather than cleared with the client's
+  NPC cache: values sent in another region, and of NPCs that moved to another region, are dropped; an NPC that left the
+  world (killed, removed) is marked unknown, because a client out of its range then still draws it, so its marker is
+  sent again when it comes back. Each value also keeps the object ID and region it was sent under.
 - `AbstractQuest.FinishQuest` and `AbortQuest` need no line of their own: both start by setting `Step`.
 - Further callers, which change quests without the hooks above: the two data-quest start types that finish on the spot
   (InteractComplete, KillComplete), and the daily, weekly and monthly rollovers, which make those quests available
   again.
-- A create packet whose value differs from the last one sent to that client also asks a refresh: an NPC that left the
-  server's range lingers on the client, which may take its next create as an update and keep the old drawing; the
-  refresh's quest effect draws it (and costs one extra packet when an NPC with a marker first comes into view).
+- A create packet whose value differs from the last one sent to that client, or that comes under an object ID another
+  NPC was sent under in that region (object IDs are reused), also asks a refresh: an NPC that left the server's range
+  lingers on the client, which may take its next create as an update and keep the old drawing; the refresh's quest
+  effect draws it (and costs one extra packet when an NPC with a marker first comes into view). Not for a GM's
+  `/indicator create` value: that create alone is what the GM is looking at.
 - An NPC whose indicator throws is logged and keeps its marker; the refresh goes on with the others.
 - Clients older than 1.124 use another create packet, which this does not change; the owner's launcher ships 1.127.
 - Talk steps can target attackable creatures (373 steps in 191 quests, e.g. moss sheeries during "Sile's Sight"); they

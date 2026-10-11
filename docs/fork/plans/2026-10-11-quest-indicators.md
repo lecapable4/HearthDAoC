@@ -5,7 +5,10 @@
 > **After execution (2026-10-11):** the six tasks ran inline (commits 448092c..fc68656). The final review's fixes are
 > documentation only, in the commit after fc68656: in-game check 9 now goes past the server's 6,000-unit range (this
 > plan's copy says 4,000), and FORK.md and the spec say that `CanShowOneQuest`/`CanFinishOneQuest` are no longer
-> called. Deferred minors and rulings are in the PR.
+> called. The review's five minors were then fixed too (owner, 2026-10-11): pure, unit-tested decisions for raw values
+> and for the adapter's rules, source checks of their wiring and of the hooks' nesting (each proven against a broken
+> copy), no quest effect after a GM's `/indicator create` value, and NPCs that left the world or whose object ID is
+> reused get their marker sent again. Rulings are in the PR.
 
 **Goal:** Every NPC shows one quest marker from one set of rules (a yellow knot for a quest to take, a white knot for
 the player's current step, a blue knot to turn in), and the marker changes the moment the player's level, class or
