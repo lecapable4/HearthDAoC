@@ -12,6 +12,9 @@
 4. Upstream's 0.35 world has two Mob rows at the same spot for two Albion townspeople, Ley Manton and Tria
    Ellowis: the merchant and a plain GameNPC copy of it, so players see two identical NPCs. Remove the plain
    copy (archived first in the fork table fork_removed_mobs), only where the merchant is still at its spot.
+   It also has two fighter trainers called Master Graent in Prydwen Keep, 770 units apart: remove the one among
+   the merchants outside (archived the same way), only while that row is still upstream's, at its spot, and the
+   one in the keep is still in the world.
 5. The classic battlegrounds (levels 15 to 35, as in the Shrouded Isles era): battlegrounds.py, once per
    world (the marker classic-battlegrounds-v2 in fork_world_fixes). It runs last, under its own
    savepoint: if it fails, it undoes only itself and prints why, and the fixes above are still saved.
@@ -47,6 +50,15 @@ DISCIPLE, SARACEN, INCONNU = 20, 4, 13
 
 # Step 4: the townspeople whose plain copy stands on their merchant, and the archive of the removed rows.
 DUPLICATE_TOWNSPEOPLE = ("Ley Manton", "Tria Ellowis")
+# Other duplicates, each one row: (Mob_ID, Name, ClassType, Region, X, Y, Z) as upstream ships it, and the Mob_ID
+# of the copy that stays. The row goes only while it holds those values and the copy that stays has its name in
+# its region.
+DUPLICATE_ROWS = [
+    # Prydwen Keep (Camelot Hills): the fighter trainer among the merchants just outside goes, the one in the
+    # keep's middle structure, by the healer and the town crier, stays (#101, the owner met both 2026-10-11).
+    (("1e0dc1a7-6b01-4a38-845d-f8ef417a09e1", "Master Graent", "DOL.GS.Trainer.FighterTrainer", 1, 574886, 530169,
+      2896), "deecddf1-2306-4194-a3e8-bab803d450fa"),
+]
 DUPLICATES_FIX_ID = "duplicate-townspeople"
 ARCHIVE_TABLE = battlegrounds.ARCHIVE_TABLE
 
@@ -88,15 +100,21 @@ def without_classes(value, ids):
 
 def remove_duplicate_townspeople(conn, now):
     """Remove the plain GameNPC copy of Ley Manton and Tria Ellowis where a GameMerchant of the same name stands at
-    exactly its spot (Name, Region, X, Y, Z), keeping the copy in the archive table. Returns the names removed."""
+    exactly its spot (Name, Region, X, Y, Z), and each DUPLICATE_ROWS row that is still upstream's while its kept
+    copy is in the world, keeping the rows in the archive table. Returns the names removed."""
     have = {name for _, name, *_ in conn.execute('PRAGMA table_info("Mob")')}
     if not {"Mob_ID", "Name", "ClassType", "ItemsListTemplateID", "Region", "X", "Y", "Z"} <= have:
         return []  # no Mob table, or not upstream's
     marks = ", ".join("?" * len(DUPLICATE_TOWNSPEOPLE))
-    where = (f"Name IN ({marks}) AND ClassType='DOL.GS.GameNPC' AND COALESCE(ItemsListTemplateID, '') = '' "
+    where = (f"(Name IN ({marks}) AND ClassType='DOL.GS.GameNPC' AND COALESCE(ItemsListTemplateID, '') = '' "
              "AND EXISTS (SELECT 1 FROM Mob m WHERE m.ClassType='DOL.GS.GameMerchant' AND m.Name=Mob.Name "
-             "AND m.Region=Mob.Region AND m.X=Mob.X AND m.Y=Mob.Y AND m.Z=Mob.Z)")
-    names = [r[0] for r in conn.execute(f"SELECT Name FROM Mob WHERE {where} ORDER BY Name, Mob_ID", DUPLICATE_TOWNSPEOPLE)]
+             "AND m.Region=Mob.Region AND m.X=Mob.X AND m.Y=Mob.Y AND m.Z=Mob.Z))")
+    args = list(DUPLICATE_TOWNSPEOPLE)
+    for row, kept in DUPLICATE_ROWS:
+        where += (" OR (Mob_ID=? AND Name=? AND ClassType=? AND Region=? AND X=? AND Y=? AND Z=? "
+                  "AND EXISTS (SELECT 1 FROM Mob k WHERE k.Mob_ID=? AND k.Name=Mob.Name AND k.Region=Mob.Region))")
+        args += [*row, kept]
+    names = [r[0] for r in conn.execute(f"SELECT Name FROM Mob WHERE {where} ORDER BY Name, Mob_ID", args)]
     if not names:
         return []
     # The same archive as battlegrounds.py's (the Mob columns, FixId, RemovedUtc); it may not exist yet.
@@ -105,8 +123,8 @@ def remove_duplicate_townspeople(conn, now):
     archive = {name for _, name, *_ in conn.execute(f'PRAGMA table_info("{ARCHIVE_TABLE}")')}
     cols = ", ".join(f'"{name}"' for _, name, *_ in conn.execute('PRAGMA table_info("Mob")') if name in archive)
     conn.execute(f"INSERT INTO {ARCHIVE_TABLE} ({cols}, FixId, RemovedUtc) SELECT {cols}, ?, ? FROM Mob WHERE {where}",
-                 (DUPLICATES_FIX_ID, now, *DUPLICATE_TOWNSPEOPLE))
-    conn.execute(f"DELETE FROM Mob WHERE {where}", DUPLICATE_TOWNSPEOPLE)
+                 (DUPLICATES_FIX_ID, now, *args))
+    conn.execute(f"DELETE FROM Mob WHERE {where}", args)
     return sorted(set(names))
 
 

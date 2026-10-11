@@ -109,9 +109,13 @@ For example, `./hdc stop && ./hdc bot-goals set 20-49 20 20 30 30`, then the oth
 way, then `./hdc up`.
 
 **Duplicate townspeople.** Upstream's world has two copies of Ley Manton and of Tria Ellowis at the same
-spot (the merchant and a plain NPC). At every start, a plain copy standing exactly on its merchant is removed
-and kept in `fork_removed_mobs` (FixId `duplicate-townspeople`); `./hdc fixes` shows `Duplicate townspeople
-removed`. Nothing else is touched, and a world without the copies is left alone.
+spot (the merchant and a plain NPC), and two Master Graents, the fighter trainer, in Prydwen Keep: one in the
+keep's middle structure, by the healer and the town crier, and one among the merchants just outside. At every
+start, a plain copy standing exactly on its merchant is removed, and so is the Master Graent outside (only that
+row, while it is still at its spot and the one in the keep is there); each is kept in `fork_removed_mobs`
+(FixId `duplicate-townspeople`). `./hdc fixes` shows `Duplicate townspeople removed, archived in
+fork_removed_mobs: ...` with their names; a world that lost the townspeople's copies at an earlier start shows
+only `Master Graent`. Nothing else is touched, and a world without the copies is left alone.
 
 **Classic battlegrounds.** At its first start, a world gets the classic battlegrounds (Abermenai 15-19,
 Thidranki 20-24, Murdaigean 25-29, Caledonia 30-35); `./hdc fixes` shows each change on a line starting
