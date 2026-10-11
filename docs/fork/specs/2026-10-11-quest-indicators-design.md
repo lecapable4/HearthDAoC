@@ -1,6 +1,7 @@
 # Quest indicators: one scheme for every quest (design)
 
-Status: the design was approved by the owner in conversation on 2026-10-10; this written spec awaits the owner's review.
+Status: approved by the owner on 2026-10-11 (design in conversation 2026-10-10; written spec 2026-10-11, with the
+decisions and findings of 2026-10-11 added below).
 Date: 2026-10-11. Fork: `lometur/HearthDAoC`. Branch: `quest-indicators`. Release: merging the PR publishes the next
 release; the server picks it up with `./hdc update`. No world data changes.
 
@@ -49,6 +50,16 @@ Both routes draw the same: the NPC create packet (flags) and the quest effect pa
   level ("If the player is more than 15 levels above the quest's minimum level, the yellow indicator will not be
   displayed on the NPC").
 - **Markers update at once** when the player's level, class or quests change.
+- **Daily, weekly and monthly quests have no level rule** (owner, 2026-10-11). These are Atlas's freeshard quests (60:
+  `DailyQuest`, `WeeklyQuest`, `MonthlyQuest`); their goals and rewards follow the player's level, so their givers keep
+  the yellow knot at any level while one is open. They stay in the game.
+- **Era.** The game's era is 1.65 (owner, 2026-10-11); visual quest indicators (1.73) and the knots (later retail) are
+  deliberate playability additions.
+
+### Settled in game before planning (owner, 2026-10-11)
+
+- On an NPC whose create packet carried no quest flag (Elaru seen by a level-1 character), `/indicator effect 8` drew
+  the yellow knot and `/indicator effect 0` cleared it. So a refresh can send the quest effect alone; no re-create.
 
 ### Non-goals
 
@@ -120,6 +131,8 @@ The fork's block in `GetQuestIndicator` (after the `/indicator` override) calls 
    this NPC (same comparison).
 3. **Available** if the NPC offers a quest the player qualifies for (`CanShowOneQuest`'s checks, unchanged), whose
    minimum level is no more than 15 below the player's level: a data quest's `MinLevel`, a scripted quest's `Level`.
+   No level rule for a daily, weekly or monthly quest, nor for a scripted quest whose class doesn't declare `Level`
+   (it is then 1 for every quest: ten level-50 epics such as `Viking_50` never set it).
 4. **None** otherwise.
 
 `CanShowOneQuest` and `CanFinishOneQuest` stay for their other callers; the indicator no longer uses them directly.
@@ -141,10 +154,26 @@ The fork's block in `GetQuestIndicator` (after the `/indicator` override) calls 
 - Upstream's own scattered `UpdateQuestIndicator`/`SendNPCsQuestEffect` calls stay; they now go through the table and
   the last-sent map, so they agree with the refresh.
 
+As planned from the code research (2026-10-11):
+- The refresh runs as a posted action of `GameLoopService`, which runs first and alone in each tick, so it never
+  overlaps a client's packet sending; a request queues at most one run per player, in the next tick (about 33 ms).
+- The last-sent map is pruned at each refresh (NPCs out of the world or in another region) and dropped when the player
+  quits, rather than cleared with the client's NPC cache: every NPC that comes back on the client comes with a create
+  packet, which overwrites its value.
+- `AbstractQuest.FinishQuest` and `AbortQuest` need no line of their own: both start by setting `Step`.
+- Further callers, which change quests without the hooks above: the two data-quest start types that finish on the spot
+  (InteractComplete, KillComplete), and the daily, weekly and monthly rollovers, which make those quests available
+  again.
+- Clients older than 1.124 use another create packet, which this does not change; the owner's launcher ships 1.127.
+- Talk steps can target attackable creatures (373 steps in 191 quests, e.g. moss sheeries during "Sile's Sight"); they
+  get the white or blue knot like any NPC, as section 2 says.
+
 ### 3.4 Open point from the owner's test
 
-`/mob refreshquests` on Elaru drew nothing, though `/indicator effect 1` drew the ring. Find out why while building
-(it calls `LoadDataQuests(player)` before the effect) and say so in the PR; the refresh above doesn't depend on it.
+`/mob refreshquests` on Elaru drew nothing, though `/indicator effect 1` drew the ring. The code research found no
+fault in it (it sends `GetQuestIndicator`'s value by the effect packet), and the owner's check above shows the effect
+draws on an NPC created without a flag; so most likely the command ran with no target, when `/mob` only selects the
+nearest mob and returns. The refresh above doesn't use it.
 
 ## 4. Testing
 
