@@ -21,9 +21,11 @@
 6. The epic chains (sub-project 4): epic_chains.py, once per world (the marker epic-chains-v1), after the
    battlegrounds and under its own savepoint like them: upstream's Guild of Shadows chain in order and complete, the
    real level-50 "Lord of Deceit", and every guild line's steps in order.
-7. The Guild of Shadows chain's dialogue (levels 7 to 50): quest_dialogue.py, right after the epic chains, under its
-   own savepoint like them. It has no marker: at every start it rewrites the texts of a quest that still hold
-   upstream's text or an earlier version of its own, and leaves the owner's own edits alone.
+7. Quest texts: the Guild of Shadows chain's dialogue (levels 7 to 50), and the classic quests' period lines and
+   names (the line that offers a quest's first keyword, and the names upstream wrote as <Player>): quest_dialogue.py,
+   right after the epic chains, under its own savepoint like them. It has no marker: at every start it rewrites the
+   texts of a quest that still hold upstream's text or an earlier version of its own, and leaves the owner's own
+   edits alone.
 8. Period corrections to monsters (levels, spots; level 11's thieves Frund and Agisthil first): mob_fixes.py, from
    mob_fixes.json, last, under its own savepoint like the three before it. No marker: at every start it changes a row
    only while it still holds the values upstream shipped, and names the rows that hold neither those nor the file's.

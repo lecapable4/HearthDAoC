@@ -1,4 +1,5 @@
-"""The Guild of Shadows chain's dialogue: deploy/bin/quest_dialogue.py and its data file quest_dialogue.json.
+"""Quest texts in the world data: deploy/bin/quest_dialogue.py and its data file quest_dialogue.json (the Guild of
+Shadows chain's dialogue, and the classic quests' period lines and names).
 
 The synthetic tests use a tiny DataQuest table and data passed in. The tests of the real data file run world_fixes on a
 copy of a clean classic world (HDC_TEST_WORLD).
@@ -139,6 +140,51 @@ class SyntheticTests(unittest.TestCase):
         self.assertEqual(self.run_fix(data), ["Quest dialogue: 1 quests rewritten"])
         self.assertEqual(self.row(300, "Description"), ("new C",))
 
+    def ids_data(self, **overrides):
+        entry = {"ids": [100, 200], "set": {"Description": "new", "FinishText": "farewell"},
+                 "guard": {"100": [guard_for("old A", "bye")], "200": [guard_for("old B", "bye")]}}
+        entry.update(overrides)
+        return {"quests": [entry]}
+
+    def test_an_ids_entry_gives_its_quests_one_text(self):
+        # The classic quests: plain quest IDs instead of an epic chain step, with the same guards.
+        self.assertEqual(self.run_fix(self.ids_data()), ["Quest dialogue: 2 quests rewritten"])
+        self.assertEqual(self.row(100, "Description", "FinishText", "LastTimeRowUpdated"), ("new", "farewell", NOW))
+        self.assertEqual(self.row(200, "Description", "FinishText", "LastTimeRowUpdated"), ("new", "farewell", NOW))
+        self.assertEqual(self.run_fix(self.ids_data()), [])
+
+    def test_an_ids_entry_keeps_a_row_the_owner_edited_and_names_it(self):
+        self.conn.execute("UPDATE DataQuest SET Description='the owner wrote this' WHERE ID=200")
+        self.conn.commit()
+        line = ["Quest dialogue: 1 quests rewritten; 1 left as they are (their text differs from upstream's and this file's): 200"]
+        self.assertEqual(self.run_fix(self.ids_data()), line)
+        self.assertEqual(self.row(200, "Description", "LastTimeRowUpdated"), ("the owner wrote this", OLD))
+        self.assertEqual(self.run_fix(self.ids_data())[0], line[0].replace("1 quests rewritten; ", ""))
+
+    def test_an_ids_entry_with_another_number_of_stages_keeps_the_row(self):
+        self.conn.execute("UPDATE DataQuest SET StepType='2|0|3' WHERE ID=200")
+        self.conn.commit()
+        data = self.ids_data(set={"StepText": ["go", "come back"]}, guard={"100": [guard_for("")], "200": [guard_for("")]})
+        self.assertEqual(self.run_fix(data),
+                         ["Quest dialogue: 1 quests rewritten; 1 left as they are (their text differs from upstream's and this file's): 200"])
+        self.assertEqual(self.row(100, "StepText"), ("go|come back",))
+        self.assertEqual(self.row(200, "StepText"), (None,))
+
+    def test_ids_and_step_entries_apply_together(self):
+        self.conn.execute("INSERT INTO DataQuest (ID, StepType, Description) VALUES (300, '2', 'old C')")
+        self.conn.commit()
+        data = {"quests": [{"step": "7", "set": {"FinishText": "farewell"},
+                            "guard": {"100": [guard_for("bye")], "200": [guard_for("bye")]}},
+                           {"ids": [300], "name": "a classic quest", "set": {"Description": "new C"},
+                            "guard": {"300": [guard_for("old C")]}}]}
+        self.assertEqual(self.run_fix(data), ["Quest dialogue: 3 quests rewritten"])
+        self.assertEqual(self.row(300, "Description"), ("new C",))
+
+    def test_a_per_class_object_in_an_ids_entry_is_refused_by_name(self):
+        lines = self.run_fix(self.ids_data(set={"Description": {"100": "a", "200": "b"}}))
+        self.assertEqual(lines, ["Quest dialogue: not applied (quests 100, 200: Description has a per-class object, "
+                                 "which only a step's entry takes); the quests keep the text they have"])
+
     def test_a_missing_row_is_skipped(self):
         self.conn.execute("DELETE FROM DataQuest WHERE ID=200")
         self.conn.commit()
@@ -215,6 +261,16 @@ class SyntheticTests(unittest.TestCase):
             "a StepType that is not a list": self.data(set={"StepType": "2"}),
             "a StepType that is not a number": self.data(set={"StepType": ["2", "deliver"]}),
             "a per-class StepType that is not a number": self.data(set={"StepType": ["2", {"Alpha": "3", "Beta": " 3"}]}),
+            "a per-class object in an ids entry": self.ids_data(set={"Description": {"Alpha": "x", "Beta": "y"}}),
+            "a per-class stage in an ids entry": self.ids_data(set={"StepText": ["a", {"Alpha": "b", "Beta": "c"}]}),
+            "a | in an ids entry's value": self.ids_data(set={"Description": "a|b"}),
+            "an entry with a step and ids": self.data(ids=[100]),
+            "an entry with neither a step nor ids": {"quests": [{"set": {"Description": "x"}}]},
+            "ids that are not a list": self.ids_data(ids=100),
+            "no ids": self.ids_data(ids=[]),
+            "an ID that is not a number": self.ids_data(ids=["100"]),
+            "an ID twice": self.ids_data(ids=[100, 100]),
+            "a quest in two entries": {"quests": self.data()["quests"] + self.ids_data(ids=[200])["quests"]},
         }
         for what, data in bad.items():
             with self.subTest(what):
@@ -282,7 +338,13 @@ def real_data():
 
 
 def quest_ids(data, chains):
-    return [qid for entry in data["quests"] for qid in chains["steps"][entry["step"]]["ids"] if qid is not None]
+    """Every quest the file rewrites: its steps' and its ids entries'."""
+    return [qid for entry in data["quests"] for qid in qd._quests(entry, chains)[1].values()]
+
+
+def chain_ids(data, chains):
+    """The Guild of Shadows chain's quests: the step entries'."""
+    return [qid for entry in data["quests"] if "step" in entry for qid in qd._quests(entry, chains)[1].values()]
 
 
 class DataFileTests(unittest.TestCase):
@@ -291,15 +353,22 @@ class DataFileTests(unittest.TestCase):
     def test_every_entry_is_well_formed(self):
         data, chains = real_data()
         self.assertTrue(data["quests"])
-        seen = set()
+        seen, quests = set(), set()
         for entry in data["quests"]:
-            with self.subTest(step=entry["step"]):
-                self.assertIn(entry["step"], chains["steps"])
-                self.assertNotIn(entry["step"], seen)
-                seen.add(entry["step"])
+            with self.subTest(entry=qd.label(entry)):
+                if "step" in entry:
+                    self.assertIn(entry["step"], chains["steps"])
+                    self.assertNotIn(entry["step"], seen)
+                    seen.add(entry["step"])
+                    ids = {str(qid) for qid in chains["steps"][entry["step"]]["ids"] if qid is not None}
+                else:
+                    self.assertTrue(entry["name"])  # the quest's name, for the reader
+                    ids = {str(qid) for qid in entry["ids"]}
+                    self.assertEqual(len(ids), len(entry["ids"]))
+                self.assertTrue(ids.isdisjoint(quests))
+                quests |= ids
                 self.assertTrue(entry["set"])
                 self.assertLessEqual(set(entry["set"]), set(qd.COLUMNS))
-                ids = {str(qid) for qid in chains["steps"][entry["step"]]["ids"] if qid is not None}
                 self.assertEqual(set(entry["guard"]), ids)
                 for digests in entry["guard"].values():
                     self.assertTrue(digests)
@@ -371,6 +440,8 @@ class RealDialogueTests(unittest.TestCase):
         # as every class's giver of the Shrouded Isles 7 and 11 (owner test 2026-10-10).
         classes = list(self.chains["classes"])
         for entry in self.data["quests"]:
+            if "step" not in entry:
+                continue
             for name, qid in zip(classes, self.chains["steps"][entry["step"]]["ids"]):
                 if qid is None:
                     continue
@@ -398,17 +469,20 @@ class RealDialogueTests(unittest.TestCase):
         })
 
     def test_a_description_that_names_the_accept_text_has_it_in_brackets(self):
-        for qid, (accept, description, *_rest) in self.rows.items():
+        # The chain's own text. A classic quest keeps the period's ("Fort Veldon", then [Veldon] in a Chat reply).
+        for qid in chain_ids(self.data, self.chains):
+            accept, description, *_rest = self.rows[qid]
             if accept and accept.lower() in (description or "").lower():
                 with self.subTest(quest=qid):
                     self.assertIn(f"[{accept}]", description)
 
     def test_every_quest_can_be_accepted_from_what_its_giver_says(self):
         # The giver's Description offers [keywords]; one is the AcceptText, or leads to it through our Chat replies
-        # (level 25: [matter] -> [dispatch] -> [supporting]; level 43: [interested] -> [profitable]).
+        # (level 25: [matter] -> [dispatch] -> [supporting]; level 43: [interested] -> [profitable]). The classic
+        # quests go on through upstream's Chat too: test_quest_reachability.py.
         with open(os.path.join(HERE, "..", "hearthdaoc-quests.json"), encoding="utf-8") as f:
             chat = json.load(f).get("Chat", {})
-        for qid in self.rows:
+        for qid in chain_ids(self.data, self.chains):
             accept, description, giver = self.conn.execute(
                 "SELECT AcceptText, Description, StartName FROM DataQuest WHERE ID=?", (qid,)).fetchone()
             replies = {k.lower(): v for k, v in chat.get(giver, {}).items()}
@@ -426,7 +500,8 @@ class RealDialogueTests(unittest.TestCase):
         # [down to business] -> [Arawnites] -> [speak with Lieutenant Kuebler]).
         with open(os.path.join(HERE, "..", "hearthdaoc-quests.json"), encoding="utf-8") as f:
             chat = json.load(f).get("Chat", {})
-        for qid, (_accept, _desc, _source, step_types, _steps, targets, advances, _finish) in self.rows.items():
+        for qid in chain_ids(self.data, self.chains):
+            _accept, _desc, _source, step_types, _steps, targets, advances, _finish = self.rows[qid]
             names = (self.conn.execute("SELECT TargetName FROM DataQuest WHERE ID=?", (qid,)).fetchone()[0] or "").split("|")
             types, targets, advances = step_types.split("|"), (targets or "").split("|"), (advances or "").split("|")
             for stage, step_type in enumerate(types):
@@ -443,11 +518,87 @@ class RealDialogueTests(unittest.TestCase):
                         self.assertIn(advances[stage], offered)
 
     def test_no_popup_text_is_longer_than_1000_characters(self):
-        for qid, (accept, description, source, _types, steps, targets, _advances, finish) in self.rows.items():
+        # The chain's own text. The classic quests keep upstream's texts, some of them longer (a name is never longer
+        # than the <Player> it replaces).
+        for qid in chain_ids(self.data, self.chains):
+            accept, description, source, _types, steps, targets, _advances, finish = self.rows[qid]
             texts = [description, finish] + (source or "").split("|") + (steps or "").split("|") + (targets or "").split("|")
             for text in texts:
                 with self.subTest(quest=qid):
                     self.assertLessEqual(len(text or ""), 1000, (text or "")[:60])
+
+
+# The classic quests whose Description lost the line that offers their first keyword, and that line (the guides'
+# words): level 5's "Cleric Mulgrut" (the owner's report: Hugh Gallen showed only his wares), "Evenings Empty
+# Blessing" and "Better Off Buried".
+LOST_LINES = {
+    20207: "I have a [bit of information] you might be interested in should you wish to hear it.",
+    21146: "It seems there is much amiss to the north around Fort Veldon. Kell sent word earlier that he required "
+           "[information and assistance].",
+    21187: "Welcome back. I have not seen you in a long time. I hope all has been [well] with you.",
+}
+# The names upstream's generator replaced with <Player> in the classic quests' texts.
+PERIOD_NAMES = {"Askheim", "Averrius", "Catla", "Coplin", "Darrius", "Freya", "Gunnar", "Ibicus", "Jango", "Keriann",
+                "Morana", "Nisse", "Ove", "Runil", "Thulin"}
+# The fixed stages that still speak to the player, and how many <Player> each keeps: Kaisa's "Come in, come in,
+# <Player>" and "Good job <Player>!" ("Solving the Argument").
+ADDRESSES_THE_PLAYER = {(21142, "TargetText", 1): 3, (21142, "TargetText", 6): 3}
+
+
+@unittest.skipUnless(TEST_WORLD, "needs HDC_TEST_WORLD (a clean classic world database)")
+class ClassicQuestTextTests(unittest.TestCase):
+    """The file's ids entries (the classic quests) on a copy of a clean classic world, against upstream's text."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = tempfile.TemporaryDirectory()
+        cls.db = os.path.join(cls.tmp.name, "world.db")
+        shutil.copyfile(TEST_WORLD, cls.db)
+        wf.apply(cls.db)
+        cls.conn = sqlite3.connect(cls.db)
+        cls.clean = sqlite3.connect(f"file:{TEST_WORLD}?mode=ro", uri=True)
+        cls.changed = {}  # (quest id, column, stage): (upstream's text, the fixed text)
+        for entry in qd.load_data()["quests"]:
+            for qid in entry.get("ids", []):
+                for column in entry["set"]:
+                    query = f"SELECT {column} FROM DataQuest WHERE ID=?"
+                    before = (cls.clean.execute(query, (qid,)).fetchone()[0] or "").split("|")
+                    after = (cls.conn.execute(query, (qid,)).fetchone()[0] or "").split("|")
+                    assert len(before) == len(after), (qid, column)
+                    for stage, (old, new) in enumerate(zip(before, after), 1):
+                        if old != new:
+                            cls.changed[(qid, column, stage)] = (old, new)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.conn.close()
+        cls.clean.close()
+        cls.tmp.cleanup()
+
+    def test_the_lost_lines_follow_upstreams_descriptions(self):
+        for qid, line in LOST_LINES.items():
+            with self.subTest(quest=qid):
+                old, new = self.changed[(qid, "Description", 1)]
+                self.assertEqual(new, f"{old} {line}")
+
+    def test_every_other_text_is_upstreams_with_period_names_for_player(self):
+        # Only the <Player> slots change; every other character stays upstream's.
+        names = set()
+        for (qid, column, stage), (old, new) in self.changed.items():
+            if column == "Description" and qid in LOST_LINES:
+                continue
+            with self.subTest(quest=qid, column=column, stage=stage):
+                slots = "|".join(["<Player>"] + sorted(PERIOD_NAMES))
+                match = re.fullmatch(f"({slots})".join(re.escape(part) for part in old.split("<Player>")), new)
+                self.assertTrue(match, new)
+                names |= set(match.groups())
+        self.assertEqual(names - {"<Player>"}, PERIOD_NAMES)
+        self.assertEqual(len(self.changed), 37 + len(LOST_LINES))  # 21 texts, some in several class rows
+
+    def test_no_fixed_text_still_says_player(self):
+        for (qid, column, stage), (_old, new) in self.changed.items():
+            with self.subTest(quest=qid, column=column, stage=stage):
+                self.assertEqual(new.count("<Player>"), ADDRESSES_THE_PLAYER.get((qid, column, stage), 0))
 
 
 @unittest.skipUnless(TEST_WORLD, "needs HDC_TEST_WORLD (a clean classic world database)")
@@ -458,7 +609,7 @@ class DigestCommandTests(unittest.TestCase):
     def test_the_digests_are_those_of_the_worlds_rows_after_the_epic_chains(self):
         data, chains = real_data()
         out = qd.digests(TEST_WORLD, data, chains)
-        self.assertEqual(sorted(out), sorted(entry["step"] for entry in data["quests"]))
+        self.assertEqual(sorted(out), sorted(qd.label(entry) for entry in data["quests"]))
         with tempfile.TemporaryDirectory() as tmp:
             copy = os.path.join(tmp, "world.db")
             shutil.copyfile(TEST_WORLD, copy)
@@ -467,12 +618,12 @@ class DigestCommandTests(unittest.TestCase):
                 epic_chains.apply(conn)
             for entry in data["quests"]:
                 columns = sorted(entry["set"])
-                for qid, d in out[entry["step"]].items():
+                for qid, d in out[qd.label(entry)].items():
                     row = conn.execute(f"SELECT {', '.join(columns)} FROM DataQuest WHERE ID=?", (int(qid),)).fetchone()
                     self.assertEqual(d, qd.digest(list(row)))
             conn.close()
         self.assertTrue(all(d in entry["guard"][qid] for entry in data["quests"]
-                            for qid, d in out[entry["step"]].items()))
+                            for qid, d in out[qd.label(entry)].items()))
 
     def test_current_prints_the_digests_of_the_files_own_text(self):
         data, chains = real_data()
@@ -505,6 +656,16 @@ class DigestCliTests(unittest.TestCase):
             out = qd.digests(db, data, CHAINS)
             self.assertEqual(pathlib.Path(db).read_bytes(), before)
         self.assertEqual(out, {"7": {"100": qd.digest(["old A", "bye"])}, "9": {"300": qd.digest([""])}})
+
+    def test_an_ids_entry_is_printed_under_its_ids(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = os.path.join(tmp, "world.db")
+            with sqlite3.connect(db) as c:
+                c.execute(SCHEMA)
+                c.execute("INSERT INTO DataQuest (ID, StepType, Description, FinishText) VALUES (100, '2|3', 'old A', 'bye')")
+                c.execute("INSERT INTO DataQuest (ID, StepType, Description, FinishText) VALUES (200, '2|3', 'old B', 'bye')")
+            out = qd.digests(db, {"quests": [{"ids": [200, 100], "set": {"FinishText": "x"}}]}, CHAINS)
+        self.assertEqual(out, {"ids 200, 100": {"200": qd.digest(["bye"]), "100": qd.digest(["bye"])}})
 
 
 def apply_file(db, data):
@@ -649,6 +810,19 @@ class SealTests(unittest.TestCase):
         self.seal()
         self.assertEqual(apply_file(world, qd.load_data(self.path)), ["Quest dialogue: 2 quests rewritten"])
         self.assertEqual(held(world), [(100, "newer A", "farewell"), (200, "newer B", "farewell")])
+
+    def test_an_ids_entry_is_sealed_for_each_of_its_quests(self):
+        self.dump({"quests": [{"ids": [100, 200], "set": {"Description": "new", "FinishText": "farewell"},
+                               "guard": json.loads(json.dumps(self.upstream))}]})
+        self.assertEqual(qd.unsealed(qd.load_data(self.path), CHAINS), ["100", "200"])
+        self.assertEqual(self.seal(), ["100", "200"])
+        self.assertEqual(qd.unsealed(qd.load_data(self.path), CHAINS), [])
+        guard = qd.load_data(self.path)["quests"][0]["guard"]
+        self.assertEqual(guard["200"], self.upstream["200"] + [guard_for("new", "farewell")])
+        world = os.path.join(self.tmp.name, "world.db")
+        shutil.copyfile(self.clean, world)
+        self.assertEqual(apply_file(world, qd.load_data(self.path)), ["Quest dialogue: 2 quests rewritten"])
+        self.assertEqual(held(world), [(100, "new", "farewell"), (200, "new", "farewell")])
 
     def test_the_command_needs_seal_or_digests(self):
         with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):

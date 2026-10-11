@@ -11,6 +11,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 BIN = os.path.join(HERE, "..", "bin")
 sys.path.insert(0, BIN)
 
+import quest_dialogue as qd  # noqa: E402
 import world_fixes as wf  # noqa: E402
 
 TEST_WORLD = os.environ.get("HDC_TEST_WORLD")
@@ -284,7 +285,7 @@ class FixesTests(unittest.TestCase):
             "Epic chains: Guild of Shadows 60 links, 60 XP and coin, 4 Supply Runs closed, 2 rewards and 7 texts "
             "fixed; 87 other links; 41 items added, 36 item fixes; 5 level-50 quests, Lord Elidyn's camp 17 restored; "
             "Shadows_50: 0 finished carried, 0 removed, 0 epic vests recharged",
-            "Quest dialogue: 65 quests rewritten",
+            "Quest dialogue: 85 quests rewritten",
             "Mob fixes: 5 corrected: Agisthil (Mob fe76247d-ab9e-5a21-b66a-f629e577c87b), Agisthil (NpcTemplate 12070), "
             "Frund (NpcTemplate 12165), Frund (Mob 3ce2271f-b9f6-4504-b55a-250da35504ba), "
             "Cloudy Green Stone (ItemTemplate cq_alb_cloudy_green_stone)",
@@ -316,6 +317,17 @@ class FixesTests(unittest.TestCase):
         self.assertEqual(self.q("SELECT Mob_ID FROM Mob WHERE Name='Master Graent'"), [(GRAENT_STAYS,)])
         self.assertEqual(self.q(f"SELECT Name, NPCTemplateID, X, Y FROM fork_removed_mobs WHERE Mob_ID='{GRAENT_GOES}'"),
                          [("Master Graent", -1, 574886, 530169)])
+        self.assertEqual(wf.apply(self.db), [])
+
+    @unittest.skipUnless(TEST_WORLD, "needs HDC_TEST_WORLD (a clean classic world database)")
+    def test_shipped_world_started_before_the_classic_quests_texts(self):
+        # A world an earlier release started has the Guild of Shadows chain's dialogue (the file's step entries): its
+        # next start rewrites only the classic quests' texts (the ids entries, 20 quest rows), and the next nothing.
+        shutil.copyfile(TEST_WORLD, self.db)
+        data = qd.load_data()
+        with mock.patch.object(qd, "load_data", return_value=dict(data, quests=[e for e in data["quests"] if "step" in e])):
+            self.assertIn("Quest dialogue: 65 quests rewritten", wf.apply(self.db))
+        self.assertEqual(wf.apply(self.db), ["Quest dialogue: 20 quests rewritten"])
         self.assertEqual(wf.apply(self.db), [])
 
 
