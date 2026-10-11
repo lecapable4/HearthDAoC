@@ -276,6 +276,39 @@ class ReachabilityTests(unittest.TestCase):
                 self.assertIn(keyword, offered([text], self.chat[npc]))
                 self.assertEqual(unanswered([text], self.chat[npc]), [])
 
+    def test_the_words_that_were_player_in_quest_texts_are_the_guides(self):
+        # Upstream's generator took "Now" and "Well" for names. Silver Run's Crace keeps <Player> where he speaks to the
+        # player ("Well, Elline, did you get the sporites?", "I hope you find it useful, Warden!").
+        description, = self.conn.execute("SELECT Description FROM DataQuest WHERE ID=20013").fetchone()
+        self.assertIn("hiding from Arawn for years, Now, with the Inconnu walking the land", description)
+        for qid in (20288, 20289, 20290, 20291):
+            for stage in (1, 5):
+                with self.subTest(quest=qid, stage=stage):
+                    text = self.stage(qid, "TargetText", stage)
+                    for words in ("are you? Well, you know about the [enchanted silver]", "Aye, Well, it's mainly",
+                                  "two sporites. Well, <Player>, did you get", "quite useful. Well, that's what",
+                                  "I hope you find it useful, <Player>!"):
+                        self.assertIn(words, text)
+                    self.assertEqual(text.count("<Player>"), 2)
+                    self.assertEqual(unanswered([text], self.chat["crace"]), [])
+
+    def test_wariel_and_amora_ask_the_players_name_and_answer_it(self):
+        # The period's keyword was [name]; upstream's generator wrote <Player>: "What is your <the player's name>?". The
+        # fork's Chat answers [name] with the guides' next line, as upstream's answers the texts' other keywords.
+        asks = [(20099, 1, "wariel", "Well hello young one. What is your [name]? Well, it is a pleasure"),
+                (20099, 7, "wariel", "Well hello young one. What is your [name]? Well, it is a pleasure")]
+        asks += [(qid, 1, "amora", "Hello stranger, may I ask your [name]? It is a pleasure")
+                 for qid in range(21102, 21118)]
+        for qid, stage, npc, words in asks:
+            with self.subTest(quest=qid, stage=stage):
+                text = self.stage(qid, "TargetText", stage)
+                self.assertIn(words, text)
+                self.assertNotIn("<Player>", text)
+                self.assertIn("name", offered([text], self.chat[npc]))
+                self.assertEqual(unanswered([text], self.chat[npc]), [])
+        self.assertTrue(self.chat["wariel"]["name"].startswith("Well, it is a pleasure to meet you."))
+        self.assertTrue(self.chat["amora"]["name"].startswith("It is a pleasure to meet you."))
+
     def test_every_npc_the_forks_chat_names_stands_in_the_world(self):
         # ClassicQuests finds an NPC's lines by its name (without case): upstream's "Kyrilean" reached no one.
         names = {name.lower() for (name,) in self.conn.execute("SELECT Name FROM Mob")}

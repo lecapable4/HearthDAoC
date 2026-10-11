@@ -540,9 +540,14 @@ LOST_LINES = {
 # The names upstream's generator replaced with <Player> in the classic quests' texts.
 PERIOD_NAMES = {"Askheim", "Averrius", "Catla", "Coplin", "Darrius", "Freya", "Gunnar", "Ibicus", "Jango", "Keriann",
                 "Morana", "Nisse", "Ove", "Runil", "Thulin"}
+# The plain words it took for names (Soul Hunt's "Now", Silver Run's "Well"), and the keyword [name] (Trapper's Pride's
+# "What is your [name]?", Amora's Aid's "may I ask your [name]?").
+PERIOD_WORDS = {"Now", "Well", "[name]"}
 # The fixed stages that still speak to the player, and how many <Player> each keeps: Kaisa's "Come in, come in,
-# <Player>" and "Good job <Player>!" ("Solving the Argument").
+# <Player>" and "Good job <Player>!" ("Solving the Argument"), and Crace's "Well, <Player>, did you get the sporites?"
+# and "I hope you find it useful, <Player>!" ("Silver Run").
 ADDRESSES_THE_PLAYER = {(21142, "TargetText", 1): 3, (21142, "TargetText", 6): 3}
+ADDRESSES_THE_PLAYER.update({(qid, "TargetText", stage): 2 for qid in (20288, 20289, 20290, 20291) for stage in (1, 5)})
 
 
 @unittest.skipUnless(TEST_WORLD, "needs HDC_TEST_WORLD (a clean classic world database)")
@@ -581,19 +586,21 @@ class ClassicQuestTextTests(unittest.TestCase):
                 old, new = self.changed[(qid, "Description", 1)]
                 self.assertEqual(new, f"{old} {line}")
 
-    def test_every_other_text_is_upstreams_with_period_names_for_player(self):
+    def test_every_other_text_is_upstreams_with_period_names_and_words_for_player(self):
         # Only the <Player> slots change; every other character stays upstream's.
         names = set()
         for (qid, column, stage), (old, new) in self.changed.items():
             if column == "Description" and qid in LOST_LINES:
                 continue
             with self.subTest(quest=qid, column=column, stage=stage):
-                slots = "|".join(["<Player>"] + sorted(PERIOD_NAMES))
+                slots = "|".join(re.escape(slot) for slot in ["<Player>"] + sorted(PERIOD_NAMES | PERIOD_WORDS))
                 match = re.fullmatch(f"({slots})".join(re.escape(part) for part in old.split("<Player>")), new)
                 self.assertTrue(match, new)
                 names |= set(match.groups())
-        self.assertEqual(names - {"<Player>"}, PERIOD_NAMES)
-        self.assertEqual(len(self.changed), 37 + len(LOST_LINES))  # 21 texts, some in several class rows
+        self.assertEqual(names - {"<Player>"}, PERIOD_NAMES | PERIOD_WORDS)
+        # Names: 37 stages of 21 texts; words: 27 stages of 4 texts (Silver Run's and Amora's Aid's in every class
+        # row).
+        self.assertEqual(len(self.changed), 37 + 27 + len(LOST_LINES))
 
     def test_no_fixed_text_still_says_player(self):
         for (qid, column, stage), (_old, new) in self.changed.items():

@@ -4,11 +4,11 @@ period lines and names.
 
 Upstream left most of the chain's text empty ("[Traveler's]") or filled with walkthrough notes. Its generator also lost
 the line that offers some classic quests (level 5's "Cleric Mulgrut" at Hugh Gallen showed only his wares) and wrote
-<Player>, which the server replaces with the player's name, where the period named someone else (Durren, Askheim, ...).
-The texts are in quest_dialogue.json, beside this file; world_fixes.py calls apply() inside its transaction, right after
-epic_chains.apply() (the chain's rows, including the fork's own level-50 ones, must exist), under its own savepoint:
-if it fails it is rolled back alone, apply() returns only the "not applied" line, and the other fixes and the start
-go on.
+<Player>, which the server replaces with the player's name, where the period named someone else (Durren, Askheim, ...)
+or said a plain word ("Well", Wariel's "What is your [name]?"). The texts are in quest_dialogue.json, beside this file;
+world_fixes.py calls apply() inside its transaction, right after epic_chains.apply() (the chain's rows, including the
+fork's own level-50 ones, must exist), under its own savepoint: if it fails it is rolled back alone, apply() returns
+only the "not applied" line, and the other fixes and the start go on.
 
 Unlike the other world fixes this one has no marker. It runs at every start and changes a row only while the columns
 it sets still hold a text the file's guard lists: upstream's (as epic_chains.py leaves them) or an earlier version of

@@ -1,5 +1,5 @@
 {
- "_about": "The Guild of Shadows chain's dialogue (owner 2026-10-09: upstream offered \"[Traveler's]\" and said nothing else), and the classic quests' period lines and names (quest entry scan 2026-10-11: the line that offers a quest's first keyword, and the names upstream's generator replaced with <Player>; every other character is upstream's). deploy/bin/quest_dialogue.py writes it into the DataQuest rows at every start; \"step\" is a key of epic_chains_data.json \"steps\" (one quest ID per class), \"ids\" plain quest IDs that get the same text (\"name\" is for the reader); a value is one text for every class, an object by class (a step only), or a list with one entry per stage. \"guard\": the digests of the values a row may hold for the fix to change it (upstream's after epic-chains-v1, then each earlier version of this file). Chat lines are in deploy/hearthdaoc-quests.json.",
+ "_about": "The Guild of Shadows chain's dialogue (owner 2026-10-09: upstream offered \"[Traveler's]\" and said nothing else), and the classic quests' period lines and names (quest entry scan 2026-10-11: the line that offers a quest's first keyword, and the names and plain words upstream's generator replaced with <Player>, such as Wariel's [name] in \"What is your [name]?\"; every other character is upstream's). deploy/bin/quest_dialogue.py writes it into the DataQuest rows at every start; \"step\" is a key of epic_chains_data.json \"steps\" (one quest ID per class), \"ids\" plain quest IDs that get the same text (\"name\" is for the reader); a value is one text for every class, an object by class (a step only), or a list with one entry per stage. \"guard\": the digests of the values a row may hold for the fix to change it (upstream's after epic-chains-v1, then each earlier version of this file). Chat lines are in deploy/hearthdaoc-quests.json.",
  "quests": [
   {
    "step": "7",
@@ -915,6 +915,21 @@
   },
   {
    "ids": [
+    20013
+   ],
+   "name": "Soul Hunt",
+   "set": {
+    "Description": "Remember the swamp goo in the cellar? And the sickness that affected the Inconnu only? It seems that there is an undead that has been hiding from Arawn for years, Now, with the Inconnu walking the land, he's feeling [threatened]."
+   },
+   "guard": {
+    "20013": [
+     "e8e04fbf6f9ba050faa780813204d9b9c9f3acbe42a82f2634e80b8faf659843",
+     "26c6df74eb3799c5e5468a4d4fb6ff6e333c0b5392f075d56eb4069ef3e6804a"
+    ]
+   }
+  },
+  {
+   "ids": [
     20039
    ],
    "name": "Uncle Thulin",
@@ -938,6 +953,29 @@
     "20039": [
      "1ea8416926c80fe31a3a8b4044a81248085b276167d1f101e6e3480b5f6f1d86",
      "013f979b3a43371f4c05f3b391450ea2a5150b2a42f3e078bb6dd333e769d380"
+    ]
+   }
+  },
+  {
+   "ids": [
+    20099
+   ],
+   "name": "Trapper's Pride",
+   "set": {
+    "TargetText": [
+     "Well hello young one. What is your [name]? Well, it is a pleasure to meet you. I enjoy meeting all the young Vikings throughoout our [realm]. Did you know that the [art] of trapping is very important here in Midgard, for everyone? Yes, [trapping] is an art, the skinning of an animal, preserving the pelt and tanning it for use. Trapping and doing these things correctly can [fetch] you a good deal of popularity to traders and bring in a nice profit. Go in to woods and see if yo ucan capture fice tawny lynx cubs and bring their pelts to me so that I may prepare them. You have done a wonderful [job] and these pelts will work quite nicely. I shall begin preserving and tanning these skins shortly. Once they are finished tanning I may have another job for you.",
+     "",
+     "",
+     "",
+     "",
+     "",
+     "Well hello young one. What is your [name]? Well, it is a pleasure to meet you. I enjoy meeting all the young Vikings throughoout our [realm]. Did you know that the [art] of trapping is very important here in Midgard, for everyone? Yes, [trapping] is an art, the skinning of an animal, preserving the pelt and tanning it for use. Trapping and doing these things correctly can [fetch] you a good deal of popularity to traders and bring in a nice profit. Go in to woods and see if yo ucan capture fice tawny lynx cubs and bring their pelts to me so that I may prepare them. You have done a wonderful [job] and these pelts will work quite nicely. I shall begin preserving and tanning these skins shortly. Once they are finished tanning I may have another job for you."
+    ]
+   },
+   "guard": {
+    "20099": [
+     "25054561b407410259879cbc52e5abffb6320ceb7265a50020474c91f284dd78",
+     "45f25fc21aef1688cdb429289c84547c4cb54bb81074004f4f8da12942cd4821"
     ]
    }
   },
@@ -972,6 +1010,42 @@
     "20207": [
      "b8a4d6704415fe2efd5a3303501993e48d072739c0b26b88a999596e58b4cedd",
      "8b74fbaf20fa86dcffa8a28c01ec466faa95c53b283e9a72030ba2deb29c4654"
+    ]
+   }
+  },
+  {
+   "ids": [
+    20288,
+    20289,
+    20290,
+    20291
+   ],
+   "name": "Silver Run",
+   "set": {
+    "TargetText": [
+     "Ah, you're here to help me, are you? Well, you know about the [enchanted silver] in the Silvermine Mountains, in Hibernia? Aye, Well, it's mainly controlled by those evil siabra local to the area, however, I've a friend who has managed to get a large amount of the silver. See, we've come up with a trade. The next boat leaves for Hibernia shortly, and I don't have the time to go and get everything to trade myself. See, there are many things here that may be valuable back in the mainland. I've arranged a trade. All I need right now, though, is two sporites. Well, <Player>, did you get the sporites? i understand that if you dry them out, they become quite useful. Well, that's what some of the Sylvan have told me! Oh, this is a good one! I need just one more from you. Do you have it? Great. Now, I just need one more thing. Now, have you seen the precocious cniogcrags? I would like one of them. I've a friend who wants it for display, why, I don't know. He wants to hang it on his wall. As an exotic type of beast. Oh, did you get the creature? Hand it over! Ah, great! Thank you! Now, you certainly should receive a [reward] for your efforts! Here, you surely do. I hope you find it useful, <Player>! Thanks again for your help! Hopefully, this enchanted silver my, ahh, friend, is sending will make a difference here!",
+     "",
+     "",
+     "",
+     "Ah, you're here to help me, are you? Well, you know about the [enchanted silver] in the Silvermine Mountains, in Hibernia? Aye, Well, it's mainly controlled by those evil siabra local to the area, however, I've a friend who has managed to get a large amount of the silver. See, we've come up with a trade. The next boat leaves for Hibernia shortly, and I don't have the time to go and get everything to trade myself. See, there are many things here that may be valuable back in the mainland. I've arranged a trade. All I need right now, though, is two sporites. Well, <Player>, did you get the sporites? i understand that if you dry them out, they become quite useful. Well, that's what some of the Sylvan have told me! Oh, this is a good one! I need just one more from you. Do you have it? Great. Now, I just need one more thing. Now, have you seen the precocious cniogcrags? I would like one of them. I've a friend who wants it for display, why, I don't know. He wants to hang it on his wall. As an exotic type of beast. Oh, did you get the creature? Hand it over! Ah, great! Thank you! Now, you certainly should receive a [reward] for your efforts! Here, you surely do. I hope you find it useful, <Player>! Thanks again for your help! Hopefully, this enchanted silver my, ahh, friend, is sending will make a difference here!"
+    ]
+   },
+   "guard": {
+    "20288": [
+     "d6009e4bed22eee823bf572ec25cf7ccae7bae542a0e31013ca0f4224ba69061",
+     "f76535967a0bd448d20c40d827e5bcdd84a03296f6c0a311370bc2994ffebf3a"
+    ],
+    "20289": [
+     "d6009e4bed22eee823bf572ec25cf7ccae7bae542a0e31013ca0f4224ba69061",
+     "f76535967a0bd448d20c40d827e5bcdd84a03296f6c0a311370bc2994ffebf3a"
+    ],
+    "20290": [
+     "d6009e4bed22eee823bf572ec25cf7ccae7bae542a0e31013ca0f4224ba69061",
+     "f76535967a0bd448d20c40d827e5bcdd84a03296f6c0a311370bc2994ffebf3a"
+    ],
+    "20291": [
+     "d6009e4bed22eee823bf572ec25cf7ccae7bae542a0e31013ca0f4224ba69061",
+     "f76535967a0bd448d20c40d827e5bcdd84a03296f6c0a311370bc2994ffebf3a"
     ]
    }
   },
@@ -1152,6 +1226,104 @@
     "21048": [
      "eb516c8093b55f7babddd1e43c233cd9aec38e11b7696f1e7dcc13880268b6c8",
      "62ac4745bf47c5e487075aa549a0db10694b7d101b2596e0a70b6933fc2e133e"
+    ]
+   }
+  },
+  {
+   "ids": [
+    21102,
+    21103,
+    21104,
+    21105,
+    21106,
+    21107,
+    21108,
+    21109,
+    21110,
+    21111,
+    21112,
+    21113,
+    21114,
+    21115,
+    21116,
+    21117
+   ],
+   "name": "Amora's Aid",
+   "set": {
+    "TargetText": [
+     "Be still Magnild, all will be alright soon and you will be well once again. Hello stranger, may I ask your [name]? It is a pleasure to meet you. I am so glad you have come to aid me and [Magnild]. Yes, my poor darling Magnild was bitten by a [water snake] while traveling into town. Unfortunately, the bite has not healed and she is not feeling very well at all. Oh, it seems the venom of the snake was very powerful. I have sent word to t he healer and she has told me she needs five vials of [snake venom] to cure the child. I do not feel right leaving Magnild [here alone] this ill, so I fear I can't hunt the snakes myself. Please go outside the city and [collect] the five vials of venom and take them to Kari, the healer. I am indebted to you always if you do the for me.",
+     "",
+     "",
+     "",
+     "",
+     "",
+     "Ahh, you look as if you have been having a rough time. Have you brought me the vials of snake venom? I shall begin [work] at once in making the potion to cure the sick girl, hopefully all my training will not fail me. You have aided in this situation beyond what is expected. I thnk you."
+    ]
+   },
+   "guard": {
+    "21102": [
+     "8237a9eb19aaa523922328ab9b93572e55d17cee20d3528bae892cc9e4752b3a",
+     "f56f591a8d16b90d87561babc30863832ef6c88ad10882081bdccdbf356d71a7"
+    ],
+    "21103": [
+     "8237a9eb19aaa523922328ab9b93572e55d17cee20d3528bae892cc9e4752b3a",
+     "f56f591a8d16b90d87561babc30863832ef6c88ad10882081bdccdbf356d71a7"
+    ],
+    "21104": [
+     "8237a9eb19aaa523922328ab9b93572e55d17cee20d3528bae892cc9e4752b3a",
+     "f56f591a8d16b90d87561babc30863832ef6c88ad10882081bdccdbf356d71a7"
+    ],
+    "21105": [
+     "8237a9eb19aaa523922328ab9b93572e55d17cee20d3528bae892cc9e4752b3a",
+     "f56f591a8d16b90d87561babc30863832ef6c88ad10882081bdccdbf356d71a7"
+    ],
+    "21106": [
+     "8237a9eb19aaa523922328ab9b93572e55d17cee20d3528bae892cc9e4752b3a",
+     "f56f591a8d16b90d87561babc30863832ef6c88ad10882081bdccdbf356d71a7"
+    ],
+    "21107": [
+     "8237a9eb19aaa523922328ab9b93572e55d17cee20d3528bae892cc9e4752b3a",
+     "f56f591a8d16b90d87561babc30863832ef6c88ad10882081bdccdbf356d71a7"
+    ],
+    "21108": [
+     "8237a9eb19aaa523922328ab9b93572e55d17cee20d3528bae892cc9e4752b3a",
+     "f56f591a8d16b90d87561babc30863832ef6c88ad10882081bdccdbf356d71a7"
+    ],
+    "21109": [
+     "8237a9eb19aaa523922328ab9b93572e55d17cee20d3528bae892cc9e4752b3a",
+     "f56f591a8d16b90d87561babc30863832ef6c88ad10882081bdccdbf356d71a7"
+    ],
+    "21110": [
+     "8237a9eb19aaa523922328ab9b93572e55d17cee20d3528bae892cc9e4752b3a",
+     "f56f591a8d16b90d87561babc30863832ef6c88ad10882081bdccdbf356d71a7"
+    ],
+    "21111": [
+     "8237a9eb19aaa523922328ab9b93572e55d17cee20d3528bae892cc9e4752b3a",
+     "f56f591a8d16b90d87561babc30863832ef6c88ad10882081bdccdbf356d71a7"
+    ],
+    "21112": [
+     "8237a9eb19aaa523922328ab9b93572e55d17cee20d3528bae892cc9e4752b3a",
+     "f56f591a8d16b90d87561babc30863832ef6c88ad10882081bdccdbf356d71a7"
+    ],
+    "21113": [
+     "8237a9eb19aaa523922328ab9b93572e55d17cee20d3528bae892cc9e4752b3a",
+     "f56f591a8d16b90d87561babc30863832ef6c88ad10882081bdccdbf356d71a7"
+    ],
+    "21114": [
+     "8237a9eb19aaa523922328ab9b93572e55d17cee20d3528bae892cc9e4752b3a",
+     "f56f591a8d16b90d87561babc30863832ef6c88ad10882081bdccdbf356d71a7"
+    ],
+    "21115": [
+     "8237a9eb19aaa523922328ab9b93572e55d17cee20d3528bae892cc9e4752b3a",
+     "f56f591a8d16b90d87561babc30863832ef6c88ad10882081bdccdbf356d71a7"
+    ],
+    "21116": [
+     "8237a9eb19aaa523922328ab9b93572e55d17cee20d3528bae892cc9e4752b3a",
+     "f56f591a8d16b90d87561babc30863832ef6c88ad10882081bdccdbf356d71a7"
+    ],
+    "21117": [
+     "8237a9eb19aaa523922328ab9b93572e55d17cee20d3528bae892cc9e4752b3a",
+     "f56f591a8d16b90d87561babc30863832ef6c88ad10882081bdccdbf356d71a7"
     ]
    }
   },
