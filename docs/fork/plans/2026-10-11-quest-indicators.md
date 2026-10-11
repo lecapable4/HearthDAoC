@@ -2,6 +2,11 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+> **After execution (2026-10-11):** the six tasks ran inline (commits 448092c..fc68656). The final review's fixes are
+> documentation only, in the commit after fc68656: in-game check 9 now goes past the server's 6,000-unit range (this
+> plan's copy says 4,000), and FORK.md and the spec say that `CanShowOneQuest`/`CanFinishOneQuest` are no longer
+> called. Deferred minors and rulings are in the PR.
+
 **Goal:** Every NPC shows one quest marker from one set of rules (a yellow knot for a quest to take, a white knot for
 the player's current step, a blue knot to turn in), and the marker changes the moment the player's level, class or
 quests change.

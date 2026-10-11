@@ -135,7 +135,8 @@ The fork's block in `GetQuestIndicator` (after the `/indicator` override) calls 
    (it is then 1 for every quest: ten level-50 epics such as `Viking_50` never set it).
 4. **None** otherwise.
 
-`CanShowOneQuest` and `CanFinishOneQuest` stay for their other callers; the indicator no longer uses them directly.
+`CanShowOneQuest` and `CanFinishOneQuest` stay in `GameNPC`, unused (their only other caller, `SetQuestIndicator`, is
+itself unused): `QuestIndicators` repeats their tests, and FORK.md tells upstream syncs to carry changes to them over.
 
 ### 3.3 Keeping markers current
 

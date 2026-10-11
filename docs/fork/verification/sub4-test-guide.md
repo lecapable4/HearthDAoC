@@ -78,7 +78,10 @@ without a new login:
 7. A level-50 character at Castle Sauvage (Albion's frontier gate in Forest Sauvage): Hector shows a yellow knot while
    "[Group Daily] A Team Building Exercise" is open to you (daily quests have no level rule).
 8. `/indicator` on any NPC names its meaning and what the client draws, e.g. "available (a yellow knot): ...".
-9. A level-7 character by Elaru (yellow knot): walk about 4,000 units away, `/player level 23`, walk back: no knot on
-   her (the server's create for an NPC your client still drew is followed by a quest effect).
+9. A level-7 character by Elaru (yellow knot): walk more than 6,000 units away (the server's range; about 7,000), and
+   check that she is still drawn on your screen out there; `/player level 23`, walk back: no knot on her once she is
+   in range again (the server's create for an NPC your client still drew is followed by a quest effect). If she
+   vanishes from your screen beyond 6,000 units, the client doesn't keep NPCs out of range: say so (the check is
+   then moot).
 
 Results go in `docs/fork/verification/sub4-ingame.md`.
