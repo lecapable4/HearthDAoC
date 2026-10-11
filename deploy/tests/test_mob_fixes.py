@@ -30,6 +30,9 @@ SCHEMA = [
     "CREATE TABLE NpcTemplate (TemplateId INT(11) NOT NULL DEFAULT 0, Name TEXT NOT NULL DEFAULT '', "
     "Level TEXT NOT NULL DEFAULT '', LastTimeRowUpdated DATETIME NOT NULL DEFAULT '2000-01-01 00:00:00', "
     "NpcTemplate_ID VARCHAR(255) NOT NULL DEFAULT '', PRIMARY KEY (NpcTemplate_ID))",
+    "CREATE TABLE ItemTemplate (Id_nb VARCHAR(255) NOT NULL DEFAULT '', Name TEXT NOT NULL DEFAULT '', "
+    "Price BIGINT(20) NOT NULL DEFAULT 0, LastTimeRowUpdated DATETIME NOT NULL DEFAULT '2000-01-01 00:00:00', "
+    "PRIMARY KEY (Id_nb))",
 ]
 OLD = "2000-01-01 00:00:00"
 NOW = "2026-10-10 12:00:00"
@@ -50,6 +53,7 @@ def add_rows(conn):
     conn.execute("INSERT INTO Mob (Mob_ID, Name, Level, Region, X, Y, Z, RoamingRange) VALUES ('agisthil', 'Agisthil', 12, 1, 9, 9, 9, 0)")
     conn.execute("INSERT INTO Mob (Mob_ID, Name, Level, Region, X, Y, Z, RoamingRange) VALUES ('frund', 'Frund', 0, 1, 100, 200, 30, 200)")
     conn.execute("INSERT INTO NpcTemplate (NpcTemplate_ID, TemplateId, Name, Level) VALUES ('t1', 12165, 'Frund', '12-13')")
+    conn.execute("INSERT INTO ItemTemplate (Id_nb, Name, Price) VALUES ('stone', 'Cloudy Green Stone', 0)")
 
 
 class SyntheticTests(unittest.TestCase):
@@ -123,6 +127,14 @@ class SyntheticTests(unittest.TestCase):
         self.assertTrue(self.run_fix(data)[0].startswith("Mob fixes: 3 corrected: "))
         self.assertEqual(self.mob("agisthil", "Level"), (10,))
 
+    def test_an_item_template_row_is_corrected(self):
+        data = {"fixes": [{"name": "Cloudy Green Stone", "table": "ItemTemplate", "id": "stone", "expect": {"Price": 0},
+                           "set": {"Price": 100}, "why": "Allakhazam"}]}
+        self.assertEqual(self.run_fix(data), ["Mob fixes: 1 corrected: Cloudy Green Stone (ItemTemplate stone)"])
+        self.assertEqual(self.conn.execute("SELECT Price, LastTimeRowUpdated FROM ItemTemplate WHERE Id_nb='stone'").fetchone(),
+                         (100, NOW))
+        self.assertEqual(self.run_fix(data), [])
+
     def test_every_npc_template_row_of_the_id_is_corrected(self):
         self.conn.execute("INSERT INTO NpcTemplate (NpcTemplate_ID, TemplateId, Name, Level) VALUES ('t2', 12165, 'Frund', '12-13')")
         self.conn.commit()
@@ -178,7 +190,7 @@ class SyntheticTests(unittest.TestCase):
         data["fixes"][0]["set"] = {"Lvl": 10}
         data["fixes"][0]["expect"] = {"Lvl": 12}
         self.assertEqual(self.run_fix(data), ["Mob fixes: not applied (fix 1 (Agisthil): Mob has no column Lvl); "
-                                              "the monsters keep the values they have"])
+                                              "the monsters and items keep the values they have"])
 
     def test_a_missing_data_file_is_a_not_applied_line(self):
         with unittest.mock.patch.object(mf, "load_data", side_effect=FileNotFoundError("mob_fixes.json")):
@@ -286,6 +298,13 @@ class RealFileTests(unittest.TestCase):
         self.assertEqual(self.conn.execute("SELECT Level FROM Mob WHERE Mob_ID=?", (AGISTHIL,)).fetchone(), (10,))
         self.assertEqual(self.conn.execute("SELECT Level, NPCTemplateID FROM Mob WHERE Mob_ID=?", (FRUND,)).fetchone(),
                          (0, 12165))  # his level comes from his template
+
+    def test_the_cloudy_green_stone_sells_for_50_copper(self):
+        # "Zombie Problem" (level 4, Gronyr Gloyw): "he will give you a cloudy green stone (worth about 50 copper)".
+        # A merchant pays the world's item_sell_ratio percent of the price.
+        price = self.conn.execute("SELECT Price FROM ItemTemplate WHERE Id_nb='cq_alb_cloudy_green_stone'").fetchone()[0]
+        ratio = int(self.conn.execute("SELECT Value FROM ServerProperty WHERE `Key`='item_sell_ratio'").fetchone()[0])
+        self.assertEqual(price * ratio // 100, 50)
 
     def test_frund_stands_at_the_red_dwarf_camp_beside_agisthil(self):
         frund = self.conn.execute("SELECT Region, X, Y, Z, RoamingRange FROM Mob WHERE Mob_ID=?", (FRUND,)).fetchone()
