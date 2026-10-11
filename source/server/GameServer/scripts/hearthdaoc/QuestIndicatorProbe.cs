@@ -145,7 +145,7 @@ public static class QuestIndicatorProbe
     public static bool Pends(DataQuest.eStepType stepType) => QuestIndicators.PendsHere(stepType);
 
     public static bool Shows(GivenScriptedQuest quest) =>
-        quest.Qualifies && quest.Finished + (quest.Doing ? 1 : 0) < quest.MaxCount;
+        QuestIndicators.ScriptedOffer(quest.MinLevel, quest.Qualifies, quest.Finished, quest.Doing, quest.MaxCount).Qualifies;
 
     // A quest lights the NPC (yellow) when it shows and its minimum level is at most 15 below the player's.
     public static bool Lights(GivenScriptedQuest quest, int level) =>

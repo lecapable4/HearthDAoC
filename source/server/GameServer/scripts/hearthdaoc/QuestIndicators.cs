@@ -81,7 +81,7 @@ public static class QuestIndicators
                 case DataQuest dataQuest when dataQuest.Step > 0:
                     steps.Add(new JournalStep(dataQuest.StepType, dataQuest.TargetName, dataQuest.TargetRegion));
                     break;
-                case RewardQuest rewardQuest when rewardQuest.QuestGiver == npc && rewardQuest.Goals.All(g => g.IsAchieved):
+                case RewardQuest rewardQuest when RewardDone(rewardQuest.QuestGiver == npc, rewardQuest.Goals.Select(g => g.IsAchieved)):
                     rewardQuestDone = true;
                     break;
             }
@@ -95,17 +95,31 @@ public static class QuestIndicators
         foreach (AbstractQuest quest in scripted)
         {
             Type type = quest.GetType();
-            int doing = player.IsDoingQuest(type) != null ? 1 : 0;
-            yield return new QuestOffer(ScriptedMinLevel(quest),
-                quest.CheckQuestQualification(player) && player.HasFinishedQuest(type) + doing < quest.MaxQuestCount);
+            yield return ScriptedOffer(ScriptedMinLevel(quest), quest.CheckQuestQualification(player),
+                player.HasFinishedQuest(type), player.IsDoingQuest(type) != null, quest.MaxQuestCount);
         }
         foreach (DataQuest quest in offered)
         {
-            // ShowIndicator first, as upstream: a Collection quest's check reads the database.
-            if (quest.ShowIndicator)
-                yield return new QuestOffer(quest.Level, quest.CheckQuestQualification(player));
+            if (DataOffer(quest.ShowIndicator, quest.Level, () => quest.CheckQuestQualification(player), out QuestOffer offer))
+                yield return offer;
         }
     }
+
+    // A scripted quest is offered while the times it was finished, plus the one being done, stay under its
+    // MaxQuestCount (GameNPC.CanShowOneQuest).
+    public static QuestOffer ScriptedOffer(int? minLevel, bool qualifies, int finished, bool doing, int maxCount) =>
+        new(minLevel, qualifies && finished + (doing ? 1 : 0) < maxCount);
+
+    // A data quest is an offer only when it shows a marker (ShowIndicator); only then is it asked to qualify, as
+    // upstream: a Collection quest's check reads the database.
+    public static bool DataOffer(bool showIndicator, int minLevel, Func<bool> qualifies, out QuestOffer offer)
+    {
+        offer = showIndicator ? new QuestOffer(minLevel, qualifies()) : default;
+        return showIndicator;
+    }
+
+    // A reward quest turns in at its own giver once every goal is done; another giver's goals are not read.
+    public static bool RewardDone(bool ownGiver, IEnumerable<bool> goalsAchieved) => ownGiver && goalsAchieved.All(done => done);
 
     // AbstractQuest.Level is 1 unless a quest sets it; ten level-50 epics (Viking_50, Church_50, ...) never do, so their
     // Level says nothing about their minimum level. Daily, weekly and monthly quests (Atlas's) have no level rule: their
@@ -135,11 +149,18 @@ public static class QuestIndicators
     [ThreadStatic]
     private static bool t_raw;
 
-    // The value a packet writer puts on the wire for this player and NPC. /indicator's values stay raw: the byte of
-    // /indicator effect (SendRawEffect), and the /indicator create value the GM set on this NPC, which
-    // GameNPC.GetQuestIndicator returns (a class that ignores it gives its own value, which goes through the table).
+    // /indicator's values stay raw: the byte of /indicator effect (rawEffect: SendRawEffect is sending it), and the
+    // /indicator create value the GM set on this NPC (forced), which GameNPC.GetQuestIndicator returns.
+    public static bool IsRaw(bool rawEffect, bool forced) => rawEffect || forced;
+
+    // The value is the GM's /indicator create value for this NPC (a class that ignores it gives its own value, which
+    // goes through the table).
+    private static bool Forced(GamePlayer player, GameNPC npc, eQuestIndicator value) =>
+        IndicatorOverrides.TryGet(player, npc, out eQuestIndicator forced) && forced == value;
+
+    // The value a packet writer puts on the wire for this player and NPC.
     public static eQuestIndicator WireFor(GamePlayer player, GameNPC npc, eQuestIndicator value) =>
-        ToWire(value, t_raw || (IndicatorOverrides.TryGet(player, npc, out eQuestIndicator forced) && forced == value));
+        ToWire(value, IsRaw(t_raw, Forced(player, npc, value)));
 
     // /indicator effect: the quest effect with this byte, past the table.
     public static void SendRawEffect(GamePlayer player, GameNPC npc, byte value)
@@ -164,16 +185,19 @@ public static class QuestIndicators
     public static eQuestIndicator Sending(GamePlayer player, GameNPC npc, eQuestIndicator value)
     {
         eQuestIndicator wire = WireFor(player, npc, value);
-        LastSent.Record(player, npc, (byte)wire);
+        LastSent.Record(player, npc, (byte)wire, new SentPlace(npc.ObjectID, npc.CurrentRegionID));
         return wire;
     }
 
     // Called by the create packet's writer (PacketLib1124.SendNPCCreate): as Sending, but a value that differs from the
-    // last one sent also asks a refresh, whose quest effect draws it even on a client that still had the NPC.
+    // last one sent, or a create under an object ID another NPC was sent under, also asks a refresh, whose quest effect
+    // draws it even on a client that still had an object under that ID; not for a GM's /indicator create value, whose
+    // create alone is what the GM is looking at (IndicatorSentStore.RecordCreate).
     public static eQuestIndicator SendingCreate(GamePlayer player, GameNPC npc, eQuestIndicator value)
     {
-        eQuestIndicator wire = WireFor(player, npc, value);
-        if (LastSent.RecordCreate(player, npc, (byte)wire))
+        bool forced = Forced(player, npc, value);
+        eQuestIndicator wire = ToWire(value, IsRaw(t_raw, forced));
+        if (LastSent.RecordCreate(player, npc, (byte)wire, new SentPlace(npc.ObjectID, npc.CurrentRegionID), forced))
             Refresh(player);
         return wire;
     }
@@ -208,10 +232,11 @@ public static class QuestIndicators
         lock (cache.NpcUpdateCacheLock)
             known = new List<GameNPC>(cache.NpcUpdateCache.Keys);
 
-        // An NPC out of the world or in another region is off the client (and its object ID may be reused).
+        // Values sent in another region are dropped; an NPC that left the world is marked unknown, so its marker is sent
+        // again when it comes back (IndicatorSentStore.Prune). Only active NPCs in this region are asked.
         ushort region = player.CurrentRegionID;
-        LastSent.Prune(player, o => o is not GameNPC npc || npc.ObjectState != GameObject.eObjectState.Active
-            || npc.CurrentRegionID != region);
+        LastSent.Prune(player, region, o => o is GameNPC npc && npc.ObjectState == GameObject.eObjectState.Active,
+            o => ((GameNPC)o).CurrentRegionID);
         known.RemoveAll(npc => npc.ObjectState != GameObject.eObjectState.Active || npc.CurrentRegionID != region);
 
         LastSent.SendChanges(player, known, o =>

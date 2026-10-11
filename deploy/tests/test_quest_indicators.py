@@ -118,6 +118,83 @@ class ProbeTests(unittest.TestCase):
         self.assertNotIn("SendNPCsQuestEffect(npc, (eQuestIndicator)request.Effect)", text)
 
 
+def last_statement(test, body, call, indent):
+    """The hook is a statement of the method's own block, at this indentation, followed only by `return true;` and
+    closing braces: not inside an if or an else, and not before the change it reports."""
+    lines = body.split("\n")
+    at = [i for i, line in enumerate(lines) if call in line]
+    test.assertEqual(len(at), 1, call)
+    line = lines[at[0]]
+    test.assertEqual(line[:len(line) - len(line.lstrip())], indent, call)
+    test.assertRegex("\n".join(lines[at[0] + 1:]), r"^\s*(return true;)?[\s}]*$", call)
+
+
+class WiringTests(unittest.TestCase):
+    """The game-facing code calls the unit-tested decisions (UT_QuestIndicators, UT_IndicatorSentStore), which can't
+    reach it: it needs live players and NPCs."""
+
+    def test_raw_values_are_decided_by_is_raw(self):
+        text = read(QUEST_INDICATORS)
+        self.assertIn("ToWire(value, IsRaw(t_raw, Forced(player, npc, value)))",
+                      between(text, "public static eQuestIndicator WireFor(", ";\n"))
+        create = between(text, "public static eQuestIndicator SendingCreate(", "\n    }\n")
+        self.assertIn("bool forced = Forced(player, npc, value);", create)
+        self.assertIn("ToWire(value, IsRaw(t_raw, forced))", create)
+
+    def test_a_changed_create_asks_a_refresh_and_a_probe_value_does_not(self):
+        create = between(read(QUEST_INDICATORS), "public static eQuestIndicator SendingCreate(", "\n    }\n")
+        self.assertRegex(create, r"if \(LastSent\.RecordCreate\(player, npc, \(byte\)wire, "
+                                 r"new SentPlace\(npc\.ObjectID, npc\.CurrentRegionID\), forced\)\)\n\s*Refresh\(player\);")
+
+    def test_the_effect_writer_records_where_the_client_knows_the_npc(self):
+        sending = between(read(QUEST_INDICATORS), "public static eQuestIndicator Sending(", "\n    }\n")
+        self.assertIn("LastSent.Record(player, npc, (byte)wire, new SentPlace(npc.ObjectID, npc.CurrentRegionID));",
+                      sending)
+
+    def test_the_raw_effect_flag_is_set_and_always_cleared(self):
+        body = between(read(QUEST_INDICATORS), "public static void SendRawEffect(", "\n    }\n")
+        self.assertRegex(body, r"t_raw = true;\s*try\s*\{\s*player\.Out\.SendNPCsQuestEffect\(npc, \(eQuestIndicator\)value\);"
+                               r"\s*\}\s*finally\s*\{\s*t_raw = false;\s*\}")
+
+    def test_the_adapter_uses_the_tested_rules(self):
+        text = read(QUEST_INDICATORS)
+        adapter = between(text, "public static eQuestIndicator For(GameNPC npc, GamePlayer player,", "\n    }\n")
+        offers = between(text, "private static IEnumerable<QuestOffer> Offers(", "\n    }\n")
+        self.assertIn("RewardDone(rewardQuest.QuestGiver == npc, rewardQuest.Goals.Select(g => g.IsAchieved))", adapter)
+        self.assertIn("yield return ScriptedOffer(ScriptedMinLevel(quest), quest.CheckQuestQualification(player),", offers)
+        self.assertIn("if (DataOffer(quest.ShowIndicator, quest.Level, () => quest.CheckQuestQualification(player), "
+                      "out QuestOffer offer))", offers)
+        for rule in ("< quest.MaxQuestCount", "if (quest.ShowIndicator)", ".All("):
+            self.assertNotIn(rule, adapter + offers, rule)
+
+    def test_the_refresh_prunes_by_region_and_world(self):
+        run = between(read(QUEST_INDICATORS), "private static void Run(GamePlayer player)", "\n    }\n")
+        self.assertIn("LastSent.Prune(player, region, o => o is GameNPC npc && npc.ObjectState == "
+                      "GameObject.eObjectState.Active,", run)
+
+
+class HookNestingTests(unittest.TestCase):
+    """The hooks that end their method are its last top-level statement (the others sit in a loop or an if by design)."""
+
+    def test_the_level_and_class_and_add_quest_hooks(self):
+        text = read(GAME_PLAYER)
+        last_statement(self, between(text, "public override byte Level", "\n        }\n"),
+                       "HearthDAoC.QuestIndicators.Refresh(this);", " " * 16)
+        last_statement(self, between(text, "public virtual bool SetCharacterClass(int id)", "\n        }\n"),
+                       "HearthDAoC.QuestIndicators.Refresh(this);", " " * 12)
+        last_statement(self, between(text, "public bool AddQuest(AbstractQuest quest)", "\n        }\n"),
+                       "HearthDAoC.QuestIndicators.Refresh(this);", " " * 12)
+
+    def test_the_step_setter_and_the_data_quest_finish_and_abort_hooks(self):
+        last_statement(self, between(read(ABSTRACT_QUEST), "public virtual int Step", "\n        }\n"),
+                       "HearthDAoC.QuestIndicators.Refresh(m_questPlayer);", " " * 16)
+        text = read(DATA_QUEST)
+        last_statement(self, between(text, "public virtual bool FinishQuest(GameObject obj, bool checkCustomStep)",
+                                     "\n\t\t}\n"), "HearthDAoC.QuestIndicators.Refresh(m_questPlayer);", "\t\t\t")
+        last_statement(self, between(text, "public override void AbortQuest()", "\n\t\t}\n"),
+                       "HearthDAoC.QuestIndicators.Refresh(m_questPlayer);", "\t\t\t")
+
+
 class RefreshHookTests(unittest.TestCase):
     """Who asks for a refresh (spec 3.3)."""
 

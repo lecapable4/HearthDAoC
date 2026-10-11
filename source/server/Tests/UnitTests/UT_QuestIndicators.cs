@@ -152,6 +152,62 @@ public sealed class UT_QuestIndicators
         }
     }
 
+    [Test]
+    public void AValueIsRawForAnIndicatorEffectOrTheGmsOwnCreateValue()
+    {
+        Assert.Multiple(() =>
+        {
+            Assert.That(QuestIndicators.IsRaw(rawEffect: false, forced: false), Is.False); // a meaning: through the table
+            Assert.That(QuestIndicators.IsRaw(rawEffect: true, forced: false), Is.True); // /indicator effect's byte
+            Assert.That(QuestIndicators.IsRaw(rawEffect: false, forced: true), Is.True); // the GM's /indicator create value
+        });
+    }
+
+    [Test]
+    public void AScriptedQuestIsOfferedWhileTheTimesDoneStayUnderItsLimit()
+    {
+        // GameNPC.CanShowOneQuest's test: finished, plus the one being done, under MaxQuestCount.
+        Assert.Multiple(() =>
+        {
+            Assert.That(QuestIndicators.ScriptedOffer(48, qualifies: true, finished: 0, doing: false, maxCount: 1),
+                Is.EqualTo(new QuestOffer(48, true)));
+            Assert.That(QuestIndicators.ScriptedOffer(48, true, finished: 1, doing: false, maxCount: 1).Qualifies, Is.False);
+            Assert.That(QuestIndicators.ScriptedOffer(48, true, finished: 0, doing: true, maxCount: 1).Qualifies, Is.False);
+            Assert.That(QuestIndicators.ScriptedOffer(null, true, finished: 1, doing: true, maxCount: 3).Qualifies, Is.True);
+            Assert.That(QuestIndicators.ScriptedOffer(48, qualifies: false, finished: 0, doing: false, maxCount: 1).Qualifies,
+                Is.False);
+        });
+    }
+
+    [Test]
+    public void ADataQuestWithoutAMarkerIsNotAskedToQualify()
+    {
+        // ShowIndicator first: a Collection quest's qualification reads the database.
+        Assert.That(QuestIndicators.DataOffer(false, 7, () => { Assert.Fail("asked to qualify"); return true; }, out _),
+            Is.False);
+        Assert.That(QuestIndicators.DataOffer(true, 7, () => true, out QuestOffer offer), Is.True);
+        Assert.That(offer, Is.EqualTo(new QuestOffer(7, true)));
+        Assert.That(QuestIndicators.DataOffer(true, 7, () => false, out offer), Is.True);
+        Assert.That(offer, Is.EqualTo(new QuestOffer(7, false)));
+    }
+
+    private static IEnumerable<bool> Unread(string why)
+    {
+        Assert.Fail(why);
+        yield break;
+    }
+
+    [Test]
+    public void ARewardQuestTurnsInOnlyAtItsOwnGiverWithEveryGoalDone()
+    {
+        Assert.Multiple(() =>
+        {
+            Assert.That(QuestIndicators.RewardDone(ownGiver: false, Unread("another giver's goals were read")), Is.False);
+            Assert.That(QuestIndicators.RewardDone(ownGiver: true, new[] { true, true }), Is.True);
+            Assert.That(QuestIndicators.RewardDone(ownGiver: true, new[] { true, false }), Is.False);
+        });
+    }
+
     // Scripted quests: Level counts as the minimum level only when the class declares it.
     private abstract class Stub : AbstractQuest
     {
