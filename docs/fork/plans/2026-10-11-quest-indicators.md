@@ -77,7 +77,8 @@ print(f"edited {path} ({len(blocks)} block(s))")
 ```
 
 - Run every command, edit block and `git add` from the repository root, `~/github/HearthDAoC-qi`, after checking that
-  `git branch --show-current` prints `quest-indicators`.
+  `git branch --show-current` prints `quest-indicators` (if it prints another name, `git switch quest-indicators`; if it
+  prints nothing, you are in a detached checkout: stop and ask the controller).
 - Test commands:
   - Unit tests need `source/server/CoreServer/config/serverconfig.xml` (gitignored; never commit it). If it is missing:
     `cp deploy/serverconfig.build.xml source/server/CoreServer/config/serverconfig.xml`.
@@ -400,7 +401,7 @@ Run: `DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=0 dotnet test source/server/Tests/Te
 Expected: the build fails with `error CS0246` naming `JournalStep` and `QuestOffer`.
 
 - [ ] **Step 3: Write the rules.** Create `source/server/GameServer/scripts/hearthdaoc/QuestIndicators.cs` with exactly
-(Task 2 adds the refresh at the end of the class; `using DOL.Events;` is for it):
+(Task 2 adds the refresh at the end of the class; `using DOL.Events;` and `using DOL.Logging;` are for it, so keep them):
 
 ```csharp
 using System;
@@ -2175,7 +2176,7 @@ Run: `DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=0 dotnet test source/server/Tests/Te
 Expected: the server builds with no error; `Passed!` with `Failed: 0` and `Passed: 3093`.
 
 Run: `git diff --numstat` — added lines only: `GamePlayer.cs` 4 (the level hook brings a blank line), `AbstractQuest.cs` 1,
-`DataQuest.cs` 5, each `*QuestService.cs` 1, `EpicCommand.cs` 2, `test_quest_indicators.py` the new class; nothing else.
+`DataQuest.cs` 5, each `*QuestService.cs` 1, `EpicCommand.cs` 2, `test_quest_indicators.py` 86; nothing else.
 
 - [ ] **Step 9: Commit.**
 
@@ -2197,7 +2198,8 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 
 **Files:**
 - Modify: `docs/fork/FORK.md` (the `/epic` and `/indicator` rows; a new row after `/indicator`)
-- Modify: `docs/fork/verification/sub4-test-guide.md` (section 4: the scheme's checks)
+- Modify: `docs/fork/verification/sub4-test-guide.md` (a `###` subsection at the end of the existing section "4. Quest
+  indicators (`/indicator`)", just before its "Results go in ..." line)
 
 **Interfaces:** none (documentation).
 
