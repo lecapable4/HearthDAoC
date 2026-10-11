@@ -153,10 +153,18 @@ public static class QuestIndicators
     // /indicator create value the GM set on this NPC (forced), which GameNPC.GetQuestIndicator returns.
     public static bool IsRaw(bool rawEffect, bool forced) => rawEffect || forced;
 
-    // The value is the GM's /indicator create value for this NPC (a class that ignores it gives its own value, which
-    // goes through the table).
+    // The value is the GM's /indicator create value for this NPC: the GM set one, and the NPC gave it (a class that
+    // ignores it gives its own value, which goes through the table).
+    public static bool Forced(bool hasOverride, eQuestIndicator forced, eQuestIndicator value) =>
+        hasOverride && forced == value;
+
     private static bool Forced(GamePlayer player, GameNPC npc, eQuestIndicator value) =>
-        IndicatorOverrides.TryGet(player, npc, out eQuestIndicator forced) && forced == value;
+        Forced(IndicatorOverrides.TryGet(player, npc, out eQuestIndicator forced), forced, value);
+
+    // A quest effect carries only the NPC's object ID: for an NPC out of the world or in another region than the
+    // player, that ID means another object on the player's client, so nothing is sent.
+    public static bool SendsTo(bool npcInWorld, ushort npcRegion, ushort playerRegion) =>
+        npcInWorld && npcRegion == playerRegion;
 
     // The value a packet writer puts on the wire for this player and NPC.
     public static eQuestIndicator WireFor(GamePlayer player, GameNPC npc, eQuestIndicator value) =>
@@ -180,13 +188,16 @@ public static class QuestIndicators
 
     private static readonly Logger Log = LoggerManager.Create(typeof(QuestIndicators));
 
-    // Called by the quest effect's writer (PacketLib173.SendNPCsQuestEffect) with the value it was given: returns the
-    // value to send, recorded as the last one sent to the player for the NPC.
-    public static eQuestIndicator Sending(GamePlayer player, GameNPC npc, eQuestIndicator value)
+    // Called by the quest effect's writer (PacketLib173.SendNPCsQuestEffect) with the value it was given: false when
+    // nothing may be sent (SendsTo: an NPC out of the world or in another region); otherwise value becomes the value to
+    // send, recorded as the last one sent to the player for the NPC.
+    public static bool Sending(GamePlayer player, GameNPC npc, ref eQuestIndicator value)
     {
-        eQuestIndicator wire = WireFor(player, npc, value);
-        LastSent.Record(player, npc, (byte)wire, new SentPlace(npc.ObjectID, npc.CurrentRegionID));
-        return wire;
+        if (!SendsTo(npc.ObjectState == GameObject.eObjectState.Active, npc.CurrentRegionID, player.CurrentRegionID))
+            return false;
+        value = WireFor(player, npc, value);
+        LastSent.Record(player, npc, (byte)value, new SentPlace(npc.ObjectID, npc.CurrentRegionID));
+        return true;
     }
 
     // Called by the create packet's writer (PacketLib1124.SendNPCCreate): as Sending, but a value that differs from the

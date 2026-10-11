@@ -227,6 +227,58 @@ public sealed class UT_IndicatorSentStore
     }
 
     [Test]
+    public void ARespawnUnderANewObjectIdAsksARefreshEvenWithTheSameValue()
+    {
+        // A moss sheerie (white knot) dies and respawns under a new object ID, which the client may still use for an
+        // unmarked mob that died out of range: the same value is sent again by quest effect.
+        var store = new IndicatorSentStore();
+        object player = new(), moss = new(), guard = new();
+        store.Record(player, moss, 16, At(101));
+        Assert.That(store.RecordCreate(player, moss, 16, At(107), probe: false), Is.True);
+        store.Record(player, moss, 16); // the refresh
+        Assert.That(store.Last(player, moss), Is.EqualTo(16));
+        // Its place moved to 107: another NPC created there later is a reuse of it.
+        Assert.That(store.RecordCreate(player, guard, 0, At(107), probe: false), Is.True);
+    }
+
+    [Test]
+    public void TheOldObjectIdOfAnNpcThatMovedIsStillWatched()
+    {
+        // The client may still draw the dead moss sheerie under 101 with its white knot: a rat created there later gets
+        // its own value sent by quest effect.
+        var store = new IndicatorSentStore();
+        object player = new(), moss = new(), rat = new();
+        store.Record(player, moss, 16, At(101));
+        store.RecordCreate(player, moss, 16, At(102), probe: false);
+        Assert.That(store.RecordCreate(player, rat, 0, At(101), probe: false), Is.True);
+        // And once that is settled, a later create there is ordinary again.
+        store.Record(player, rat, 0);
+        Assert.That(store.RecordCreate(player, rat, 0, At(101), probe: false), Is.False);
+    }
+
+    [Test]
+    public void TheOldObjectIdsAreForgottenAtARegionChange()
+    {
+        var store = new IndicatorSentStore();
+        object player = new(), moss = new();
+        store.Record(player, moss, 16, At(101));
+        store.RecordCreate(player, moss, 16, At(102), probe: false);
+        store.Prune(player, 10, _ => true, _ => 51); // the player is in Camelot now
+        Assert.That(store.Count(player), Is.EqualTo(0));
+    }
+
+    [Test]
+    public void AProbeCreateStillDropsAnotherNpcSentUnderItsObjectId()
+    {
+        var store = new IndicatorSentStore();
+        object gm = new(), old = new(), elaru = new();
+        store.Record(gm, old, 8, At(101));
+        Assert.That(store.RecordCreate(gm, elaru, 2, At(101), probe: true), Is.False);
+        Assert.That(store.Last(gm, old), Is.EqualTo(0));
+        Assert.That(store.Last(gm, elaru), Is.EqualTo(2));
+    }
+
+    [Test]
     public void ARefreshKeepsWhereTheWriterSaidTheClientKnowsTheNpc()
     {
         // The writer records the place; the refresh's own record must not lose it, or a reused ID would go unseen.

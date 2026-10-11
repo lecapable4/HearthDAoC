@@ -20,6 +20,12 @@ public sealed class IndicatorSentStore
 {
     private readonly record struct Sent(byte Wire, SentPlace Place);
 
+    // Keeps watching an object ID an NPC with a marker was sent under after the NPC moved to another ID (a respawn gets
+    // a new ID): the client may still draw the old object there, marker and all, until it gets a remove or the region
+    // changes. Not a GameNPC, so Prune treats it as out of the world: it lasts until a create comes under that ID (a
+    // reuse) or the region changes.
+    private sealed class Tombstone;
+
     private sealed class PlayerSent
     {
         // A leaf lock: held only around Wire.
@@ -63,21 +69,43 @@ public sealed class IndicatorSentStore
 
     private static void Set(PlayerSent sent, object npc, byte wire, SentPlace? place)
     {
+        bool had = sent.Wire.TryGetValue(npc, out Sent old);
+        if (had && place is SentPlace moved && moved != old.Place)
+            Bury(sent, old);
         if (wire == 0)
         {
             sent.Wire.Remove(npc);
             return;
         }
-        SentPlace kept = place ?? (sent.Wire.TryGetValue(npc, out Sent old) ? old.Place : default);
-        sent.Wire[npc] = new Sent(wire, kept);
+        sent.Wire[npc] = new Sent(wire, place ?? (had ? old.Place : default));
+    }
+
+    // The NPC left this place for another: keep watching it, if the client may still draw a marker there.
+    private static void Bury(PlayerSent sent, Sent old)
+    {
+        if (old.Wire == 0)
+            return;
+        List<object> there = null;
+        foreach (KeyValuePair<object, Sent> entry in sent.Wire)
+        {
+            if (entry.Key is Tombstone && entry.Value.Place == old.Place)
+                (there ??= new List<object>()).Add(entry.Key);
+        }
+        if (there != null)
+        {
+            foreach (object tombstone in there)
+                sent.Wire.Remove(tombstone);
+        }
+        sent.Wire[new Tombstone()] = old;
     }
 
     // What a create packet just carried, for an NPC the client knows by place. A client that still has an object under
     // that ID (an NPC out of the server's range lingers on the client; one killed out of range was never removed there)
     // may take the create as an update and keep its old drawing. So, unless it is a GM's /indicator create value (probe:
-    // the create alone is what the GM is looking at), a value that differs from the last one sent for this NPC, or a
-    // create under an ID another NPC was sent under in that region, is recorded as Unknown and the caller asks a refresh,
-    // whose quest effect draws it. True when that refresh is needed.
+    // the create alone is what the GM is looking at), a value that differs from the last one sent for this NPC, a create
+    // under an ID another NPC (or a tombstone) was sent under in that region, or the NPC's own move to a new ID (a
+    // respawn: the new ID may hold an unmarked object the client still draws), is recorded as Unknown and the caller asks
+    // a refresh, whose quest effect draws it. True when that refresh is needed.
     public bool RecordCreate(object player, object npc, byte wire, SentPlace place, bool probe)
     {
         PlayerSent sent = For(player);
@@ -103,12 +131,15 @@ public sealed class IndicatorSentStore
                 Set(sent, npc, wire, place);
                 return false;
             }
-            byte last = sent.Wire.TryGetValue(npc, out Sent value) ? value.Wire : (byte)0;
-            if (!reused && last == wire)
+            bool had = sent.Wire.TryGetValue(npc, out Sent value);
+            bool moved = had && value.Place != place;
+            if (!reused && !moved && (had ? value.Wire : (byte)0) == wire)
             {
                 Set(sent, npc, wire, place);
                 return false;
             }
+            if (moved)
+                Bury(sent, value);
             sent.Wire[npc] = new Sent(Unknown, place);
             return true;
         }

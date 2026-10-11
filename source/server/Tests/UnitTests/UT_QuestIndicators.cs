@@ -164,6 +164,31 @@ public sealed class UT_QuestIndicators
     }
 
     [Test]
+    public void OnlyTheGmsOwnCreateValueIsForced()
+    {
+        Assert.Multiple(() =>
+        {
+            Assert.That(QuestIndicators.Forced(hasOverride: false, eQuestIndicator.None, eQuestIndicator.Available), Is.False);
+            Assert.That(QuestIndicators.Forced(hasOverride: true, eQuestIndicator.Finish, eQuestIndicator.Finish), Is.True);
+            // A class that ignores the GM's value gives its own, which goes through the table.
+            Assert.That(QuestIndicators.Forced(hasOverride: true, eQuestIndicator.Finish, eQuestIndicator.Lore), Is.False);
+        });
+    }
+
+    [Test]
+    public void AQuestEffectGoesOnlyToAnNpcInTheWorldInThePlayersRegion()
+    {
+        // The packet carries only the object ID: in another region, or after the NPC left the world, that ID is another
+        // object on the client (e.g. abandoning a quest whose giver is in Camelot, from the mainland).
+        Assert.Multiple(() =>
+        {
+            Assert.That(QuestIndicators.SendsTo(npcInWorld: true, npcRegion: 51, playerRegion: 51), Is.True);
+            Assert.That(QuestIndicators.SendsTo(npcInWorld: true, npcRegion: 10, playerRegion: 1), Is.False);
+            Assert.That(QuestIndicators.SendsTo(npcInWorld: false, npcRegion: 51, playerRegion: 51), Is.False);
+        });
+    }
+
+    [Test]
     public void AScriptedQuestIsOfferedWhileTheTimesDoneStayUnderItsLimit()
     {
         // GameNPC.CanShowOneQuest's test: finished, plus the one being done, under MaxQuestCount.

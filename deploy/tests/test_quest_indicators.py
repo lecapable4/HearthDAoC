@@ -71,7 +71,8 @@ class RulesAndPacketsTests(unittest.TestCase):
     def test_the_quest_effect_sends_the_wire_value(self):
         body = between(read(EFFECT), "public override void SendNPCsQuestEffect(GameNPC npc, eQuestIndicator indicator)",
                        "SendTCP(pak);")
-        mapped = body.index("indicator = HearthDAoC.QuestIndicators.Sending(m_gameClient.Player, npc, indicator);")
+        mapped = body.index("if (!HearthDAoC.QuestIndicators.Sending(m_gameClient.Player, npc, ref indicator))")
+        self.assertRegex(body[mapped:], r"^if \(!HearthDAoC\.QuestIndicators\.Sending\(m_gameClient\.Player, npc, ref indicator\)\)\n\t+return;\n")
         self.assertLess(body.index("if (m_gameClient.Player == null || npc == null)"), mapped)
         self.assertLess(mapped, body.index("pak.WriteByte((byte)indicator);"))
         marked(self, body, "HearthDAoC.QuestIndicators.Sending(")
@@ -126,6 +127,8 @@ def last_statement(test, body, call, indent):
     test.assertEqual(len(at), 1, call)
     line = lines[at[0]]
     test.assertEqual(line[:len(line) - len(line.lstrip())], indent, call)
+    test.assertTrue(line.strip().startswith(call), call)  # not guarded by a same-line if, not commented out
+    test.assertFalse(any(earlier.startswith(indent + "return") for earlier in lines[:at[0]]), call)
     test.assertRegex("\n".join(lines[at[0] + 1:]), r"^\s*(return true;)?[\s}]*$", call)
 
 
@@ -137,6 +140,8 @@ class WiringTests(unittest.TestCase):
         text = read(QUEST_INDICATORS)
         self.assertIn("ToWire(value, IsRaw(t_raw, Forced(player, npc, value)))",
                       between(text, "public static eQuestIndicator WireFor(", ";\n"))
+        self.assertIn("Forced(IndicatorOverrides.TryGet(player, npc, out eQuestIndicator forced), forced, value)",
+                      between(text, "private static bool Forced(GamePlayer player, GameNPC npc, eQuestIndicator value)", ";\n"))
         create = between(text, "public static eQuestIndicator SendingCreate(", "\n    }\n")
         self.assertIn("bool forced = Forced(player, npc, value);", create)
         self.assertIn("ToWire(value, IsRaw(t_raw, forced))", create)
@@ -147,8 +152,10 @@ class WiringTests(unittest.TestCase):
                                  r"new SentPlace\(npc\.ObjectID, npc\.CurrentRegionID\), forced\)\)\n\s*Refresh\(player\);")
 
     def test_the_effect_writer_records_where_the_client_knows_the_npc(self):
-        sending = between(read(QUEST_INDICATORS), "public static eQuestIndicator Sending(", "\n    }\n")
-        self.assertIn("LastSent.Record(player, npc, (byte)wire, new SentPlace(npc.ObjectID, npc.CurrentRegionID));",
+        sending = between(read(QUEST_INDICATORS), "public static bool Sending(", "\n    }\n")
+        self.assertRegex(sending, r"if \(!SendsTo\(npc\.ObjectState == GameObject\.eObjectState\.Active, "
+                                  r"npc\.CurrentRegionID, player\.CurrentRegionID\)\)\n\s*return false;")
+        self.assertIn("LastSent.Record(player, npc, (byte)value, new SentPlace(npc.ObjectID, npc.CurrentRegionID));",
                       sending)
 
     def test_the_raw_effect_flag_is_set_and_always_cleared(self):
@@ -161,7 +168,8 @@ class WiringTests(unittest.TestCase):
         adapter = between(text, "public static eQuestIndicator For(GameNPC npc, GamePlayer player,", "\n    }\n")
         offers = between(text, "private static IEnumerable<QuestOffer> Offers(", "\n    }\n")
         self.assertIn("RewardDone(rewardQuest.QuestGiver == npc, rewardQuest.Goals.Select(g => g.IsAchieved))", adapter)
-        self.assertIn("yield return ScriptedOffer(ScriptedMinLevel(quest), quest.CheckQuestQualification(player),", offers)
+        self.assertRegex(offers, r"yield return ScriptedOffer\(ScriptedMinLevel\(quest\), quest\.CheckQuestQualification\(player\),"
+                                 r"\s*player\.HasFinishedQuest\(type\), player\.IsDoingQuest\(type\) != null, quest\.MaxQuestCount\);")
         self.assertIn("if (DataOffer(quest.ShowIndicator, quest.Level, () => quest.CheckQuestQualification(player), "
                       "out QuestOffer offer))", offers)
         for rule in ("< quest.MaxQuestCount", "if (quest.ShowIndicator)", ".All("):
@@ -169,8 +177,8 @@ class WiringTests(unittest.TestCase):
 
     def test_the_refresh_prunes_by_region_and_world(self):
         run = between(read(QUEST_INDICATORS), "private static void Run(GamePlayer player)", "\n    }\n")
-        self.assertIn("LastSent.Prune(player, region, o => o is GameNPC npc && npc.ObjectState == "
-                      "GameObject.eObjectState.Active,", run)
+        self.assertRegex(run, r"LastSent\.Prune\(player, region, o => o is GameNPC npc && npc\.ObjectState == "
+                              r"GameObject\.eObjectState\.Active,\s*o => \(\(GameNPC\)o\)\.CurrentRegionID\);")
 
 
 class HookNestingTests(unittest.TestCase):
