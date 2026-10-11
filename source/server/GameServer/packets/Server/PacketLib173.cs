@@ -493,6 +493,9 @@ namespace DOL.GS.PacketHandler
 			if (m_gameClient.Player == null || npc == null)
 				return;
 
+			// HearthDAoC: the meaning becomes the value the client draws, recorded as sent to this player (QuestIndicators.cs; /indicator's values stay raw).
+			indicator = HearthDAoC.QuestIndicators.Sending(m_gameClient.Player, npc, indicator);
+
 			using (var pak = PooledObjectFactory.GetForTick<GSTCPPacketOut>().Init(GetPacketCode(eServerPackets.VisualEffect)))
 			{
 

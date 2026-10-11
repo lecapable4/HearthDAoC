@@ -70,7 +70,7 @@ class IndicatorCommandTests(unittest.TestCase):
     def test_the_gm_value_is_asked_first_in_get_quest_indicator(self):
         text = read(os.path.join(GAME_SERVER, "gameobjects", "GameNPC.cs"))
         body = text[text.index("public virtual eQuestIndicator GetQuestIndicator(GamePlayer player)"):]
-        body = body[:body.index("CanShowOneQuest(player)")]
+        body = body[:body.index("HearthDAoC.QuestIndicators.For(")]
         self.assertIn("// HearthDAoC:", body)
         self.assertIn("if (HearthDAoC.IndicatorOverrides.TryGet(player, this, out eQuestIndicator forced))", body)
 

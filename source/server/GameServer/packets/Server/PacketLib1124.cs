@@ -206,6 +206,8 @@ namespace DOL.GS.PacketHandler
 						flags2 |= 0x04;
 
 					eQuestIndicator questIndicator = npc.GetQuestIndicator(m_gameClient.Player);
+					// HearthDAoC: the meaning becomes the value the client draws, recorded as sent to this player; a change also asks a refresh (QuestIndicators.cs; /indicator's values stay raw).
+					questIndicator = HearthDAoC.QuestIndicators.SendingCreate(m_gameClient.Player, npc, questIndicator);
 
 					if (questIndicator == eQuestIndicator.Available)
 						flags2 |= 0x08;
