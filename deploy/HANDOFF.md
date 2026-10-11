@@ -134,10 +134,14 @@ Battleground keep guard levels follow `keep_guard_level_multiplier` (1.6), which
 keeps' guards. The realm rank caps (1L2, 1L3, 1L5, 1L9) hold on every way in: the frontier porter, the town
 teleporters' [Battlegrounds] choice, and for bots too.
 
-**Guild of Shadows dialogue.** Upstream left most of the Guild of Shadows chain's dialogue (levels 7 to 50)
-empty or filled with walkthrough notes. After each start, `./hdc fixes` shows `Quest dialogue: N quests
-rewritten` when the texts of the chain's quests (`deploy/bin/quest_dialogue.json`, every class's version) were
-changed, and nothing when they are up to date. Besides the texts (accept keyword, description, journal steps and
+**Quest texts.** Upstream left most of the Guild of Shadows chain's dialogue (levels 7 to 50) empty or filled
+with walkthrough notes. Its quest generator also lost the line that offers some classic quests (level 5's "Cleric
+Mulgrut": Hugh Gallen showed only his wares) and wrote `<Player>`, the player's own name in game, where the period
+named someone else. After each start, `./hdc fixes` shows `Quest dialogue: N quests rewritten` when the texts of
+the chain's quests (every class's version) or of those classic quests (`deploy/bin/quest_dialogue.json`) were
+changed, and nothing when they are up to date: `Quest dialogue: 85 quests rewritten` on a new world, and
+`Quest dialogue: 20 quests rewritten` (the classic quests) at the first start after an update from an earlier
+release. Besides the texts (accept keyword, description, journal steps and
 what the NPCs say), the file can set a quest's step items, step types and turn-in items, but never its number of
 stages: a quest whose stages differ from the file's is kept. It can also set a quest's giver (`StartName`) and the
 quests it needs (`QuestDependency`): the Shrouded Isles 7 and 11 ("Strange Beings", "Shades and Shadows") are given
@@ -150,13 +154,14 @@ and a later release with revised text reaches a world that had the earlier one. 
 start (`M left as they are (their text differs from upstream's and this file's): 21500, ...`): your own edits,
 or, after an upstream upgrade, quests whose upstream text changed, which keep upstream's text until the file is
 updated. If it fails, the start log says `Quest dialogue: not applied (...)`, the quests keep the
-text they have, and it tries again at the next start. The NPCs' chat lines are in `hearthdaoc-quests.json`
-(`Chat`), which replaces upstream's line for the same NPC and keyword. To revise the text: edit it in `quest_dialogue.json`, run
+text they have, and it tries again at the next start. The NPCs' chat lines (the chain's, and the classic
+quests' lost lines and names) are in `hearthdaoc-quests.json` (`Chat`), which replaces upstream's line for the same NPC
+and keyword. To revise the text: edit it in `quest_dialogue.json`, run
 `python3 deploy/bin/quest_dialogue.py --seal` (it appends the digest of the file's own text to each quest's guard
 list) and commit; a test fails until you do. Every committed version of the text is then guarded, so a later
-revision reaches a world that holds any earlier committed version. Only when an entry's set of columns changes
-is `python3 deploy/bin/quest_dialogue.py --digests <world.db> [--current]` still needed (it prints the digests of
-the text a world holds, which is upstream's only on a clean world).
+revision reaches a world that holds any earlier committed version. Only for a new entry, or when an entry's set of
+columns changes, is `python3 deploy/bin/quest_dialogue.py --digests <world.db> [--current]` still needed (it prints
+the digests of the text a world holds, which is upstream's only on a clean world).
 
 **Mob fixes.** Period corrections to upstream's monsters and items, from the quest archives: level 11's thieves Frund
 and Agisthil are level 10, Frund stands at the red dwarf camp beside Agisthil, and "Zombie Problem"'s Cloudy Green
