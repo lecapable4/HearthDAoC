@@ -140,8 +140,8 @@ Mulgrut": Hugh Gallen showed only his wares) and wrote `<Player>`, the player's 
 named someone else. After each start, `./hdc fixes` shows `Quest dialogue: N quests rewritten` when the texts of
 the chain's quests (every class's version) or of those classic quests (`deploy/bin/quest_dialogue.json`) were
 changed, and nothing when they are up to date: `Quest dialogue: 85 quests rewritten` on a new world, and
-`Quest dialogue: 20 quests rewritten` (the classic quests) at the first start after an update from an earlier
-release. Besides the texts (accept keyword, description, journal steps and
+`Quest dialogue: 20 quests rewritten` (the classic quests) at the first start after an update from hearth.9,
+hearth.10 or hearth.11 (a world an older release started also gets the chain's quests rewritten). Besides the texts (accept keyword, description, journal steps and
 what the NPCs say), the file can set a quest's step items, step types and turn-in items, but never its number of
 stages: a quest whose stages differ from the file's is kept. It can also set a quest's giver (`StartName`) and the
 quests it needs (`QuestDependency`): the Shrouded Isles 7 and 11 ("Strange Beings", "Shades and Shadows") are given

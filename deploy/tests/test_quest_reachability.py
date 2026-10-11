@@ -154,7 +154,6 @@ class PeriodChatTests(unittest.TestCase):
         self.assertGreater(fixed, 0)
 
 
-
 @unittest.skipUnless(TEST_WORLD and UPSTREAM_QUESTS, "needs HDC_TEST_WORLD (a clean classic world database) and "
                                                      "upstream's classic-quests.json (HDC_CLASSIC_QUESTS)")
 class ReachabilityTests(unittest.TestCase):
