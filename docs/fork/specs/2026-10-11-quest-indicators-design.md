@@ -164,6 +164,10 @@ As planned from the code research (2026-10-11):
 - Further callers, which change quests without the hooks above: the two data-quest start types that finish on the spot
   (InteractComplete, KillComplete), and the daily, weekly and monthly rollovers, which make those quests available
   again.
+- A create packet whose value differs from the last one sent to that client also asks a refresh: an NPC that left the
+  server's range lingers on the client, which may take its next create as an update and keep the old drawing; the
+  refresh's quest effect draws it (and costs one extra packet when an NPC with a marker first comes into view).
+- An NPC whose indicator throws is logged and keeps its marker; the refresh goes on with the others.
 - Clients older than 1.124 use another create packet, which this does not change; the owner's launcher ships 1.127.
 - Talk steps can target attackable creatures (373 steps in 191 quests, e.g. moss sheeries during "Sile's Sight"); they
   get the white or blue knot like any NPC, as section 2 says.

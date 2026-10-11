@@ -16,8 +16,8 @@ which, once per game-loop tick, sends the quest effect for each NPC on the clien
 `deploy/tests`; GitHub Actions CI (`.github/workflows/server-image.yml`).
 
 **Spec:** `docs/fork/specs/2026-10-11-quest-indicators-design.md` (approved by the owner 2026-10-11; read it with this
-plan). Every code block below was built and tested in a scratch copy of this branch before the plan was written (85
-indicator unit tests, CI's whole unit filter 365, `UT_` 3090, `deploy/tests` 414 OK).
+plan). Every code block below was built and tested in a scratch copy of this branch before the plan was written (88
+indicator unit tests, CI's whole unit filter 368, `UT_` 3093, `deploy/tests` 414 OK), then dry-run step by step.
 
 ## Global Constraints
 
@@ -76,7 +76,9 @@ with open(path, "wb") as f:
 print(f"edited {path} ({len(blocks)} block(s))")
 ```
 
-- Test commands (run from the repository root):
+- Run every command, edit block and `git add` from the repository root, `~/github/HearthDAoC-qi`, after checking that
+  `git branch --show-current` prints `quest-indicators`.
+- Test commands:
   - Unit tests need `source/server/CoreServer/config/serverconfig.xml` (gitignored; never commit it). If it is missing:
     `cp deploy/serverconfig.build.xml source/server/CoreServer/config/serverconfig.xml`.
   - One class: `DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=0 dotnet test source/server/Tests/Tests.csproj --filter "FullyQualifiedName~UT_X"`.
@@ -103,25 +105,29 @@ check that pins each:
 
 1. **A level change while standing among quest givers** (level-up, `/player level`): the markers must change at once.
    Pinned by `RefreshHookTests.test_the_level_setter` (Task 5) and in game (test guide, check 1).
-2. **A refresh asked while the client is on a loading screen or not yet in the game** (zoning, login): nothing may be
-   sent until the client is playing; the create packets on arrival carry the new values. Pinned by
+2. **An NPC that comes back into range while the client still draws it** (it lingers on the client after leaving the
+   server's range): its marker must follow the player's new state, even if the client takes the new create packet as an
+   update. Pinned by `UT_IndicatorSentStore.ACreateThatChangesTheValueAsksARefreshThatSendsIt` (Task 2), the create
+   check in `RulesAndPacketsTests` (Task 3) and in game (test guide, check 9).
+3. **A refresh asked while the client is on a loading screen or not yet in the game** (zoning, login, a class change at
+   load): nothing may be sent until the client is playing; the create packets on arrival carry the new values. Pinned by
    `RulesAndPacketsTests.test_the_refresh_runs_once_per_tick_for_a_playing_client_and_sends_what_the_writers_send`
    (Task 3).
-3. **A GM's `/indicator create` value on an NPC, then a refresh**: the refresh must compare and record the same raw
-   value the writers send, not overwrite it with the table's. Pinned by the same test (`WireFor` in `Run`) and
-   `UT_IndicatorSentStore.ARawValueSentIsPutRight` (Task 2).
-4. **The daily rollover at midnight**: a daily's giver must light up again for players already standing there. Pinned by
-   `RefreshHookTests.test_the_daily_weekly_and_monthly_rollovers` (Task 5) and the dailies' unit test (Task 1).
-5. **A quest finished at one NPC that unlocks another NPC's quest in view** (and the on-the-spot InteractComplete and
-   KillComplete finishes): the second NPC must light up without a new login. Pinned by
-   `RefreshHookTests.test_the_data_quest_overrides_that_skip_the_base` and `test_quests_finished_on_the_spot` (Task 5),
-   and in game (test guide, check 2).
+4. **A GM's `/indicator create` value on an NPC, then a refresh**: the refresh must compare and record the same raw value
+   the writers send, not the table's. Pinned by the same source check (`Run` asks `WireFor`, Task 3);
+   `UT_IndicatorSentStore.ARawValueSentIsPutRight` (Task 2) covers the related case of a raw effect being put right.
+5. **The daily rollover at midnight**: a daily's giver must light up again for players already standing there. Pinned by
+   `RefreshHookTests.test_the_daily_weekly_and_monthly_rollovers` (Task 5) and `DailyWeeklyAndMonthlyQuestsHaveNoLevelRule`
+   (Task 1).
+
+Direct changes from one knot to another (8 to 16 to 2) are sent without a 0 between: the owner's `/indicator effect` run
+of 2026-10-10 sent 1, 2, 4, 8 and 16 one after the other on Elaru and saw each drawn.
 
 ## Files
 
 | File | Task | Responsibility |
 |---|---|---|
-| `source/server/GameServer/scripts/hearthdaoc/QuestIndicators.cs` (new) | 1, 2 | The rules (`For`), the table (`Wire`), raw values (`WireFor`, `SendRawEffect`); then `Sending`, `Refresh` |
+| `source/server/GameServer/scripts/hearthdaoc/QuestIndicators.cs` (new) | 1, 2 | The rules (`For`), the table (`Wire`), raw values (`WireFor`, `SendRawEffect`); then `Sending`, `SendingCreate`, `Refresh` |
 | `source/server/GameServer/scripts/hearthdaoc/IndicatorSentStore.cs` (new) | 2 | The wire value last sent per player and NPC; one queued refresh per player |
 | `source/server/Tests/UnitTests/UT_QuestIndicators.cs` (new) | 1 | The rules, the table, the scripted and daily level rules |
 | `source/server/Tests/UnitTests/UT_IndicatorSentStore.cs` (new) | 2 | The store and `SendChanges` |
@@ -391,7 +397,7 @@ public sealed class UT_QuestIndicators
 - [ ] **Step 2: Run them to see them fail.**
 
 Run: `DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=0 dotnet test source/server/Tests/Tests.csproj --filter "FullyQualifiedName~UT_QuestIndicators"`
-Expected: the build fails with `error CS0246` (or CS0103) naming `JournalStep`, `QuestOffer` or `QuestIndicators`.
+Expected: the build fails with `error CS0246` naming `JournalStep` and `QuestOffer`.
 
 - [ ] **Step 3: Write the rules.** Create `source/server/GameServer/scripts/hearthdaoc/QuestIndicators.cs` with exactly
 (Task 2 adds the refresh at the end of the class; `using DOL.Events;` is for it):
@@ -403,6 +409,7 @@ using System.Collections.Generic;
 using System.Linq;
 using DOL.Events;
 using DOL.GS.Quests;
+using DOL.Logging;
 
 namespace DOL.GS.HearthDAoC;
 
@@ -558,7 +565,7 @@ public static class QuestIndicators
 - [ ] **Step 4: Run the tests.**
 
 Run: `DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=0 dotnet test source/server/Tests/Tests.csproj --filter "FullyQualifiedName~UT_QuestIndicators"`
-Expected: `Passed!  - Failed: 0, Passed: 27`.
+Expected: `Passed!` with `Failed: 0` and `Passed: 27`.
 
 - [ ] **Step 5: CI runs the new class.** CI's filter lists the fork's test classes by name and `test_workflows.py` pins
 the list:
@@ -623,8 +630,10 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
   object npc, byte wire)`, `int Count(object player)`, `bool TryQueue(object player)`, `bool Dequeue(object player)`,
   `void Prune(object player, Func<object, bool> gone)`, `void Forget(object player)`, `int SendChanges(object player,
   IEnumerable<object> known, Func<object, (eQuestIndicator Meaning, byte Wire)> valueOf, Action<object, eQuestIndicator>
-  send)`; in `QuestIndicators`: `static readonly IndicatorSentStore LastSent`, `eQuestIndicator Sending(GamePlayer,
-  GameNPC, eQuestIndicator)` (Task 3's packet writers call it), `void Refresh(GamePlayer)` (Task 5's hooks call it).
+  send)`, `const byte Unknown = 0xFF`, `bool RecordCreate(object player, object npc, byte wire)`; in `QuestIndicators`:
+  `static readonly IndicatorSentStore LastSent`, `eQuestIndicator Sending(GamePlayer, GameNPC, eQuestIndicator)` (the
+  quest effect's writer, Task 3), `eQuestIndicator SendingCreate(GamePlayer, GameNPC, eQuestIndicator)` (the create
+  packet's writer, Task 3), `void Refresh(GamePlayer)` (Task 5's hooks call it).
 
 - [ ] **Step 1: Write the failing tests.** Create `source/server/Tests/UnitTests/UT_IndicatorSentStore.cs` with exactly:
 
@@ -714,6 +723,45 @@ public sealed class UT_IndicatorSentStore
         var meaning = new Dictionary<object, eQuestIndicator> { [elaru] = eQuestIndicator.Available };
         Assert.That(Refresh(store, gm, new[] { elaru }, meaning, sent), Is.EqualTo(1));
         Assert.That(store.Last(gm, elaru), Is.EqualTo(8));
+    }
+
+    [Test]
+    public void ACreateThatChangesTheValueAsksARefreshThatSendsIt()
+    {
+        // Elaru lingered on the client with a yellow knot; she comes back into range with nothing for the player now.
+        var store = new IndicatorSentStore();
+        object player = new(), elaru = new();
+        store.Record(player, elaru, 8);
+        Assert.That(store.RecordCreate(player, elaru, 0), Is.True);
+        Assert.That(store.Last(player, elaru), Is.EqualTo(IndicatorSentStore.Unknown));
+        var sent = new List<(object, eQuestIndicator)>();
+        var meaning = new Dictionary<object, eQuestIndicator> { [elaru] = eQuestIndicator.None };
+        Assert.That(Refresh(store, player, new[] { elaru }, meaning, sent), Is.EqualTo(1));
+        Assert.That(sent, Is.EqualTo(new[] { (elaru, eQuestIndicator.None) }));
+        Assert.That(store.Last(player, elaru), Is.EqualTo(0));
+    }
+
+    [Test]
+    public void ACreateWithTheSameValueAsksNothing()
+    {
+        var store = new IndicatorSentStore();
+        object player = new(), tage = new(), guard = new();
+        store.Record(player, tage, 16);
+        Assert.That(store.RecordCreate(player, tage, 16), Is.False);
+        Assert.That(store.RecordCreate(player, guard, 0), Is.False);
+        Assert.That(store.Last(player, tage), Is.EqualTo(16));
+    }
+
+    [Test]
+    public void AFirstCreateWithAMarkerIsSentAgainByTheRefresh()
+    {
+        var store = new IndicatorSentStore();
+        object player = new(), elaru = new();
+        Assert.That(store.RecordCreate(player, elaru, 8), Is.True);
+        var sent = new List<(object, eQuestIndicator)>();
+        var meaning = new Dictionary<object, eQuestIndicator> { [elaru] = eQuestIndicator.Available };
+        Assert.That(Refresh(store, player, new[] { elaru }, meaning, sent), Is.EqualTo(1));
+        Assert.That(store.Last(player, elaru), Is.EqualTo(8));
     }
 
     [Test]
@@ -821,6 +869,9 @@ public sealed class IndicatorSentStore
             return sent.Wire.TryGetValue(npc, out byte wire) ? wire : (byte)0;
     }
 
+    // A value no client draws: "unknown", so the next refresh sends the real one.
+    public const byte Unknown = 0xFF;
+
     // What a writer just sent to the player's client for the NPC.
     public void Record(object player, object npc, byte wire)
     {
@@ -835,6 +886,22 @@ public sealed class IndicatorSentStore
                 sent.Wire.Remove(npc);
             else
                 sent.Wire[npc] = wire;
+        }
+    }
+
+    // What a create packet just carried. A client that still has the NPC (out of the server's range it lingers on the
+    // client) may take the create as an update and keep its old drawing; so a value that differs from the last one sent
+    // is recorded as Unknown, and the caller asks a refresh, whose quest effect draws it. True when that refresh is needed.
+    public bool RecordCreate(object player, object npc, byte wire)
+    {
+        PlayerSent sent = For(player);
+        lock (sent.Lock)
+        {
+            byte last = sent.Wire.TryGetValue(npc, out byte value) ? value : (byte)0;
+            if (last == wire)
+                return false;
+            sent.Wire[npc] = Unknown;
+            return true;
         }
     }
 
@@ -905,8 +972,11 @@ public sealed class IndicatorSentStore
 ```
 
 - [ ] **Step 4: Add the refresh to `QuestIndicators`** (the end of the class, after `SendRawEffect`). `Run` copies the
-client's NPC list under ClientService's lock and asks each NPC with no lock held; `GameLoopService` runs posted actions
-first and alone in each tick, so a run never overlaps a client's packet sending:
+client's NPC list under ClientService's lock and asks each NPC with no lock held (one NPC's exception is logged and
+leaves its marker as it was); `GameLoopService` runs posted actions at the start of each tick, before ClientService
+sends the clients' packets. `SendingCreate` is for the create packet: a value that differs from the last one sent is
+recorded as unknown and asks a refresh, because a client that still had the NPC (out of the server's range it lingers on
+the client) may take the create as an update and keep its old drawing; the refresh's quest effect draws it.
 
 ```bash
 python3 /tmp/hdc-edit.py source/server/GameServer/scripts/hearthdaoc/QuestIndicators.cs <<'EDIT'
@@ -922,8 +992,10 @@ python3 /tmp/hdc-edit.py source/server/GameServer/scripts/hearthdaoc/QuestIndica
 
     public static readonly IndicatorSentStore LastSent = new();
 
-    // Called by both packet writers (PacketLib1124.SendNPCCreate, PacketLib173.SendNPCsQuestEffect) with the value
-    // they were given: returns the value to send, recorded as the last one sent to the player for the NPC.
+    private static readonly Logger Log = LoggerManager.Create(typeof(QuestIndicators));
+
+    // Called by the quest effect's writer (PacketLib173.SendNPCsQuestEffect) with the value it was given: returns the
+    // value to send, recorded as the last one sent to the player for the NPC.
     public static eQuestIndicator Sending(GamePlayer player, GameNPC npc, eQuestIndicator value)
     {
         eQuestIndicator wire = WireFor(player, npc, value);
@@ -931,11 +1003,24 @@ python3 /tmp/hdc-edit.py source/server/GameServer/scripts/hearthdaoc/QuestIndica
         return wire;
     }
 
+    // Called by the create packet's writer (PacketLib1124.SendNPCCreate): as Sending, but a value that differs from the
+    // last one sent also asks a refresh, whose quest effect draws it even on a client that still had the NPC.
+    public static eQuestIndicator SendingCreate(GamePlayer player, GameNPC npc, eQuestIndicator value)
+    {
+        eQuestIndicator wire = WireFor(player, npc, value);
+        if (LastSent.RecordCreate(player, npc, (byte)wire))
+            Refresh(player);
+        return wire;
+    }
+
     private static readonly Action<GamePlayer> s_run = Run;
 
     // Asks for the markers of every NPC the player's client has to be worked out again. Safe from any thread and under
     // any lock; it only queues. However often it is asked between two game-loop ticks, the work runs once, at the start
-    // of the next tick (GameLoopService's posted actions), after the change that asked is complete.
+    // of the next tick (GameLoopService's posted actions, which run before ClientService sends the clients' packets),
+    // after the change that asked is complete. Posted actions run in parallel with each other; that is safe here (packet
+    // queues take concurrent senders, and only leaf locks are held), as long as no quest change itself runs as a
+    // GameLoopService posted action (none does), since a run in the same batch could read a half-finished change.
     public static void Refresh(GamePlayer player)
     {
         if (player != null && LastSent.TryQueue(player))
@@ -967,8 +1052,17 @@ python3 /tmp/hdc-edit.py source/server/GameServer/scripts/hearthdaoc/QuestIndica
         LastSent.SendChanges(player, known, o =>
             {
                 GameNPC npc = (GameNPC)o;
-                eQuestIndicator meaning = npc.GetQuestIndicator(player);
-                return (meaning, (byte)WireFor(player, npc, meaning));
+                try
+                {
+                    eQuestIndicator meaning = npc.GetQuestIndicator(player);
+                    return (meaning, (byte)WireFor(player, npc, meaning));
+                }
+                catch (Exception e)
+                {
+                    // One NPC's failure must not stop the others' markers: it keeps what it had.
+                    Log.Error($"Quest indicator of {npc.Name} for {player.Name}", e);
+                    return (eQuestIndicator.None, LastSent.Last(player, npc));
+                }
             },
             (o, meaning) => player.Out.SendNPCsQuestEffect((GameNPC)o, meaning));
     }
@@ -994,7 +1088,7 @@ EDIT
 - [ ] **Step 5: Run the tests.**
 
 Run: `DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=0 dotnet test source/server/Tests/Tests.csproj --filter "FullyQualifiedName~UT_IndicatorSentStore|FullyQualifiedName~UT_QuestIndicators"`
-Expected: `Passed!  - Failed: 0, Passed: 37`.
+Expected: `Passed!` with `Failed: 0` and `Passed: 40`.
 
 - [ ] **Step 6: CI runs the new class.**
 
@@ -1051,7 +1145,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 
 **Interfaces:**
 - Consumes: `QuestIndicators.For(GameNPC, GamePlayer, AbstractQuest[], DataQuest[])` (Task 1),
-  `QuestIndicators.Sending(GamePlayer, GameNPC, eQuestIndicator)` (Task 2); `GameNPC`'s `_questListToGiveLock`,
+  `QuestIndicators.SendingCreate` and `QuestIndicators.Sending(GamePlayer, GameNPC, eQuestIndicator)` (Task 2); `GameNPC`'s `_questListToGiveLock`,
   `m_questListToGive`, `_dataQuestsLock`, `DataQuestList` (each list is copied under its own lock, not nested).
 - Produces: `GameNPC.GetQuestIndicator` returns a meaning; every create packet and quest effect carries the scheme's
   wire value, recorded in `QuestIndicators.LastSent`.
@@ -1124,11 +1218,11 @@ class RulesAndPacketsTests(unittest.TestCase):
     def test_the_create_packet_sends_the_wire_value(self):
         body = between(read(CREATE), "public override void SendNPCCreate(GameNPC npc)", "pak.WriteByte(flags3);")
         asked = body.index("eQuestIndicator questIndicator = npc.GetQuestIndicator(m_gameClient.Player);")
-        mapped = body.index("questIndicator = HearthDAoC.QuestIndicators.Sending(m_gameClient.Player, npc, questIndicator);")
+        mapped = body.index("questIndicator = HearthDAoC.QuestIndicators.SendingCreate(m_gameClient.Player, npc, questIndicator);")
         first_flag = body.index("if (questIndicator == eQuestIndicator.Available)")
         self.assertLess(asked, mapped)
         self.assertLess(mapped, first_flag)
-        marked(self, body, "HearthDAoC.QuestIndicators.Sending(")
+        marked(self, body, "HearthDAoC.QuestIndicators.SendingCreate(")
 
     def test_the_quest_effect_sends_the_wire_value(self):
         body = between(read(EFFECT), "public override void SendNPCsQuestEffect(GameNPC npc, eQuestIndicator indicator)",
@@ -1151,6 +1245,8 @@ class RulesAndPacketsTests(unittest.TestCase):
         self.assertLess(run.index("known = new List<GameNPC>(cache.NpcUpdateCache.Keys);"),
                         run.index("npc.GetQuestIndicator(player)"))
         self.assertIn("return (meaning, (byte)WireFor(player, npc, meaning));", run)
+        # One NPC's exception keeps its marker and doesn't stop the others.
+        self.assertIn("return (eQuestIndicator.None, LastSent.Last(player, npc));", run)
 
 
 class EndingsTests(unittest.TestCase):
@@ -1224,8 +1320,8 @@ python3 /tmp/hdc-edit.py source/server/GameServer/packets/Server/PacketLib1124.c
 					eQuestIndicator questIndicator = npc.GetQuestIndicator(m_gameClient.Player);
 =======
 					eQuestIndicator questIndicator = npc.GetQuestIndicator(m_gameClient.Player);
-					// HearthDAoC: the meaning becomes the value the client draws, recorded as sent to this player (QuestIndicators.cs; /indicator's values stay raw).
-					questIndicator = HearthDAoC.QuestIndicators.Sending(m_gameClient.Player, npc, questIndicator);
+					// HearthDAoC: the meaning becomes the value the client draws, recorded as sent to this player; a change also asks a refresh (QuestIndicators.cs; /indicator's values stay raw).
+					questIndicator = HearthDAoC.QuestIndicators.SendingCreate(m_gameClient.Player, npc, questIndicator);
 >>>>>>> NEW
 EDIT
 ```
@@ -1267,9 +1363,9 @@ Run: `python3 -B -m unittest deploy/tests/test_quest_indicators.py deploy/tests/
 Expected: `OK`.
 
 Run: `DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=0 dotnet test source/server/Tests/Tests.csproj --filter "FullyQualifiedName~UT_QuestIndicators|FullyQualifiedName~UT_IndicatorSentStore|FullyQualifiedName~UT_QuestIndicatorProbe"`
-Expected: the server builds with no error; `Passed!  - Failed: 0, Passed: 82` (27 + 10 + the probe's 45).
+Expected: the server builds with no error; `Passed!` with `Failed: 0` and `Passed: 85` (27 + 13 + the probe's 45).
 
-Run: `git diff --numstat` — `GameNPC.cs` 10 added, 9 deleted; `PacketLib1124.cs` 2 added; `PacketLib173.cs` 3 added;
+Run: `git diff --numstat` — `GameNPC.cs` 9 added, 9 deleted; `PacketLib1124.cs` 2 added; `PacketLib173.cs` 3 added;
 `test_player_commands.py` 1 added, 1 deleted; nothing else. (Thousands of changed lines mean the endings changed: undo
 the file with `git checkout -- FILE` and use the helper.)
 
@@ -1503,8 +1599,8 @@ EDIT
 - [ ] **Step 2: Run them to see them fail.**
 
 Run: `DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=0 dotnet test source/server/Tests/Tests.csproj --filter "FullyQualifiedName~UT_QuestIndicatorProbe"`
-Expected: the build fails with errors naming `Pends`, `Lights`, `Drawn`, `Meaning` (not in `QuestIndicatorProbe`) and
-the `MinLevel` argument of `GivenScriptedQuest`.
+Expected: the build fails: `error CS0117` for `Pends`, `Lights`, `Drawn`, `Meaning` (not in `QuestIndicatorProbe`) and
+for `MinLevel` in the `with { MinLevel = ... }` expressions, and `error CS1739` for the `MinLevel:` argument.
 
 Run: `python3 -B -m unittest deploy/tests/test_quest_indicators.py`
 Expected: `FAILED (failures=1)` (`test_indicator_effect_stays_raw`).
@@ -1745,7 +1841,7 @@ EDIT
 - [ ] **Step 5: Run the tests.**
 
 Run: `DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=0 dotnet test source/server/Tests/Tests.csproj --filter "FullyQualifiedName~UT_QuestIndicatorProbe|FullyQualifiedName~UT_QuestIndicators|FullyQualifiedName~UT_IndicatorSentStore"`
-Expected: `Passed!  - Failed: 0, Passed: 85` (the probe's 48 + 27 + 10).
+Expected: `Passed!` with `Failed: 0` and `Passed: 88` (the probe's 48 + 27 + 13).
 
 Run: `python3 -B -m unittest deploy/tests/test_quest_indicators.py deploy/tests/test_player_commands.py`
 Expected: `OK`.
@@ -2076,9 +2172,9 @@ Run: `python3 -B -m unittest deploy/tests/test_quest_indicators.py`
 Expected: `Ran 16 tests` ... `OK`.
 
 Run: `DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=0 dotnet test source/server/Tests/Tests.csproj --filter "FullyQualifiedName~UT_"`
-Expected: the server builds with no error; `Passed!  - Failed: 0, Passed: 3090`.
+Expected: the server builds with no error; `Passed!` with `Failed: 0` and `Passed: 3093`.
 
-Run: `git diff --numstat` — added lines only: `GamePlayer.cs` 5 (the level hook brings a blank line), `AbstractQuest.cs` 1,
+Run: `git diff --numstat` — added lines only: `GamePlayer.cs` 4 (the level hook brings a blank line), `AbstractQuest.cs` 1,
 `DataQuest.cs` 5, each `*QuestService.cs` 1, `EpicCommand.cs` 2, `test_quest_indicators.py` the new class; nothing else.
 
 - [ ] **Step 9: Commit.**
@@ -2118,7 +2214,7 @@ python3 /tmp/hdc-edit.py docs/fork/FORK.md <<'EDIT'
 | `/indicator` (GM only, a test tool) | `GameServer/scripts/hearthdaoc/QuestIndicatorProbe.cs` (the decisions and the store), `GameServer/scripts/hearthdaoc/IndicatorCommand.cs` (the command and the store's game wiring), `GameServer/gameobjects/GameNPC.cs` (`GetQuestIndicator` asks the GM's value first: one block, marked), test `Tests/UnitTests/UT_QuestIndicatorProbe.cs`, source checks `deploy/tests/test_player_commands.py` | The owner's client (1.127) shows two indicator styles, a ring at an NPC's feet and a knot over its head, and the server reaches it two ways: the flags of the NPC create packet (`PacketLib1124.SendNPCCreate`) and the quest effect packet (`PacketLib173.SendNPCsQuestEffect`). To choose a scheme, the owner needs to see each way and value once (2026-10-10). On the GM's target, for the GM's client only: `effect <0-255>` sends the quest effect with a raw byte; `create <none|available|finish|lesson|lore|pending>` makes the create packet carry that indicator and re-creates the NPC; `refresh` re-sends the real indicator both ways, the create packet first; `clear` drops the GM's values; the bare command says what the real indicator is and why (each data and scripted quest, the steps at the NPC, and a class that overrides `GetQuestIndicator`). A value lasts until `clear` or `refresh`, the GM's logout, or the NPC leaving the world (death included). A class that overrides `GetQuestIndicator` without asking GameNPC's first never sees the value; the command says so. The owner's first run (2026-10-10): the quest effect drew nothing (`/mob refreshquests` on Elaru, a level-7 Infiltrator beside her), a new login drew her indicator. So the re-create copies a login's view of the NPC: the remove packet, then, 1 second later (the client has dropped the NPC by then, and the GM sees it go and come back), `ClientService.CreateObjectForPlayer`, the create an NPC gets when it comes into view or when the client asks for an object it lacks: the create packet, the equipment, the GM's target again | No: a test tool |
 =======
 | `/indicator` (GM only, a test tool) | `GameServer/scripts/hearthdaoc/QuestIndicatorProbe.cs` (the decisions and the store), `GameServer/scripts/hearthdaoc/IndicatorCommand.cs` (the command and the store's game wiring), `GameServer/gameobjects/GameNPC.cs` (`GetQuestIndicator` asks the GM's value first: one block, marked), test `Tests/UnitTests/UT_QuestIndicatorProbe.cs`, source checks `deploy/tests/test_player_commands.py` | The owner's client (1.127) shows two indicator styles, a ring at an NPC's feet and a knot over its head, and the server reaches it two ways: the flags of the NPC create packet (`PacketLib1124.SendNPCCreate`) and the quest effect packet (`PacketLib173.SendNPCsQuestEffect`). To choose a scheme, the owner needs to see each way and value once (2026-10-10). On the GM's target, for the GM's client only: `effect <0-255>` sends the quest effect with a raw byte; `create <none|available|finish|lesson|lore|pending>` makes the create packet carry that indicator and re-creates the NPC; `refresh` re-sends the real indicator both ways, the create packet first; `clear` drops the GM's values; the bare command says what the real indicator is and why (each data and scripted quest, the steps at the NPC, and a class that overrides `GetQuestIndicator`). A value lasts until `clear` or `refresh`, the GM's logout, or the NPC leaving the world (death included). A class that overrides `GetQuestIndicator` without asking GameNPC's first never sees the value; the command says so. The owner's first run (2026-10-10): the quest effect drew nothing (`/mob refreshquests` on Elaru, a level-7 Infiltrator beside her), a new login drew her indicator. So the re-create copies a login's view of the NPC: the remove packet, then, 1 second later (the client has dropped the NPC by then, and the GM sees it go and come back), `ClientService.CreateObjectForPlayer`, the create an NPC gets when it comes into view or when the client asks for an object it lacks: the create packet, the equipment, the GM's target again. Since the quest indicators (row below), `effect` and `create` stay raw (past the scheme's table), and the bare command follows the scheme's rules and names what the client draws | No: a test tool |
-| Quest indicators: one scheme (yellow, white and blue knots) that stays current | `GameServer/scripts/hearthdaoc/QuestIndicators.cs` (new: the rules, the meaning-to-wire table, the refresh), `GameServer/scripts/hearthdaoc/IndicatorSentStore.cs` (new: the value last sent per player and NPC, the queued refresh), `GameServer/gameobjects/GameNPC.cs` (`GetQuestIndicator` asks `QuestIndicators.For` after the `/indicator` block, marked), `GameServer/packets/Server/PacketLib1124.cs` (`SendNPCCreate`) and `GameServer/packets/Server/PacketLib173.cs` (`SendNPCsQuestEffect`): the meaning becomes the value the client draws and is recorded (one marked line each); one marked `QuestIndicators.Refresh` line each in `GameServer/gameobjects/GamePlayer.cs` (the `Level` setter, `SetCharacterClass`, `AddQuest`), `GameServer/quests/QuestsMgr/AbstractQuest.cs` (the `Step` setter, which `FinishQuest` and `AbortQuest` go through), `GameServer/quests/QuestsMgr/DataQuest.cs` (the `Step` setter, `FinishQuest`, `AbortQuest`, the InteractComplete and KillComplete finishes) and `GameServer/ECS-Services/DailyQuestService.cs`, `WeeklyQuestService.cs`, `MonthlyQuestService.cs` (the rollovers); `GameServer/scripts/hearthdaoc/EpicCommand.cs` (`done`, `reset`), `GameServer/scripts/hearthdaoc/IndicatorCommand.cs` and `QuestIndicatorProbe.cs`; tests `Tests/UnitTests/UT_QuestIndicators.cs`, `Tests/UnitTests/UT_IndicatorSentStore.cs`, source checks `deploy/tests/test_quest_indicators.py` | One marker per NPC from one set of rules ([spec](specs/2026-10-11-quest-indicators-design.md)): a yellow knot for a quest to take (not more than 15 levels below the player's level, the 1.73 rule; none for daily, weekly and monthly quests, which follow the player's level), a white knot for the current step, a blue knot to turn in, nothing for kill targets (KillFinish no longer turns in at a monster), Atlas master trainers and the buff merchant ("lore" now draws nothing). The server's "available" drew the 1.73 ring and "finish" the blue knot (owner's `/indicator` test 2026-10-10), and a marker was only worked out when an NPC came into view; now a level, class or quest change, or a daily, weekly or monthly rollover, re-sends every changed marker around the player within one game-loop tick, by the quest effect alone (it draws and clears on any NPC: owner's check 2026-10-11) | Candidate, after the in-game run (ask the owner first): the refresh on level and quest changes, and the KillFinish fix; the scheme is fork-only |
+| Quest indicators: one scheme (yellow, white and blue knots) that stays current | `GameServer/scripts/hearthdaoc/QuestIndicators.cs` (new: the rules, the meaning-to-wire table, the refresh), `GameServer/scripts/hearthdaoc/IndicatorSentStore.cs` (new: the value last sent per player and NPC, the queued refresh), `GameServer/gameobjects/GameNPC.cs` (`GetQuestIndicator` asks `QuestIndicators.For` after the `/indicator` block, marked), `GameServer/packets/Server/PacketLib1124.cs` (`SendNPCCreate`) and `GameServer/packets/Server/PacketLib173.cs` (`SendNPCsQuestEffect`): the meaning becomes the value the client draws and is recorded, and a create that changes the value also asks a refresh (one marked line each); one marked `QuestIndicators.Refresh` line each in `GameServer/gameobjects/GamePlayer.cs` (the `Level` setter, `SetCharacterClass`, `AddQuest`), `GameServer/quests/QuestsMgr/AbstractQuest.cs` (the `Step` setter, which `FinishQuest` and `AbortQuest` go through), `GameServer/quests/QuestsMgr/DataQuest.cs` (the `Step` setter, `FinishQuest`, `AbortQuest`, the InteractComplete and KillComplete finishes) and `GameServer/ECS-Services/DailyQuestService.cs`, `WeeklyQuestService.cs`, `MonthlyQuestService.cs` (the rollovers); `GameServer/scripts/hearthdaoc/EpicCommand.cs` (`done`, `reset`), `GameServer/scripts/hearthdaoc/IndicatorCommand.cs` and `QuestIndicatorProbe.cs`; tests `Tests/UnitTests/UT_QuestIndicators.cs`, `Tests/UnitTests/UT_IndicatorSentStore.cs`, source checks `deploy/tests/test_quest_indicators.py` | One marker per NPC from one set of rules ([spec](specs/2026-10-11-quest-indicators-design.md)): a yellow knot for a quest to take (not more than 15 levels below the player's level, the 1.73 rule; none for daily, weekly and monthly quests, which follow the player's level), a white knot for the current step, a blue knot to turn in, nothing for kill targets (KillFinish no longer turns in at a monster), Atlas master trainers and the buff merchant ("lore" now draws nothing); the 1.73 indicators and the later knots are playability additions to the 1.65 era (owner, 2026-10-11). The server's "available" drew the 1.73 ring and "finish" the blue knot (owner's `/indicator` test 2026-10-10), and a marker was only worked out when an NPC came into view; now a level, class or quest change, or a daily, weekly or monthly rollover, re-sends every changed marker around the player within one game-loop tick, by the quest effect alone (it draws and clears on any NPC: owner's check 2026-10-11) | Candidate, after the in-game run (ask the owner first): the refresh on level and quest changes, and the KillFinish fix; the scheme is fork-only |
 >>>>>>> NEW
 EDIT
 ```
@@ -2147,16 +2243,18 @@ without a new login:
 7. A level-50 character at Castle Sauvage (Albion's frontier gate in Forest Sauvage): Hector shows a yellow knot while
    "[Group Daily] A Team Building Exercise" is open to you (daily quests have no level rule).
 8. `/indicator` on any NPC names its meaning and what the client draws, e.g. "available (a yellow knot): ...".
+9. A level-7 character by Elaru (yellow knot): walk about 4,000 units away, `/player level 23`, walk back: no knot on
+   her (the server's create for an NPC your client still drew is followed by a quest effect).
 
 Results go in `docs/fork/verification/sub4-ingame.md`.
 >>>>>>> NEW
 EDIT
 ```
 
-- [ ] **Step 3: Full verification on the committed code** (one suite after the other).
+- [ ] **Step 3: Full verification** (the code is committed; only the two docs files are not yet; one suite after the other).
 
 Run: `DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=0 dotnet test source/server/Tests/Tests.csproj --filter "FullyQualifiedName~UT_"`
-Expected: `Passed!  - Failed: 0, Passed: 3090` (see the note on the upstream flaky test).
+Expected: `Passed!` with `Failed: 0` and `Passed: 3093` (see the note on the upstream flaky test).
 
 Run: `HDC_TEST_WORLD=/home/farral/Games/OfflineDAoC-archive/test-world/clean-classic-0.35.db python3 -B -m unittest discover -s deploy/tests -t deploy`
 Expected: `Ran 414 tests` ... `OK (skipped=11)`.
