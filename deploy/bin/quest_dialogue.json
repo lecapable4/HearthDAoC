@@ -589,11 +589,11 @@
      "The dispatch speaks of an attack on the folk of Llyn Barfog. Twr ap Alsig must be warned.",
      "An attack on Barfog! Then it is true. Tell your captain that Barfog asks his help to stop this invasion of dwarves from Midgard. We will not be caught sleeping.",
      {
-      "Infiltrator": "You have done well and Sir Bors would see that you are rewarded. What reward do you desire? [Crackling Impaler], [Death's Touch], [Death Dancer], or [Spark of Midnight]?",
-      "Mercenary": "You have done well and Sir Bors would see that you are rewarded. What reward do you desire? [Crackling Impaler], [Death's Touch], [Glitter], [Spark], [Dazzle], or [Arcing Bludgeoner]?",
-      "Cabalist": "You have done well and Sir Bors would see that you are rewarded. What reward do you desire? [Staff of Eternal Lifeforce], [Staff of Earth Channeling], or [Staff of Spirit Consumption]?",
-      "Necromancer": "You have done well and Sir Bors would see that you are rewarded. What reward do you desire? [Staff of Cursed Bondage], [Staff of Clouded Vision], or [Staff of Ceaseless Agony]?",
-      "Reaver": "You have done well and Sir Bors would see that you are rewarded. What reward do you desire? [Blood Encrusted Whip], [Sap of Lost Will], [Bloodletter], or [Flail of Fallen Graces]?"
+      "Infiltrator": "You have done well and Sir Bors would see that you are rewarded. What reward do you desire? [Crackling Impaler], [Death's Touch], [Death Dancer], or [Spark of Midnight]? Name one and I will show it to you.",
+      "Mercenary": "You have done well and Sir Bors would see that you are rewarded. What reward do you desire? [Crackling Impaler], [Death's Touch], [Glitter], [Spark], [Dazzle], or [Arcing Bludgeoner]? Name one and I will show it to you.",
+      "Cabalist": "You have done well and Sir Bors would see that you are rewarded. What reward do you desire? [Staff of Eternal Lifeforce], [Staff of Earth Channeling], or [Staff of Spirit Consumption]? Name one and I will show it to you.",
+      "Necromancer": "You have done well and Sir Bors would see that you are rewarded. What reward do you desire? [Staff of Cursed Bondage], [Staff of Clouded Vision], or [Staff of Ceaseless Agony]? Name one and I will show it to you.",
+      "Reaver": "You have done well and Sir Bors would see that you are rewarded. What reward do you desire? [Blood Encrusted Whip], [Sap of Lost Will], [Bloodletter], or [Flail of Fallen Graces]? Name one and I will show it to you."
      }
     ],
     "StepText": [
@@ -605,11 +605,11 @@
      "Carry the dispatch to Twr ap Alsig within Barfog to warn him of the impending attack.",
      "Return to Captain Rhodri at the Snowdonia border keep.",
      {
-      "Infiltrator": "Choose your reward: whisper Captain Rhodri the name of the item you want (Crackling Impaler, Death's Touch, Death Dancer, Spark of Midnight).",
-      "Mercenary": "Choose your reward: whisper Captain Rhodri the name of the item you want (Crackling Impaler, Death's Touch, Glitter, Spark, Dazzle, Arcing Bludgeoner).",
-      "Cabalist": "Choose your reward: whisper Captain Rhodri the name of the item you want (Staff of Eternal Lifeforce, Staff of Earth Channeling, Staff of Spirit Consumption).",
-      "Necromancer": "Choose your reward: whisper Captain Rhodri the name of the item you want (Staff of Cursed Bondage, Staff of Clouded Vision, Staff of Ceaseless Agony).",
-      "Reaver": "Choose your reward: whisper Captain Rhodri the name of the item you want (Blood Encrusted Whip, Sap of Lost Will, Bloodletter, Flail of Fallen Graces)."
+      "Infiltrator": "Choose your reward: whisper Captain Rhodri the name of an item to see it, then tell him I'll take it (Crackling Impaler, Death's Touch, Death Dancer, Spark of Midnight).",
+      "Mercenary": "Choose your reward: whisper Captain Rhodri the name of an item to see it, then tell him I'll take it (Crackling Impaler, Death's Touch, Glitter, Spark, Dazzle, Arcing Bludgeoner).",
+      "Cabalist": "Choose your reward: whisper Captain Rhodri the name of an item to see it, then tell him I'll take it (Staff of Eternal Lifeforce, Staff of Earth Channeling, Staff of Spirit Consumption).",
+      "Necromancer": "Choose your reward: whisper Captain Rhodri the name of an item to see it, then tell him I'll take it (Staff of Cursed Bondage, Staff of Clouded Vision, Staff of Ceaseless Agony).",
+      "Reaver": "Choose your reward: whisper Captain Rhodri the name of an item to see it, then tell him I'll take it (Blood Encrusted Whip, Sap of Lost Will, Bloodletter, Flail of Fallen Graces)."
      }
     ],
     "TargetText": [
@@ -621,11 +621,11 @@
      "You return in haste. What have you found?",
      "This is a great day, <Player>! I shall travel to meet with Twr ap Alsig and his people. Perhaps between us we can once and forever be united as one realm. Well, we can at least hope.",
      {
-      "Infiltrator": "Have you decided? [Crackling Impaler], [Death's Touch], [Death Dancer], or [Spark of Midnight]?",
-      "Mercenary": "Have you decided? [Crackling Impaler], [Death's Touch], [Glitter], [Spark], [Dazzle], or [Arcing Bludgeoner]?",
-      "Cabalist": "Have you decided? [Staff of Eternal Lifeforce], [Staff of Earth Channeling], or [Staff of Spirit Consumption]?",
-      "Necromancer": "Have you decided? [Staff of Cursed Bondage], [Staff of Clouded Vision], or [Staff of Ceaseless Agony]?",
-      "Reaver": "Have you decided? [Blood Encrusted Whip], [Sap of Lost Will], [Bloodletter], or [Flail of Fallen Graces]?"
+      "Infiltrator": "Have you decided? [Crackling Impaler], [Death's Touch], [Death Dancer], or [Spark of Midnight]? Name one and I will show it to you.",
+      "Mercenary": "Have you decided? [Crackling Impaler], [Death's Touch], [Glitter], [Spark], [Dazzle], or [Arcing Bludgeoner]? Name one and I will show it to you.",
+      "Cabalist": "Have you decided? [Staff of Eternal Lifeforce], [Staff of Earth Channeling], or [Staff of Spirit Consumption]? Name one and I will show it to you.",
+      "Necromancer": "Have you decided? [Staff of Cursed Bondage], [Staff of Clouded Vision], or [Staff of Ceaseless Agony]? Name one and I will show it to you.",
+      "Reaver": "Have you decided? [Blood Encrusted Whip], [Sap of Lost Will], [Bloodletter], or [Flail of Fallen Graces]? Name one and I will show it to you."
      }
     ],
     "FinishText": "A fine choice. Carry it well, <Player>; Sir Bors will not forget what you have done for this border."
@@ -634,27 +634,32 @@
     "20171": [
      "2c9aa7ec90fef48d9f9fae8145f405468a1155c3186ae8bcad220bd0c69858d1",
      "fde43b11485fcb7ed7289ab0f9597042b6d5c1bc91f5bfa2880da9154e1f81cb",
-     "eedc95e13637d00a9385ee6ff87c45b036faaddc12c3686ab76b27ade22afc9a"
+     "eedc95e13637d00a9385ee6ff87c45b036faaddc12c3686ab76b27ade22afc9a",
+     "59d0f9648deb5863f65b4745ef33a5058d4868f8106d2bd0dc1ccffdb80f09fd"
     ],
     "20169": [
      "c7019a4145857b9ab64b81fcfbb94ca2038761d79391e44def38ad62271a6712",
      "90a79976e33256b1ed9affb337d400ef043071b0b5930e5c8c7e035f2d2d5627",
-     "ecbd9c60a825012a5c1e4ef8924e5e2c6fedca18aa1975edd0f7fba0ef183025"
+     "ecbd9c60a825012a5c1e4ef8924e5e2c6fedca18aa1975edd0f7fba0ef183025",
+     "e7447cad8c0226a5d5cfbe8d56de8c483f27782bf0671befd1f37bbb02fe16d1"
     ],
     "20170": [
      "28b110274cfb260b9f248126cba7db1b5200d61ca9b7e189b7895d4f6adc8dfa",
      "e11b9ce106995d803c8f6deeeb84c5b4dacf9da55a33c6d9f987837bb226e5bb",
-     "141d0f97718af20278d3fe2a8931ed3b0243df5d90354a3970e6ef1417b32cd1"
+     "141d0f97718af20278d3fe2a8931ed3b0243df5d90354a3970e6ef1417b32cd1",
+     "dc62bf70621cda428740c88e3ee3a4147390a7fc5f22817e4a3683f977d1d9cd"
     ],
     "20173": [
      "f0d968f25eb4290130802a8a42dec043062cd634598adf443640d4d2ff57c940",
      "68f970a34b15356449f25425b9ad4962c82872c8984c20ee43843cb071d3f068",
-     "672c8e8d3b1b1e067138defcadba46a49e8416bd755f299d23465d960752ce07"
+     "672c8e8d3b1b1e067138defcadba46a49e8416bd755f299d23465d960752ce07",
+     "701e325f88cefbf41cb679aeb85acdeae42b0cf914f1847aa6acb573cefb7e19"
     ],
     "20172": [
      "fd990c084a2e82837a2f86803d7dbd846bbaec4b56ffe5b161d915f7ca4997f2",
      "7b173e30d4dbf5d34ee64425cfbc982d91818f90647d5d7bc28e3b15c89861b7",
-     "99ef865f3943b4df91d3a6a85be0318f34be40a9e63e183a25a8f0c44c94fdad"
+     "99ef865f3943b4df91d3a6a85be0318f34be40a9e63e183a25a8f0c44c94fdad",
+     "fde568e5c3a6f62b8721f4f8d0664c7c34c6b3dc794ceaffdc82d3a538925992"
     ]
    }
   },

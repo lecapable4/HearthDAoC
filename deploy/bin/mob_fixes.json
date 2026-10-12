@@ -152,6 +152,26 @@
    "expect": {"FinalRewardItemTemplates": "cq_snake_charm|cq_alb_snake_charm"},
    "set": {"FinalRewardItemTemplates": "cq_alb_snake_charm"},
    "why": "Allakhazam (archived 2004-10-14): \"You receive a Snake Charm from Ormgarth!\"; upstream's generator made two templates of the item from the guide's \"You receive ...\" line and put both in the final reward, which DataQuest hands in full, so the quest gave two (owner 2026-10-11: two Belts of Animation from Cleric Mulgrut). Kept: the realm template, which delves \"Classic quest reward (Outcast Ormgarth)\"; the plain one delves \"Classic quest reward ((quest item))\"."
+  },
+  {"name": "Lord of Deceit 43, Infiltrator", "table": "DataQuest", "id": 20435,
+   "expect": {"StartName": "Magus Agyfen"},
+   "set": {"StartName": "Master Edric"},
+   "why": "Allakhazam's \"Lord of Deceit (level 43)\" (cquest 363, every capture from 2002-09-18) has \"Start NPC: Trainer\"; its walkthrough's \"Talk to Magus Agyfen in Camelot\" was a Cabalist's (Rhodri: \"Not to worry Cabalist!\"), and Agyfen is a Cabalist trainer. Upstream gave every class's 43 to him (owner 2026-10-12: the Infiltrator's 43 came from the Cabalist trainer). The class's own trainer gives it, as the class's 40, 45 and 48; deploy/hearthdaoc-quests.json gives the trainer Agyfen's reply to [interested] for this quest (\"interested@<ID>\"). Cabalists keep Agyfen."
+  },
+  {"name": "Lord of Deceit 43, Mercenary", "table": "DataQuest", "id": 20433,
+   "expect": {"StartName": "Magus Agyfen"},
+   "set": {"StartName": "Master Arenis"},
+   "why": "Allakhazam's \"Lord of Deceit (level 43)\" (cquest 363, every capture from 2002-09-18) has \"Start NPC: Trainer\"; its walkthrough's \"Talk to Magus Agyfen in Camelot\" was a Cabalist's (Rhodri: \"Not to worry Cabalist!\"), and Agyfen is a Cabalist trainer. Upstream gave every class's 43 to him (owner 2026-10-12: the Infiltrator's 43 came from the Cabalist trainer). The class's own trainer gives it, as the class's 40, 45 and 48; deploy/hearthdaoc-quests.json gives the trainer Agyfen's reply to [interested] for this quest (\"interested@<ID>\"). Cabalists keep Agyfen."
+  },
+  {"name": "Lord of Deceit 43, Necromancer", "table": "DataQuest", "id": 20437,
+   "expect": {"StartName": "Magus Agyfen"},
+   "set": {"StartName": "Yulia"},
+   "why": "Allakhazam's \"Lord of Deceit (level 43)\" (cquest 363, every capture from 2002-09-18) has \"Start NPC: Trainer\"; its walkthrough's \"Talk to Magus Agyfen in Camelot\" was a Cabalist's (Rhodri: \"Not to worry Cabalist!\"), and Agyfen is a Cabalist trainer. Upstream gave every class's 43 to him (owner 2026-10-12: the Infiltrator's 43 came from the Cabalist trainer). The class's own trainer gives it, as the class's 40, 45 and 48; deploy/hearthdaoc-quests.json gives the trainer Agyfen's reply to [interested] for this quest (\"interested@<ID>\"). Cabalists keep Agyfen."
+  },
+  {"name": "Lord of Deceit 43, Reaver", "table": "DataQuest", "id": 20436,
+   "expect": {"StartName": "Magus Agyfen"},
+   "set": {"StartName": "Peze"},
+   "why": "Allakhazam's \"Lord of Deceit (level 43)\" (cquest 363, every capture from 2002-09-18) has \"Start NPC: Trainer\"; its walkthrough's \"Talk to Magus Agyfen in Camelot\" was a Cabalist's (Rhodri: \"Not to worry Cabalist!\"), and Agyfen is a Cabalist trainer. Upstream gave every class's 43 to him (owner 2026-10-12: the Infiltrator's 43 came from the Cabalist trainer). The class's own trainer gives it, as the class's 40, 45 and 48; deploy/hearthdaoc-quests.json gives the trainer Agyfen's reply to [interested] for this quest (\"interested@<ID>\"). Cabalists keep Agyfen."
   }
  ]
 }

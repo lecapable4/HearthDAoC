@@ -175,7 +175,8 @@ the digests of the text a world holds, which is upstream's only on a clean world
 **Mob fixes.** Period corrections to upstream's monsters, items and quests, from the quest archives: level 11's thieves
 Frund and Agisthil are level 10, Frund stands at the red dwarf camp beside Agisthil, "Zombie Problem"'s Cloudy Green
 Stones sell for 50 copper, and ten classic quests that handed their reward twice (two Belts of Animation from "Cleric
-Mulgrut", two stones per hog tail, four flint weapons per chert) hand it once (`deploy/bin/mob_fixes.json`; each
+Mulgrut", two stones per hog tail, four flint weapons per chert) hand it once, and the Guild of Shadows level 43 comes
+from each class's own trainer, not the Cabalist trainer Magus Agyfen (`deploy/bin/mob_fixes.json`; each
 entry says why, with its source). After each start, `./hdc fixes` shows `Mob fixes: N corrected: ...` when rows were
 changed, and nothing when they are up to date. There is no marker: a row (a `Mob` row, the `NpcTemplate` rows of
 a template, an `ItemTemplate` row or a `DataQuest` row) changes only while it still holds every value upstream shipped, so a monster you changed yourself is

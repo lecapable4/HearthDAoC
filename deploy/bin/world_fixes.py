@@ -29,7 +29,8 @@
    start it rewrites the texts of a quest that still hold upstream's text or an earlier version of its own, and
    leaves the owner's own edits alone.
 8. Period corrections to monsters, items and quests (levels, spots, prices, rewards; level 11's thieves Frund and
-   Agisthil first, then the ten classic quests that handed their reward twice): mob_fixes.py, from mob_fixes.json,
+   Agisthil first, then the ten classic quests that handed their reward twice, then the trainers who give the Guild of
+   Shadows level 43): mob_fixes.py, from mob_fixes.json,
    last, under its own savepoint like the three before it. No marker: at every start it changes a row only while it
    still holds the values upstream shipped, and names the rows that hold neither those nor the file's.
 9. The leveling spawns an earlier `hdc spawns restore` brought back next to a quest's kill target named like them but
