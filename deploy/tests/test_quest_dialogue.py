@@ -627,8 +627,9 @@ LEFTOVER_FIXES = [
     ((20192, 20193, 20194, 20195), "StepText", (1,), "(whisper: <your name>)", "(whisper: <Player>)"),
     ((20694,), "SourceText", (1,), BILIOUS_NOTE, "Bilious goo are found in the Dales of Devwy."),
     ((20694,), "StepText", (1,), BILIOUS_NOTE, "Bilious goo are found in the Dales of Devwy."),
-    ((20695,), "SourceText", (1,), YEARLING_NOTE, "The yearlings live in the Plains of Gwyddneau."),
-    ((20695,), "StepText", (1,), YEARLING_NOTE, "The yearlings live in the Plains of Gwyddneau."),
+    ((20695,), "SourceText", (1,), YEARLING_NOTE, "The yearlings live in Gwyddneau."),
+    ((20695,), "StepText", (1,), YEARLING_NOTE, "The yearlings live in Gwyddneau."),
+    ((20702,), "TargetText", (1, 3, 6), "ugly (your characters race)?", "ugly <Race>?"),
     ((20702,), "TargetText", (1, 3, 6), SCRAPED_PAGE, ""),
     (tuple(range(20983, 20995)), "Description", (1,), "(your name here), it is time", "<Player>, it is time"),
     ((21397,), "TargetText", (2, 4), "You're a brave (character class), to have", "You're a brave <Class>, to have"),
@@ -641,9 +642,10 @@ for _ids, _column, _stages, _old, _new in LEFTOVER_FIXES:
 # Every listed change but the <Player> slots: the class words first, then the leftovers.
 FIXED_WORDS = {key: CLASS_WORDS.get(key, []) + LEFTOVER_WORDS.get(key, []) for key in {*CLASS_WORDS, *LEFTOVER_WORDS}}
 TEXT_COLUMNS = ("AcceptText", "Description", "SourceText", "StepText", "TargetText", "AdvanceText", "FinishText")
-# The guides' placeholders for the player's class and name: no text may hold one (compared without case).
+# The guides' placeholders for the player's class, name and race: no text may hold one (compared without case).
+# test_quest_reachability checks the Chat against the same lists.
 GUIDE_PLACEHOLDERS = ("(character class)", "(class name)", "(your class here)", "(your name here)", "<your name>",
-                      "(player name)")
+                      "(player name)", "(your characters race)", "(your character's race)", "(your race)")
 # A web page's text, and the site the guides were taken from: no one's words in the world.
 SCRAPED_WORDS = ("Free account required", "You must log in", "Fanbyte", "Privacy Policy", "Allakhazam")
 BEHAVIOUR_UTILS = os.path.join(HERE, "..", "..", "source", "server", "GameServer", "behaviour", "BehaviourUtils.cs")
@@ -830,7 +832,7 @@ class ClassicQuestTextTests(unittest.TestCase):
         for qid, text in ((20694, "Kill bilious goo and bring Achae Smith the Billious Goo Piece. Bilious goo are found "
                                   "in the Dales of Devwy."),
                           (20695, "Kill cliff yale yearling and bring Wenthian Sy'Lian the Cliff Yale Yearling Essence. "
-                                  "The yearlings live in the Plains of Gwyddneau.")):
+                                  "The yearlings live in Gwyddneau.")):
             for column in ("SourceText", "StepText"):
                 with self.subTest(quest=qid, column=column):
                     self.assertEqual(self.stage(qid, column, 1), text)

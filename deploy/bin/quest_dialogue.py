@@ -10,8 +10,9 @@ called by ("Good luck to thee Theurgist.") and the guides' placeholders for it (
 the file says <Class>, which the server replaces with the player's class, and New Crest's accept keyword, which
 DataQuest compares as it is, is each row's own class. The guides' placeholder for the player's name ("(your name
 here)", and The Lost Stone's whisper keyword "<your name>", which DataQuest now matches as the player reads it) is
-<Player>, and what is no one's words is cut: the web page upstream scraped after Mystemas's last line, and the kill
-tasks' notes on Allakhazam. The texts are in quest_dialogue.json, beside this file;
+<Player>; their placeholder for the player's race ("(your characters race)") is <Race>; and what is no one's
+words is cut: the web page upstream scraped after Mystemas's last line, and the kill tasks' notes on Allakhazam.
+The texts are in quest_dialogue.json, beside this file;
 world_fixes.py calls apply() inside its transaction, right after epic_chains.apply() (the chain's rows, including the
 fork's own level-50 ones, must exist), under its own savepoint: if it fails it is rolled back alone, apply() returns
 only the "not applied" line, and the other fixes and the start go on.

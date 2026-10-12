@@ -31,6 +31,7 @@ DEPLOY = os.path.dirname(HERE)
 sys.path.insert(0, os.path.join(DEPLOY, "bin"))
 
 import world_fixes as wf  # noqa: E402
+from tests.test_quest_dialogue import GUIDE_PLACEHOLDERS, SCRAPED_WORDS  # noqa: E402
 
 TEST_WORLD = os.environ.get("HDC_TEST_WORLD")
 EXTRA_QUESTS = os.path.join(DEPLOY, "hearthdaoc-quests.json")
@@ -152,10 +153,6 @@ CHAT_CLASS_WORDS = {
 # The web page upstream scraped with Mystemas's last line (Strange Bedfellows): the guide's reward, then the site's
 # footer, "... (c) 2026 Fanbyte LLC". The fork's reply ends where the guide's line does, without a stop.
 SCRAPED_FROM = {("mystemas", "understand"): " Reward: Perfect Life Stone Free account required to post "}
-# The guides' placeholders for the player's class and name, and a web page's words: in no reply (without case).
-GUIDE_PLACEHOLDERS = ("(character class)", "(class name)", "(your class here)", "(your name here)", "<your name>",
-                      "(player name)")
-SCRAPED_WORDS = ("Free account required", "You must log in", "Fanbyte", "Privacy Policy", "Allakhazam")
 
 
 def not_the_npcs_words(chat):
