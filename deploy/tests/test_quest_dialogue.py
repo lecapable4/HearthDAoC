@@ -607,6 +607,7 @@ for _ids, _column, _stages, _old, _new, _class in CLASS_WORD_FIXES:
         for _stage in _stages:
             CLASS_WORDS.setdefault((_qid, _column, _stage), []).append((_old, _new))
 TEXT_COLUMNS = ("AcceptText", "Description", "SourceText", "StepText", "TargetText", "AdvanceText", "FinishText")
+DATA_QUEST = os.path.join(HERE, "..", "..", "source", "server", "GameServer", "quests", "QuestsMgr", "DataQuest.cs")
 
 
 def with_class_words(text, words):
@@ -722,6 +723,20 @@ class ClassicQuestTextTests(unittest.TestCase):
                         kept.add(qid)
         self.assertEqual(shown, [])
         self.assertEqual(sorted(kept), [20194, 20351, 21024, 21028, 21036, 21097, 21099])
+
+
+class WhisperKeywordSourceTests(unittest.TestCase):
+    """DataQuest matches a whisper step's AdvanceText as the player reads it (source check: a unit test would need a
+    live player; the comparison itself is UT_DataQuestWhisper's)."""
+
+    def test_on_player_whisper_personalizes_the_advance_text(self):
+        with open(DATA_QUEST, encoding="utf-8-sig") as f:
+            source = f.read()
+        body = source.split("public virtual void OnPlayerWhisper(GamePlayer p, GameObject obj, string text)", 1)[1]
+        body = body.split("\n\t\t}", 1)[0]
+        self.assertIn("QuestWhispers.Advances(AdvanceText, BehaviourUtils.GetPersonalizedMessage(AdvanceText, p), text)",
+                      body)
+        self.assertNotIn("AdvanceText == text", body)
 
 
 @unittest.skipUnless(TEST_WORLD, "needs HDC_TEST_WORLD (a clean classic world database)")

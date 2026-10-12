@@ -237,6 +237,7 @@ SERVER_UNIT_TESTS = ("dotnet test source/server/Tests/Tests.csproj --nologo --fi
                      '"FullyQualifiedName~UT_CommandPrivLevelOverrides|FullyQualifiedName~UT_SiStartChoice'
                      '|FullyQualifiedName~UT_ClassicBattlegrounds'
                      '|FullyQualifiedName~UT_DataQuestDependency|FullyQualifiedName~UT_DataQuestDeliveryItem|FullyQualifiedName~UT_DataQuestOffers'
+                     '|FullyQualifiedName~UT_DataQuestWhisper'
                      '|FullyQualifiedName~UT_QuestNames'
                      '|FullyQualifiedName~UT_ClassicQuestsExtra'
                      '|FullyQualifiedName~UT_EpicChain'
@@ -261,6 +262,7 @@ class ServerUnitTestWorkflowTests(unittest.TestCase):
         names = re.findall(r"FullyQualifiedName~(\w+)", SERVER_UNIT_TESTS)
         self.assertEqual(names, ["UT_CommandPrivLevelOverrides", "UT_SiStartChoice", "UT_ClassicBattlegrounds",
                                  "UT_DataQuestDependency", "UT_DataQuestDeliveryItem", "UT_DataQuestOffers",
+                                 "UT_DataQuestWhisper",
                                  "UT_QuestNames",
                                  "UT_ClassicQuestsExtra",
                                  "UT_EpicChain",
