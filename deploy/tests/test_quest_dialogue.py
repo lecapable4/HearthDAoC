@@ -28,7 +28,7 @@ import world_fixes as wf  # noqa: E402
 TEST_WORLD = os.environ.get("HDC_TEST_WORLD")
 SCHEMA = ("CREATE TABLE DataQuest (ID INTEGER PRIMARY KEY, StepType TEXT, AcceptText TEXT, Description TEXT, "
           "SourceText TEXT, StepText TEXT, TargetText TEXT, AdvanceText TEXT, FinishText TEXT, StepItemTemplates TEXT, "
-          "CollectItemTemplate TEXT, StartName TEXT, QuestDependency TEXT, "
+          "CollectItemTemplate TEXT, FinalRewardItemTemplates TEXT, StartName TEXT, QuestDependency TEXT, "
           "LastTimeRowUpdated DATETIME NOT NULL DEFAULT '2000-01-01 00:00:00')")
 CHAINS = {"classes": {"Alpha": 1, "Beta": 2}, "steps": {"7": {"ids": [100, 200]}, "9": {"ids": [None, 300]}}}
 OLD = "2000-01-01 00:00:00"

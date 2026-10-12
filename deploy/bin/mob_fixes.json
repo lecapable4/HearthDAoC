@@ -1,5 +1,5 @@
 {
- "_about": "Period corrections to upstream's monsters (levels, spots), applied at every start by deploy/bin/mob_fixes.py (run by world_fixes.py). Each entry names a Mob row by Mob_ID or the NpcTemplate rows of a TemplateId; the row changes only while it holds every expect value (upstream's), so the owner's own changes stay. Every entry says why, with its source.",
+ "_about": "Period corrections to upstream's monsters, items and quests (levels, spots, prices, rewards), applied at every start by deploy/bin/mob_fixes.py (run by world_fixes.py). Each entry names a Mob row by Mob_ID, the NpcTemplate rows of a TemplateId, an ItemTemplate row by Id_nb or a DataQuest row by ID; the row changes only while it holds every expect value (upstream's), so the owner's own changes stay. Every entry says why, with its source.",
  "fixes": [
   {
    "name": "Agisthil",
@@ -40,6 +40,94 @@
    "expect": {"Price": 0},
    "set": {"Price": 100},
    "why": "\"Zombie Problem\" (level 4, Gronyr Gloyw outside Prydwen Keep): the Allakhazam page as archived 2004-11-01 says he gives \"a cloudy green stone (worth about 50 copper)\" for each rotting hog tail; upstream's reward has price 0, so a merchant pays nothing. Price 100 sells for 50 copper at item_sell_ratio 50 (owner 2026-10-11)."
+  },
+  {
+   "name": "Cloudy Green Stone",
+   "table": "ItemTemplate",
+   "id": "cq_cloudy_green_stone",
+   "expect": {"Price": 0, "Model": 229, "Level": 1, "Weight": 1, "Realm": 0},
+   "set": {"Price": 100, "Model": 113, "Level": 4, "Weight": 0, "Realm": 1},
+   "why": "The stone Gronyr Gloyw trades for each rotting hog tail in \"Zombie Problem\" (the other stone entry is the copy upstream's final reward handed too, which players may still carry). Allakhazam's item page (archived 2003-02-12 to 2004-12-26): \"Stone is worth 50 copper when you sell it.\", Albion, 0.00 lbs, level 4; price 100 sells for 50 copper at item_sell_ratio 50 (owner 2026-10-11: only one of his two stones sold). Model 113 is the client's \"Green Gem\" (objects.csv); upstream's 229 is the cloth dyes' bottle."
+  },
+  {
+   "name": "Lady Leana",
+   "table": "DataQuest",
+   "id": 20022,
+   "expect": {"FinalRewardItemTemplates": "cq_silver_chain|cq_alb_silver_chain"},
+   "set": {"FinalRewardItemTemplates": "cq_alb_silver_chain"},
+   "why": "Allakhazam (archived 2004-10-14): \"just kill her ... and she will drop a Silver Chain\"; upstream's generator made two templates of the item from the guide's \"You receive ...\" line and put both in the final reward, which DataQuest hands in full, so the quest gave two (owner 2026-10-11: two Belts of Animation from Cleric Mulgrut). Kept: the realm template, which delves \"Classic quest reward (Lady Leana)\"; the plain one delves \"Classic quest reward ((quest item))\"."
+  },
+  {
+   "name": "Minx Wiley",
+   "table": "DataQuest",
+   "id": 20116,
+   "expect": {"StepItemTemplates": "cq_wiley_s_boots|", "FinalRewardItemTemplates": "cq_mid_wiley_s_boots"},
+   "set": {"StepItemTemplates": "cq_mid_wiley_s_boots|", "FinalRewardItemTemplates": ""},
+   "why": "Allakhazam (archived 2004-10-13): \"Kill him and you get Wiley's Boots\"; at Hurg \"You are rewarded 10 silver and some copper!\" (comment 2001-10-17: \"he dropped the boots\"); upstream hands the item on the kill (StepItemTemplates) and again as the final reward, so the quest gave two. Kept: the kill's copy, as the period's monster dropped it, under the realm template, which delves \"Classic quest reward (Minx Wiley)\" (the plain one delves \"Classic quest reward ((quest item))\"); the giver pays only what the period's did."
+  },
+  {
+   "name": "Young Fire Wyrm Lord",
+   "table": "DataQuest",
+   "id": 20137,
+   "expect": {"FinalRewardItemTemplates": "cq_wyrm_sleeves|cq_mid_wyrm_sleeves"},
+   "set": {"FinalRewardItemTemplates": "cq_mid_wyrm_sleeves"},
+   "why": "Allakhazam (archived 2004-10-13): \"You receive a Wyrm sleeves from the Young Wyrm Lord!\"; upstream's generator made two templates of the item from the guide's \"You receive ...\" line and put both in the final reward, which DataQuest hands in full, so the quest gave two (owner 2026-10-11: two Belts of Animation from Cleric Mulgrut). Kept: the realm template, which delves \"Classic quest reward (Young Fire Wyrm Lord)\"; the plain one delves \"Classic quest reward ((quest item))\"."
+  },
+  {
+   "name": "Cleric Mulgrut",
+   "table": "DataQuest",
+   "id": 20207,
+   "expect": {"FinalRewardItemTemplates": "cq_belt_of_animation|cq_alb_belt_of_animation"},
+   "set": {"FinalRewardItemTemplates": "cq_alb_belt_of_animation"},
+   "why": "Allakhazam (archived 2004-11-01): \"You receive a Belt of Animation from Mulgrut Maggot!\"; upstream's generator made two templates of the item from the guide's \"You receive ...\" line and put both in the final reward, which DataQuest hands in full, so the quest gave two (owner 2026-10-11: two Belts of Animation from Cleric Mulgrut). Kept: the realm template, which delves \"Classic quest reward (Cleric Mulgrut)\"; the plain one delves \"Classic quest reward ((quest item))\"."
+  },
+  {
+   "name": "Search for Sil",
+   "table": "DataQuest",
+   "id": 20208,
+   "expect": {"StepItemTemplates": "|cq_gyrg_s_cloak|", "FinalRewardItemTemplates": "cq_alb_gyrg_s_cloak"},
+   "set": {"StepItemTemplates": "|cq_alb_gyrg_s_cloak|", "FinalRewardItemTemplates": ""},
+   "why": "Allakhazam (archived 2004-10-14): kill Ygwrch Gyrg for \"a nifty cloak as well (Gyrg's Cloak, plus to quickness). Now return to Nob ... for some extra experience\"; upstream hands the item on the kill (StepItemTemplates) and again as the final reward, so the quest gave two. Kept: the kill's copy, as the period's monster dropped it, under the realm template, which delves \"Classic quest reward (Search for Sil)\" (the plain one delves \"Classic quest reward ((quest item))\"); the giver pays only what the period's did."
+  },
+  {
+   "name": "Father Hugrath",
+   "table": "DataQuest",
+   "id": 20209,
+   "expect": {"StepItemTemplates": "cq_quicksilver_bracer|", "FinalRewardItemTemplates": "cq_alb_quicksilver_bracer"},
+   "set": {"StepItemTemplates": "cq_alb_quicksilver_bracer|", "FinalRewardItemTemplates": ""},
+   "why": "Allakhazam (archived 2004-10-14): Hugrath \"drops a Quicksilver Bracer when killed. ... Pocket the bracer and let Frip know about his dad for some extra experience\"; upstream hands the item on the kill (StepItemTemplates) and again as the final reward, so the quest gave two. Kept: the kill's copy, as the period's monster dropped it, under the realm template, which delves \"Classic quest reward (Father Hugrath)\" (the plain one delves \"Classic quest reward ((quest item))\"); the giver pays only what the period's did."
+  },
+  {
+   "name": "Piaras and Lhia",
+   "table": "DataQuest",
+   "id": 20320,
+   "expect": {"StepItemTemplates": "||cq_clump_of_seaweed;50||cq_yellow_silken_robes|", "FinalRewardItemTemplates": "cq_hib_yellow_silken_robes"},
+   "set": {"StepItemTemplates": "||cq_clump_of_seaweed;50||cq_hib_yellow_silken_robes|", "FinalRewardItemTemplates": ""},
+   "why": "Allakhazam (archived 2004-10-13): \"Kill Lhia in Lough Gur and get a robe!\"; upstream hands the item on the kill (StepItemTemplates) and again as the final reward, so the quest gave two. Kept: the kill's copy, as the period's monster dropped it, under the realm template, which delves \"Classic quest reward (Piaras and Lhia)\" (the plain one delves \"Classic quest reward ((quest item))\"); the giver pays only what the period's did."
+  },
+  {
+   "name": "Flint Weapons",
+   "table": "DataQuest",
+   "id": 20510,
+   "expect": {"FinalRewardItemTemplates": "cq_alb_flint_knife|cq_alb_flinthead_club|cq_alb_flint_dirk"},
+   "set": {"FinalRewardItemTemplates": ""},
+   "why": "Allakhazam (archived 2004-10-14): bring Stonemason Harwin one chert \"and he will make you a weapon: Thin Chert = flint dirk, Flat Chert = flint knife, Round chert = flinthead club\". Upstream's trade (classic-quests.json) makes that weapon, then the final reward handed all three flint weapons as well, so each chert gave four. The trade's weapon is kept; the final reward goes."
+  },
+  {
+   "name": "Zombie Problem",
+   "table": "DataQuest",
+   "id": 20515,
+   "expect": {"FinalRewardItemTemplates": "cq_alb_cloudy_green_stone"},
+   "set": {"FinalRewardItemTemplates": ""},
+   "why": "Allakhazam (archived 2004-11-01): \"Give the tails back to Gronyr and he will give you a cloudy green stone (worth about 50 copper) for each one.\" Upstream's trade (classic-quests.json) gives that stone, then the final reward handed a second one (owner 2026-10-11: two stones, slightly different, only one sold). The trade's stone is kept (Cloudy Green Stone entry); the final reward goes."
+  },
+  {
+   "name": "Outcast Ormgarth",
+   "table": "DataQuest",
+   "id": 20637,
+   "expect": {"FinalRewardItemTemplates": "cq_snake_charm|cq_alb_snake_charm"},
+   "set": {"FinalRewardItemTemplates": "cq_alb_snake_charm"},
+   "why": "Allakhazam (archived 2004-10-14): \"You receive a Snake Charm from Ormgarth!\"; upstream's generator made two templates of the item from the guide's \"You receive ...\" line and put both in the final reward, which DataQuest hands in full, so the quest gave two (owner 2026-10-11: two Belts of Animation from Cleric Mulgrut). Kept: the realm template, which delves \"Classic quest reward (Outcast Ormgarth)\"; the plain one delves \"Classic quest reward ((quest item))\"."
   }
  ]
 }

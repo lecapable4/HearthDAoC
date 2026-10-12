@@ -286,9 +286,12 @@ class FixesTests(unittest.TestCase):
             "fixed; 87 other links; 41 items added, 36 item fixes; 5 level-50 quests, Lord Elidyn's camp 17 restored; "
             "Shadows_50: 0 finished carried, 0 removed, 0 epic vests recharged",
             "Quest dialogue: 145 quests rewritten",
-            "Mob fixes: 5 corrected: Agisthil (Mob fe76247d-ab9e-5a21-b66a-f629e577c87b), Agisthil (NpcTemplate 12070), "
+            "Mob fixes: 16 corrected: Agisthil (Mob fe76247d-ab9e-5a21-b66a-f629e577c87b), Agisthil (NpcTemplate 12070), "
             "Frund (NpcTemplate 12165), Frund (Mob 3ce2271f-b9f6-4504-b55a-250da35504ba), "
-            "Cloudy Green Stone (ItemTemplate cq_alb_cloudy_green_stone)",
+            "Cloudy Green Stone (ItemTemplate cq_alb_cloudy_green_stone), "
+            "Cloudy Green Stone (ItemTemplate cq_cloudy_green_stone), Lady Leana (DataQuest 20022), "
+            "Minx Wiley (DataQuest 20116), Young Fire Wyrm Lord (DataQuest 20137), Cleric Mulgrut (DataQuest 20207) "
+            "and 6 more",
         ])
         self.assertEqual(self.q("SELECT Mob_ID FROM fork_removed_mobs WHERE FixId='duplicate-townspeople' ORDER BY Mob_ID"),
                          [(GRAENT_GOES,), ("231313cf-eb6a-408f-9811-f697c705ffb7",),

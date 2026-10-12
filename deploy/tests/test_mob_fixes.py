@@ -34,6 +34,9 @@ SCHEMA = [
     "Price BIGINT(20) NOT NULL DEFAULT 0, LastTimeRowUpdated DATETIME NOT NULL DEFAULT '2000-01-01 00:00:00', "
     "PRIMARY KEY (Id_nb))",
 ]
+# A quest row for the synthetic tests only: quest_dialogue (which world_fixes runs too) wants the whole table.
+QUEST_SCHEMA = ("CREATE TABLE DataQuest (ID INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, Name VARCHAR(255) NOT NULL DEFAULT '', "
+                "FinalRewardItemTemplates TEXT DEFAULT NULL, LastTimeRowUpdated DATETIME NOT NULL DEFAULT '2000-01-01 00:00:00')")
 OLD = "2000-01-01 00:00:00"
 NOW = "2026-10-10 12:00:00"
 
@@ -59,9 +62,10 @@ def add_rows(conn):
 class SyntheticTests(unittest.TestCase):
     def setUp(self):
         self.conn = sqlite3.connect(":memory:")
-        for stmt in SCHEMA:
+        for stmt in SCHEMA + [QUEST_SCHEMA]:
             self.conn.execute(stmt)
         add_rows(self.conn)
+        self.conn.execute("INSERT INTO DataQuest (ID, Name, FinalRewardItemTemplates) VALUES (20207, 'Cleric Mulgrut', 'belt|alb_belt')")
         self.conn.commit()
 
     def tearDown(self):
@@ -135,6 +139,23 @@ class SyntheticTests(unittest.TestCase):
                          (100, NOW))
         self.assertEqual(self.run_fix(data), [])
 
+    def test_a_quest_row_is_corrected(self):
+        # A quest that lists one reward under two templates hands both (DataQuest gives every final reward).
+        data = {"fixes": [{"name": "Cleric Mulgrut", "table": "DataQuest", "id": 20207,
+                           "expect": {"FinalRewardItemTemplates": "belt|alb_belt"},
+                           "set": {"FinalRewardItemTemplates": "alb_belt"}, "why": "Allakhazam"}]}
+        self.assertEqual(self.run_fix(data), ["Mob fixes: 1 corrected: Cleric Mulgrut (DataQuest 20207)"])
+        self.assertEqual(self.conn.execute("SELECT FinalRewardItemTemplates, LastTimeRowUpdated FROM DataQuest").fetchone(),
+                         ("alb_belt", NOW))
+        self.assertEqual(self.run_fix(data), [])
+
+    def test_a_quest_rows_id_is_never_set(self):
+        data = {"fixes": [{"name": "Cleric Mulgrut", "table": "DataQuest", "id": 20207, "expect": {"ID": 20207},
+                           "set": {"ID": 1}, "why": "Allakhazam"}]}
+        self.assertEqual(self.run_fix(data), ["Mob fixes: not applied (fix 1 (Cleric Mulgrut): set changes the row's ID); "
+                                              "the monsters, items and quests keep the values they have"])
+        self.assertEqual(self.conn.execute("SELECT ID FROM DataQuest").fetchall(), [(20207,)])
+
     def test_every_npc_template_row_of_the_id_is_corrected(self):
         self.conn.execute("INSERT INTO NpcTemplate (NpcTemplate_ID, TemplateId, Name, Level) VALUES ('t2', 12165, 'Frund', '12-13')")
         self.conn.commit()
@@ -190,7 +211,7 @@ class SyntheticTests(unittest.TestCase):
         data["fixes"][0]["set"] = {"Lvl": 10}
         data["fixes"][0]["expect"] = {"Lvl": 12}
         self.assertEqual(self.run_fix(data), ["Mob fixes: not applied (fix 1 (Agisthil): Mob has no column Lvl); "
-                                              "the monsters and items keep the values they have"])
+                                              "the monsters, items and quests keep the values they have"])
 
     def test_a_missing_data_file_is_a_not_applied_line(self):
         with unittest.mock.patch.object(mf, "load_data", side_effect=FileNotFoundError("mob_fixes.json")):
@@ -301,10 +322,19 @@ class RealFileTests(unittest.TestCase):
 
     def test_the_cloudy_green_stone_sells_for_50_copper(self):
         # "Zombie Problem" (level 4, Gronyr Gloyw): "he will give you a cloudy green stone (worth about 50 copper)".
-        # A merchant pays the world's item_sell_ratio percent of the price.
-        price = self.conn.execute("SELECT Price FROM ItemTemplate WHERE Id_nb='cq_alb_cloudy_green_stone'").fetchone()[0]
+        # A merchant pays the world's item_sell_ratio percent of the price. Gronyr's trade hands cq_cloudy_green_stone;
+        # cq_alb_cloudy_green_stone is the one upstream's final reward handed too, which players may still carry.
         ratio = int(self.conn.execute("SELECT Value FROM ServerProperty WHERE `Key`='item_sell_ratio'").fetchone()[0])
-        self.assertEqual(price * ratio // 100, 50)
+        for stone in ("cq_cloudy_green_stone", "cq_alb_cloudy_green_stone"):
+            with self.subTest(stone):
+                price = self.conn.execute("SELECT Price FROM ItemTemplate WHERE Id_nb=?", (stone,)).fetchone()[0]
+                self.assertEqual(price * ratio // 100, 50)
+
+    def test_gronyrs_stone_is_the_periods_item(self):
+        # Allakhazam's item page (archived 2003-02-12 to 2004-12-26): Albion, 0.00 lbs, level 4; the client's model 113
+        # is "Green Gem" (upstream's 229 is the cloth dyes' bottle).
+        self.assertEqual(self.conn.execute("SELECT Realm, Weight, Level, Model FROM ItemTemplate "
+                                           "WHERE Id_nb='cq_cloudy_green_stone'").fetchone(), (1, 0, 4, 113))
 
     def test_frund_stands_at_the_red_dwarf_camp_beside_agisthil(self):
         frund = self.conn.execute("SELECT Region, X, Y, Z, RoamingRange FROM Mob WHERE Mob_ID=?", (FRUND,)).fetchone()

@@ -1,5 +1,5 @@
-"""Period corrections to upstream's monsters and items in the world data (levels, spots, prices), from mob_fixes.json
-beside this file.
+"""Period corrections to upstream's monsters, items and quests in the world data (levels, spots, prices, rewards), from
+mob_fixes.json beside this file.
 
 The period quest archives turn up corrections like "Frund and Agisthil are level 10, at the red dwarf camp" (owner
 2026-10-10); each is one entry of the file. world_fixes.py calls apply() inside its transaction, after its other
@@ -14,8 +14,8 @@ upgrade changed is seen. An entry whose row (or table) is not in the world is sk
 The file:
   {"fixes": [{"name": "Frund", "table": "Mob", "id": "3ce2...", "expect": {"X": 491936, ...},
               "set": {"X": 537351, ...}, "why": "..."}]}
-- table and id: Mob (the row whose Mob_ID is id), NpcTemplate (the rows whose TemplateId is id) or ItemTemplate (the row
-  whose Id_nb is id). One entry per row.
+- table and id: Mob (the row whose Mob_ID is id), NpcTemplate (the rows whose TemplateId is id), ItemTemplate (the row
+  whose Id_nb is id) or DataQuest (the quest whose ID is id). One entry per row.
 - expect: the values the row must still hold, upstream's, column by column; it has a value for every column of set.
 - set: the values to set (never the row's id). Every column of expect and set must be one of the table's columns, or
   the fix is not applied. Values are text, numbers or null, and compare as SQLite compares them with the column (12
@@ -27,9 +27,9 @@ import json
 import os
 
 SAVEPOINT = "mob_fixes"
-NOT_APPLIED = "Mob fixes: not applied ({}); the monsters and items keep the values they have"
+NOT_APPLIED = "Mob fixes: not applied ({}); the monsters, items and quests keep the values they have"
 DATA_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "mob_fixes.json")
-KEYS = {"Mob": "Mob_ID", "NpcTemplate": "TemplateId", "ItemTemplate": "Id_nb"}
+KEYS = {"Mob": "Mob_ID", "NpcTemplate": "TemplateId", "ItemTemplate": "Id_nb", "DataQuest": "ID"}
 SHOWN = 10
 
 
