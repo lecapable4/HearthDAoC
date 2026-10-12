@@ -33,8 +33,11 @@ from tests.test_quest_reachability import EXTRA_QUESTS, TEST_WORLD, UPSTREAM_QUE
 HANDS_ON_COMPLETION = {0, 4, 6, 8, 10}
 DELIVERY = {2, 3}
 COLLECT = {10, 11}
-# The quests that handed one reward twice on upstream's world.
-DOUBLED = {20022, 20116, 20137, 20207, 20208, 20209, 20320, 20510, 20515, 20637}
+# The quests that handed one reward twice on upstream's world, and the items.
+REWARDS = {20022: ["silver chain"], 20116: ["wiley's boots"], 20137: ["wyrm sleeves"], 20207: ["belt of animation"],
+           20208: ["gyrg's cloak"], 20209: ["quicksilver bracer"], 20320: ["yellow silken robes"],
+           20510: ["flint dirk", "flint knife", "flinthead club"], 20515: ["cloudy green stone"], 20637: ["snake charm"]}
+DOUBLED = set(REWARDS)
 
 
 def custom_steps():
@@ -53,11 +56,10 @@ def templates(text):
     return [entry.split(";")[0].strip().lower() for entry in (text or "").split("|")]
 
 
-def doubled(conn, steps_of):
-    """[(quest ID, item name, [how each copy is handed])] for every quest that hands the player two items of one name
-    and keeps both, one of them as its final reward."""
+def handed(conn, steps_of):
+    """{quest ID: {item name: [how each copy is handed]}}: the items a quest hands the player and doesn't take back."""
     names = {template.lower(): name.lower() for template, name in conn.execute("SELECT Id_nb, Name FROM ItemTemplate")}
-    found = []
+    quests = {}
     for qid, types, items, collect, final in conn.execute(
             "SELECT ID, StepType, StepItemTemplates, CollectItemTemplate, FinalRewardItemTemplates FROM DataQuest"):
         types = [int(t) if t.strip().isdigit() else -1 for t in (types or "").split("|")]
@@ -68,8 +70,9 @@ def doubled(conn, steps_of):
             step = steps[n] if n < len(steps) and steps[n] else {}
             return step, step.get("Custom") or {}
 
-        def taken_after(n, item):
-            for m in range(n + 1, len(types) + 1):
+        def taken_from(n, item):
+            """Whether step n or a later one takes the item back: a delivery, a collection, a trade or a use."""
+            for m in range(n, len(types) + 1):
                 if types[m - 1] in DELIVERY and m - 1 < len(items) and items[m - 1] == item:
                     return True
                 if types[m - 1] in COLLECT and m - 1 < len(collect) and collect[m - 1] == item:
@@ -84,19 +87,33 @@ def doubled(conn, steps_of):
         kept = []
         for n, step_type in enumerate(types, 1):
             item = items[n - 1] if n - 1 < len(items) else ""
-            if item and step_type in HANDS_ON_COMPLETION and not taken_after(n, item):
+            if item and step_type in HANDS_ON_COMPLETION and not taken_from(n + 1, item):
                 kept.append((f"step {n}", item))
             step, extra = custom(n)
             kept += [(f"trade at step {n}", out.lower()) for out in (extra.get("Trades") or {}).values() if out]
             kept += [(f"choice at step {n}", out.lower()) for out in (extra.get("Choices") or {}).values() if out]
-            kept += [(f"grant at step {n}", g.lower()) for g in step.get("Grant") or [] if g and not taken_after(n, g.lower())]
+            kept += [(f"grant at step {n}", g.lower()) for g in step.get("Grant") or [] if g and not taken_from(n, g.lower())]
+            given = (extra.get("Item") or "").lower()
+            if extra.get("Give") and given and not taken_from(n, given):
+                kept.append((f"given at step {n}", given))
         kept += [("final reward", item) for item in templates(final) if item]
         by_name = defaultdict(list)
         for how, item in kept:
             if item in names:  # DataQuest skips a template the world lacks
                 by_name[names[item]].append(f"{how}: {item}")
+        quests[qid] = by_name
+    return quests
+
+
+def doubled(conn, steps_of):
+    """[(quest ID, item name, [how each copy is handed])] for every quest that hands the player two items of one name
+    and keeps both, where one is the final reward or the item is worth having (it is worn or sells)."""
+    worth = {template.lower() for template, slot, price in conn.execute("SELECT Id_nb, Item_Type, Price FROM ItemTemplate")
+             if slot != 40 or price > 0}  # Item_Type 40: carried only, as quest items are
+    found = []
+    for qid, by_name in handed(conn, steps_of).items():
         for name, copies in sorted(by_name.items()):
-            if len(copies) > 1 and any(c.startswith("final reward") for c in copies):
+            if len(copies) > 1 and any(c.startswith("final reward") or c.split(": ")[1] in worth for c in copies):
                 found.append((qid, name, copies))
     return sorted(found)
 
@@ -131,6 +148,26 @@ class QuestRewardTests(unittest.TestCase):
 
     def test_no_quest_hands_one_reward_twice(self):
         self.assertEqual(doubled(self.conn, self.steps), [])
+
+    def test_the_ten_hand_their_item_once(self):
+        # Once, not twice and not never: Flint Weapons hands the weapon of the chert's shape.
+        quests = handed(self.conn, self.steps)
+        for qid, items in REWARDS.items():
+            for item in items:
+                with self.subTest(qid, item=item):
+                    self.assertEqual(len(quests[qid][item]), 1, quests[qid][item])
+
+    def test_the_kept_items_delve_their_quest(self):
+        # A delve's first line is the template's Description: upstream's plain templates read
+        # "Classic quest reward ((quest item))".
+        quests = handed(self.conn, self.steps)
+        for qid, items in REWARDS.items():
+            quest = self.conn.execute("SELECT Name FROM DataQuest WHERE ID=?", (qid,)).fetchone()[0]
+            for item in items:
+                template = quests[qid][item][0].split(": ")[1]
+                with self.subTest(qid, template=template):
+                    self.assertEqual(self.conn.execute("SELECT Description FROM ItemTemplate WHERE Id_nb=?",
+                                                       (template,)).fetchone(), (f"Classic quest reward ({quest})",))
 
     def reward(self, qid):
         return self.conn.execute("SELECT StepItemTemplates, FinalRewardItemTemplates FROM DataQuest WHERE ID=?",

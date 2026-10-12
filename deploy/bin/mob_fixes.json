@@ -45,9 +45,33 @@
    "name": "Cloudy Green Stone",
    "table": "ItemTemplate",
    "id": "cq_cloudy_green_stone",
-   "expect": {"Price": 0, "Model": 229, "Level": 1, "Weight": 1, "Realm": 0},
-   "set": {"Price": 100, "Model": 113, "Level": 4, "Weight": 0, "Realm": 1},
-   "why": "The stone Gronyr Gloyw trades for each rotting hog tail in \"Zombie Problem\" (the other stone entry is the copy upstream's final reward handed too, which players may still carry). Allakhazam's item page (archived 2003-02-12 to 2004-12-26): \"Stone is worth 50 copper when you sell it.\", Albion, 0.00 lbs, level 4; price 100 sells for 50 copper at item_sell_ratio 50 (owner 2026-10-11: only one of his two stones sold). Model 113 is the client's \"Green Gem\" (objects.csv); upstream's 229 is the cloth dyes' bottle."
+   "expect": {"Price": 0, "Model": 229, "Level": 1, "Weight": 1, "Realm": 0, "Description": null},
+   "set": {"Price": 100, "Model": 113, "Level": 4, "Weight": 0, "Realm": 1, "Description": "Classic quest reward (Zombie Problem)"},
+   "why": "The stone Gronyr Gloyw trades for each rotting hog tail in \"Zombie Problem\" (the other stone entry is the copy upstream's final reward handed too, which players may still carry). Allakhazam's item page (archived 2003-02-12 to 2004-12-26): \"Stone is worth 50 copper when you sell it.\", Albion, 0.00 lbs, level 4; price 100 sells for 50 copper at item_sell_ratio 50 (owner 2026-10-11: only one of his two stones sold). Model 113 is the client's \"Green Gem\" (objects.csv); upstream's 229 is the cloth dyes' bottle. Its delve names the quest, as the other quest rewards' do."
+  },
+  {
+   "name": "Flint Knife",
+   "table": "ItemTemplate",
+   "id": "cq_flint_knife",
+   "expect": {"Description": "Classic quest reward ((quest item))"},
+   "set": {"Description": "Classic quest reward (Flint Weapons)"},
+   "why": "The weapon Stonemason Harwin makes from a chert in \"Flint Weapons\" (Allakhazam, archived 2004-10-14: \"Bring one back and he will make you a weapon\"), which the quest now hands alone (Flint Weapons entry). A delve's first line is the Description: upstream's reads \"Classic quest reward ((quest item))\", where its other quest rewards name the quest (owner 2026-10-11)."
+  },
+  {
+   "name": "Flinthead Club",
+   "table": "ItemTemplate",
+   "id": "cq_flinthead_club",
+   "expect": {"Description": "Classic quest reward ((quest item))"},
+   "set": {"Description": "Classic quest reward (Flint Weapons)"},
+   "why": "The weapon Stonemason Harwin makes from a chert in \"Flint Weapons\" (Allakhazam, archived 2004-10-14: \"Bring one back and he will make you a weapon\"), which the quest now hands alone (Flint Weapons entry). A delve's first line is the Description: upstream's reads \"Classic quest reward ((quest item))\", where its other quest rewards name the quest (owner 2026-10-11)."
+  },
+  {
+   "name": "Flint Dirk",
+   "table": "ItemTemplate",
+   "id": "cq_flint_dirk",
+   "expect": {"Description": "Classic quest reward ((quest item))"},
+   "set": {"Description": "Classic quest reward (Flint Weapons)"},
+   "why": "The weapon Stonemason Harwin makes from a chert in \"Flint Weapons\" (Allakhazam, archived 2004-10-14: \"Bring one back and he will make you a weapon\"), which the quest now hands alone (Flint Weapons entry). A delve's first line is the Description: upstream's reads \"Classic quest reward ((quest item))\", where its other quest rewards name the quest (owner 2026-10-11)."
   },
   {
    "name": "Lady Leana",
