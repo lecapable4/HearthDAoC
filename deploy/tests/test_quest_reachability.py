@@ -6,8 +6,10 @@ CheckOfferedQuestWhisper). The player does that by clicking a [keyword] the give
 reply for that NPC, which may offer more keywords. Upstream's generator lost lines and keys on the way, so seven quests
 (35 rows) could not be started, and many texts said <Player> (the player's name, in game) where the period named
 someone else, which left two more without a way in. It also wrote <Player> for plain words ("Aye, Well, it's") and
-the player's class, kept spaces in keys that a click never sends, and filed Kylirean's lines under another name. The
-fixes are in deploy/hearthdaoc-quests.json (Chat) and deploy/bin/quest_dialogue.json (world texts).
+the player's class, kept spaces in keys that a click never sends, and filed Kylirean's lines under another name. It
+also kept the class the guides' authors were called by ("Good luck to thee Theurgist.") and the guides' placeholders
+("(class name)"), which every class read. The fixes are in deploy/hearthdaoc-quests.json (Chat) and
+deploy/bin/quest_dialogue.json (world texts).
 
 The world tests run world_fixes on a copy of a clean classic world (HDC_TEST_WORLD) and merge upstream's Chat with the
 fork's as ClassicQuests.MergeChat does. Upstream's Chat is in its classic-quests.json, a server file the first start
@@ -119,9 +121,41 @@ def unanswered(texts, replies):
 
 
 # The fork's replies that replace an upstream reply holding <Player> and still speak to the player, and how many
-# <Player> each keeps: Skorri's "Please <Player>, give Olvaerr his cloak" and Thorgil's "You cannot use a bow,
-# <Player>." (the guide's "Spiritmaster": a class as a title, which the fork leaves as <Player>).
-SPEAKS_TO_THE_PLAYER = {("skorri", "a cloak"): 1, ("thorgil", "staff"): 1}
+# <Player> each keeps: Skorri's "Please <Player>, give Olvaerr his cloak", Thorgil's "You cannot use a bow,
+# <Player>." (the guide's "Spiritmaster": a class as a title, which the fork leaves as <Player>) and Grindan Halig's
+# "Best of luck <Player>!" (the fork changes only his class word).
+SPEAKS_TO_THE_PLAYER = {("skorri", "a cloak"): 1, ("thorgil", "staff"): 1,
+                        ("grindan halig", "willing to bear the weight"): 1}
+
+# The class the guides' authors were called by, which upstream's Chat kept as plain text, so every class read the
+# author's (class-word scan, 2026-10-11). The fork's reply is upstream's with these words alone changed: the class, and
+# the guides' placeholders "(minstrel)" and "(class name)", become <Class>, which the server replaces with the player's
+# class (GetPersonalizedMessage; female names included). {(NPC, the fork's key, upstream's key): [(upstream's words, the
+# fork's)]}. Upstream's key for Gral Bermorn's reply keeps the guide's spaces, which no whisper sends: players get his
+# fork key's reply, which was upstream's word for word.
+CHAT_CLASS_WORDS = {
+    ("gral bermorn", "opened from the other side", " opened from the other side "): [
+        ("take these instructions to aid you. Good luck to thee Theurgist.",
+         "take these instructions to aid you. Good luck to thee <Class>.")],
+    ("broc", "slay a few", "slay a few"): [
+        ("I will consider this proof of your deeds. Safe travels Enchanter.",
+         "I will consider this proof of your deeds. Safe travels <Class>.")],
+    ("mystemas", "understand", "understand"): [
+        ("Bring me Caisha like a good little (minstrel)", "Bring me Caisha like a good little <Class>")],
+    ("iohannes aldar", "pay generously", "pay generously"): [
+        ("This is great (class name)!", "This is great <Class>!"), ("Good luck (class name)!", "Good luck <Class>!")],
+    ("grindan halig", "willing to bear the weight", "willing to bear the weight"): [
+        ("Ah! Very good (class name)!", "Ah! Very good <Class>!")],
+}
+
+
+def with_class_words(text, words):
+    """`text` with each (upstream's words, the fork's) pair of `words` replaced; upstream's words are there once."""
+    for old, new in words:
+        if text.count(old) != 1:
+            raise AssertionError(f"{old!r} is in the text {text.count(old)} times, not once")
+        text = text.replace(old, new)
+    return text
 
 
 class PeriodChatTests(unittest.TestCase):
@@ -167,6 +201,47 @@ class PeriodChatTests(unittest.TestCase):
         self.assertEqual(self.chat["thorgil"]["staff"],
                          "You cannot use a bow, <Player>. Perhaps a <Class> like you would prefer a nice [staff]?")
 
+    def test_the_class_the_guides_authors_were_called_by_is_the_players(self):
+        # Gral Bermorn's "Good luck to thee Theurgist." (Weakened Bonds, open to every class), Broc's "Safe travels
+        # Enchanter.", and the guides' placeholders: Mystemas's "(minstrel)", Iohannes Aldar's and Grindan Halig's
+        # "(class name)".
+        for (npc, key, _upstream_key), words in CHAT_CLASS_WORDS.items():
+            for old, new in words:
+                with self.subTest(npc=npc, keyword=key, words=new):
+                    self.assertEqual(self.chat[npc][key].count(new), 1)
+                    self.assertNotIn(old, self.chat[npc][key])
+        self.assertEqual(self.chat["broc"]["slay a few"],
+                         "Very well then! Return to me any [melancholic] fairy wings you may find. I will consider "
+                         "this proof of your deeds. Safe travels <Class>.")
+        self.assertEqual(self.chat["grindan halig"]["willing to bear the weight"],
+                         "Ah! Very good <Class>! I think you will do nicely. I do not know how best to proceed I "
+                         "suggest that you speak with Iohannes Aldar at Cornwall station. Perhaps if you listen to his "
+                         "story and study the tomb well, you will find the key to [learning] the name of the emperor. "
+                         "Best of luck <Player>!")
+
+    @unittest.skipUnless(UPSTREAM_QUESTS, "needs upstream's classic-quests.json (HDC_CLASSIC_QUESTS)")
+    def test_the_class_word_replies_are_upstreams_with_the_players_class(self):
+        # Only the class words change: Mystemas's reply keeps the page footer upstream scraped after it.
+        with open(UPSTREAM_QUESTS, encoding="utf-8") as f:
+            upstream = merged_chat(json.load(f).get("Chat"), {})
+        for (npc, key, upstream_key), words in CHAT_CLASS_WORDS.items():
+            with self.subTest(npc=npc, keyword=key):
+                self.assertEqual(self.chat[npc][key], with_class_words(upstream[npc][upstream_key], words))
+
+    @unittest.skipUnless(UPSTREAM_QUESTS, "needs upstream's classic-quests.json (HDC_CLASSIC_QUESTS)")
+    def test_no_reply_a_whisper_reaches_says_a_class_word_the_fork_fixed(self):
+        # The guard: with upstream's Chat merged as MergeChat does, no reply a player can get still has the guides'
+        # class words (an NPC answers every class alike). A key OnWhisper can match is trimmed and has no trailing .!?;
+        # upstream's " opened from the other side " is not one, so its copy of Gral Bermorn's reply reaches no one.
+        with open(UPSTREAM_QUESTS, encoding="utf-8") as f:
+            chat = merged_chat(json.load(f).get("Chat"), extra_chat())
+        fixed = [old for words in CHAT_CLASS_WORDS.values() for old, _new in words]
+        said = [(npc, key, old) for npc, lines in chat.items() for key, reply in lines.items() for old in fixed
+                if key == whisper_key(key) and old in (reply or "")]
+        self.assertEqual(said, [])
+        self.assertIn("Theurgist.", chat["gral bermorn"][" opened from the other side "])
+        self.assertNotEqual(whisper_key(" opened from the other side "), " opened from the other side ")
+
     def test_gral_bermorns_keywords_are_answered_without_their_spaces(self):
         # Upstream's keys kept the guide's spaces (" switch "); a click on [ switch ] whispers "switch".
         gral = self.chat["gral bermorn"]
@@ -203,7 +278,8 @@ class PeriodChatTests(unittest.TestCase):
 
     @unittest.skipUnless(UPSTREAM_QUESTS, "needs upstream's classic-quests.json (HDC_CLASSIC_QUESTS)")
     def test_the_moved_replies_are_upstreams(self):
-        # Gral Bermorn's trimmed keys, Nibalk's [Ibicus] and Kylirean's lines carry upstream's replies as they are.
+        # Gral Bermorn's trimmed keys, Nibalk's [Ibicus] and Kylirean's lines carry upstream's replies as they are, but
+        # for the class words (CHAT_CLASS_WORDS: Gral Bermorn's "Theurgist").
         with open(UPSTREAM_QUESTS, encoding="utf-8") as f:
             upstream = merged_chat(json.load(f).get("Chat"), {})
         moved = [("gral bermorn", " switch ", "gral bermorn", "switch"),
@@ -214,7 +290,8 @@ class PeriodChatTests(unittest.TestCase):
         self.assertEqual(len(moved), 9)
         for npc, key, ours, our_key in moved:
             with self.subTest(npc=ours, keyword=our_key):
-                self.assertEqual(self.chat[ours][our_key], upstream[npc][key])
+                words = CHAT_CLASS_WORDS.get((ours, our_key, key), [])
+                self.assertEqual(self.chat[ours][our_key], with_class_words(upstream[npc][key], words))
 
 
 @unittest.skipUnless(TEST_WORLD and UPSTREAM_QUESTS, "needs HDC_TEST_WORLD (a clean classic world database) and "
@@ -275,6 +352,18 @@ class ReachabilityTests(unittest.TestCase):
                 text = self.stage(qid, column, stage)
                 self.assertIn(keyword, offered([text], self.chat[npc]))
                 self.assertEqual(unanswered([text], self.chat[npc]), [])
+
+    def test_the_class_word_replies_are_offered_where_players_get_them(self):
+        # Mystemas, Iohannes Aldar and Grindan Halig offer theirs from what they say in their quests' texts (Strange
+        # Bedfellows, Fall of an Emperor), Gral Bermorn his from Weakened Bonds' [ switch ]. Broc's [have a moment],
+        # which leads to his, is in no quest text: a player whispers it.
+        for npc, key in (("mystemas", "Understand"), ("iohannes aldar", "pay generously"),
+                         ("grindan halig", "willing to bear the weight"),
+                         ("gral bermorn", "opened from the other side")):
+            with self.subTest(npc=npc):
+                self.assertIn(key, offered(self.said[npc], self.chat[npc]))
+                self.assertIn("<Class>", self.chat[npc][whisper_key(key)])
+        self.assertIn("slay a few", offered(["[have a moment]"], self.chat["broc"]))
 
     def test_the_words_that_were_player_in_quest_texts_are_the_guides(self):
         # Upstream's generator took "Now" and "Well" for names. Silver Run's Crace keeps <Player> where he speaks to the
