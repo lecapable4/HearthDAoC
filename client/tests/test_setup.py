@@ -16,14 +16,22 @@ import release_fixture as fx  # noqa: E402
 SETUP = os.path.join(REPO, "client", "linux", "setup.sh")
 RELEASE_DLL = "editions/0.34-no-custom-class/runtime/client-opendaoc/app/game.dll"
 RELEASE_SPLASH = "runtime/client-opendaoc/app/pregame/splash.mpk"
+RELEASE_INI = "runtime/client-opendaoc/app/default.ini"
 SPLASH = b"stock splash"
 SPLASH_NEW = b"HEARTH DAoC splash"
+# A fake default.ini, and what the bundle's default-layout.json makes of it.
+INI = b"[Panels-800x600]\r\nVersion=1\r\n"
+INI_PATCHED = b"[Panels-1920x1080]\r\nVersion=1\r\n" + INI
 UNKNOWN_DLL = ("Not patched: game.dll is not the file this HearthDAoC release supports (for example the "
                "b edition, or an older or newer upstream client). The client still works with the standard "
                "creation screen.\n")
-WARNING = "Warning: the client was set up without HearthDAoC's patches (see the message above).\n"
+UNKNOWN_INI = ("Not patched: default.ini is not the file this HearthDAoC release supports (for example one changed "
+               "by hand, or an older or newer upstream client). New characters start with the game's standard window "
+               "layout.\n")
+WARNING = "Warning: the client was set up without HearthDAoC's classic creation patches (see the message above).\n"
+LAYOUT_WARNING = "Warning: the client was set up without HearthDAoC's default layout (see the message above).\n"
 # What setup.sh installs in <dest>/patches, for play.sh to apply at every launch: exactly these.
-PATCH_FILES = ["apply_patches.py", "classic-creation.json", "patchset.py", "splash.mpk"]
+PATCH_FILES = ["apply_patches.py", "classic-creation.json", "default-layout.json", "patchset.py", "splash.mpk"]
 CONF = "hearthdaoc-client.conf"
 
 
@@ -137,12 +145,19 @@ class SetupTests(unittest.TestCase):
 
     def test_repository_patch_set_refuses_a_foreign_client_and_setup_still_succeeds(self):
         # From a checkout, setup.sh uses client/patches/. The fixture's game.dll isn't OfflineDAoC
-        # 0.35 classic's, so the applier refuses it (exit 3): a warning, and the client is unchanged.
-        with fx.RangeServer(self.dir) as srv:
+        # 0.35 classic's, so the applier refuses it (exit 3): a warning, and the client is unchanged. Its
+        # default.ini isn't OfflineDAoC's either, so the default layout is refused too, with its own warning.
+        files = dict(fx.DEFAULT_FILES)
+        files[RELEASE_INI] = INI
+        self.lock, self.files = fx.build(os.path.join(self.dir, "with-ini"), files)
+        with fx.RangeServer(os.path.join(self.dir, "with-ini")) as srv:
             dest, r = self.run_setup(srv)
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
         self.assertIn(UNKNOWN_DLL, r.stdout)
         self.assertIn(WARNING, r.stderr)
+        self.assertIn(UNKNOWN_INI, r.stdout)
+        self.assertIn(LAYOUT_WARNING, r.stderr)
+        self.assertEqual(read(os.path.join(dest, "client", "default.ini")), INI)
         self.assertEqual(read(os.path.join(dest, "client", "game.dll")), self.files[RELEASE_DLL])
         self.assertEqual([n for n in os.listdir(os.path.join(dest, "client")) if n.endswith(".hearthdaoc-orig")], [])
         installed_patches(self, dest, os.path.join(REPO, "client", "patches"))  # for play.sh, even when refused
@@ -170,6 +185,7 @@ class BundlePatchTests(unittest.TestCase):
         self.dir = self.tmp.name
         files = dict(fx.DEFAULT_FILES)
         files[RELEASE_SPLASH] = SPLASH
+        files[RELEASE_INI] = INI
         self.lock, self.files = fx.build(self.dir, files)
         self.base = make_base(self.dir, self.files)
         self.dll = self.files[RELEASE_DLL]
@@ -186,6 +202,7 @@ class BundlePatchTests(unittest.TestCase):
         with open(os.path.join(self.patches, "splash.mpk"), "wb") as f:
             f.write(SPLASH_NEW)
         self.write_patchset(sha(self.dll))
+        self.write_layout_set(sha(INI))
 
     def write_patchset(self, dll_before):
         data = {
@@ -201,6 +218,21 @@ class BundlePatchTests(unittest.TestCase):
             ],
         }
         with open(os.path.join(self.patches, "classic-creation.json"), "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=1)
+
+    def write_layout_set(self, ini_before):
+        find = "[Panels-800x600]\r\n"
+        data = {
+            "format": 1,
+            "name": "default-layout",
+            "client": "test fixture",
+            "refused": "(for example one changed by hand, or an older or newer upstream client). New characters "
+                       "start with the game's standard window layout.",
+            "files": [{"path": "default.ini", "before": ini_before, "after": sha(INI_PATCHED),
+                       "ops": [{"op": "text-replace", "find": find,
+                                "replace": "[Panels-1920x1080]\r\nVersion=1\r\n" + find}]}],
+        }
+        with open(os.path.join(self.patches, "default-layout.json"), "w", encoding="utf-8") as f:
             json.dump(data, f, indent=1)
 
     def setup_sh(self, base=None, cwd=None, release=None, env=None):
@@ -226,12 +258,15 @@ class BundlePatchTests(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
         client = os.path.join(dest, "client")
         self.assertIn("Patched: game.dll (original saved as game.dll.hearthdaoc-orig)\n"
-                      "Patched: pregame/splash.mpk (original saved as pregame/splash.mpk.hearthdaoc-orig)\n",
+                      "Patched: pregame/splash.mpk (original saved as pregame/splash.mpk.hearthdaoc-orig)\n"
+                      "Patched: default.ini (original saved as default.ini.hearthdaoc-orig)\n",
                       r.stdout)
         self.assertNotIn("Warning", r.stderr)
         self.assertEqual(read(os.path.join(client, "game.dll")), self.dll_patched)
         self.assertEqual(read(os.path.join(client, "game.dll.hearthdaoc-orig")), self.dll)
         self.assertEqual(read(os.path.join(client, "pregame", "splash.mpk")), SPLASH_NEW)
+        self.assertEqual(read(os.path.join(client, "default.ini")), INI_PATCHED)
+        self.assertEqual(read(os.path.join(client, "default.ini.hearthdaoc-orig")), INI)
         self.assertTrue(os.path.isfile(os.path.join(dest, "play.sh")))
         self.assertFalse(os.path.exists(os.path.join(self.patches, "__pycache__")))
 
@@ -245,20 +280,37 @@ class BundlePatchTests(unittest.TestCase):
         self.assertEqual(read(os.path.join(client, "pregame", "splash.mpk")), SPLASH_NEW)
         ours = sorted(os.path.relpath(os.path.join(folder, name), client).replace(os.sep, "/")
                       for folder, _dirs, names in os.walk(client) for name in names if "hearthdaoc" in name)
-        self.assertEqual(ours, ["game.dll.hearthdaoc-orig", "pregame/splash.mpk.hearthdaoc-orig"])  # nothing else
+        self.assertEqual(ours, ["default.ini.hearthdaoc-orig", "game.dll.hearthdaoc-orig",
+                                "pregame/splash.mpk.hearthdaoc-orig"])  # nothing else
         self.assertEqual(sha(read(os.path.join(client, "game.dll.hearthdaoc-orig"))), sha(self.dll))
         self.assertEqual(sha(read(os.path.join(client, "pregame", "splash.mpk.hearthdaoc-orig"))), sha(SPLASH))
+        self.assertEqual(read(os.path.join(client, "default.ini.hearthdaoc-orig")), INI)
+        self.assertEqual(read(os.path.join(client, "default.ini")), INI_PATCHED)
 
     def test_a_refused_patch_set_warns_and_setup_still_succeeds(self):
         self.write_patchset(sha(b"the game.dll of another edition"))
         dest, r = self.setup_sh()
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
         self.assertIn(UNKNOWN_DLL, r.stdout)
-        self.assertIn(WARNING, r.stderr)
+        self.assertEqual(r.stderr, WARNING)
         client = os.path.join(dest, "client")
         self.assertEqual(read(os.path.join(client, "game.dll")), self.dll)
         self.assertEqual(read(os.path.join(client, "pregame", "splash.mpk")), SPLASH)
         self.assertFalse(os.path.exists(os.path.join(client, "game.dll.hearthdaoc-orig")))
+        self.assertTrue(os.path.isfile(os.path.join(dest, "play.sh")))
+        # The default layout is a set of its own: the b edition's client gets it.
+        self.assertEqual(read(os.path.join(client, "default.ini")), INI_PATCHED)
+
+    def test_a_refused_default_layout_warns_and_classic_creation_still_applies(self):
+        self.write_layout_set(sha(b"a default.ini changed by hand"))
+        dest, r = self.setup_sh()
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertIn(UNKNOWN_INI, r.stdout)
+        self.assertEqual(r.stderr, LAYOUT_WARNING)
+        client = os.path.join(dest, "client")
+        self.assertEqual(read(os.path.join(client, "default.ini")), INI)
+        self.assertFalse(os.path.exists(os.path.join(client, "default.ini.hearthdaoc-orig")))
+        self.assertEqual(read(os.path.join(client, "game.dll")), self.dll_patched)
         self.assertTrue(os.path.isfile(os.path.join(dest, "play.sh")))
 
     def test_setup_installs_the_patch_files_next_to_play_sh(self):
@@ -413,18 +465,27 @@ class BundlePatchTests(unittest.TestCase):
             self.assertEqual(saved_settings(dest)["tag"], "v0.35b-hearth.3")
 
     def test_a_failed_patch_fails_setup(self):
-        # An invalid patch set (exit 2). The message names the installed copy: setup.sh applies
+        # An invalid patch set (exit 2), either one. The message names the installed copy: setup.sh applies
         # <dest>/patches, the files play.sh applies at every launch, not the bundle's.
-        with open(os.path.join(self.patches, "classic-creation.json"), "w", encoding="utf-8") as f:
-            json.dump({"format": 2}, f)
-        dest, r = self.setup_sh()
-        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
-        installed = os.path.join(dest, "patches", "classic-creation.json")
-        self.assertIn(f"Error: invalid patch set: {installed}: not a format 1 patch set", r.stderr)
-        self.assertIn("Patching the client failed (apply_patches.py exit 2, see the message above).", r.stderr)
-        self.assertEqual(read(os.path.join(dest, "client", "game.dll")), self.dll)
-        self.assertFalse(os.path.exists(os.path.join(dest, "play.sh")))
-        self.assertFalse(os.path.exists(os.path.join(dest, CONF)))
+        for name in ("classic-creation.json", "default-layout.json"):
+            with self.subTest(name):
+                shutil.rmtree(os.path.join(self.dir, "dest"), ignore_errors=True)
+                kept = read(os.path.join(self.patches, name))
+                with open(os.path.join(self.patches, name), "w", encoding="utf-8") as f:
+                    json.dump({"format": 2}, f)
+                try:
+                    dest, r = self.setup_sh()
+                finally:
+                    with open(os.path.join(self.patches, name), "wb") as f:
+                        f.write(kept)
+                self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
+                installed = os.path.join(dest, "patches", name)
+                self.assertIn(f"Error: invalid patch set: {installed}: not a format 1 patch set", r.stderr)
+                self.assertIn("Patching the client failed (apply_patches.py exit 2, see the message above).", r.stderr)
+                if name == "classic-creation.json":  # the first set: nothing was patched
+                    self.assertEqual(read(os.path.join(dest, "client", "game.dll")), self.dll)
+                self.assertFalse(os.path.exists(os.path.join(dest, "play.sh")))
+                self.assertFalse(os.path.exists(os.path.join(dest, CONF)))
 
     def test_a_bundle_missing_a_patch_file_is_refused_before_anything_is_copied(self):
         aside = os.path.join(self.dir, "aside")

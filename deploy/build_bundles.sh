@@ -44,10 +44,11 @@ mkdir -p "$c/patches" "$c/windows/patches"
 cp "$root"/client/README.md "$root"/client/linux/setup.sh "$root"/client/linux/play.sh.in \
    "$root"/tools/linux/odaoc_fetch.py "$root"/deploy/upstream.lock "$c/"
 echo "$tag" > "$c/VERSION"  # the release: setup.sh saves it, and play.sh offers the newer ones
-# Client patches (classic character creation, splash): our patch data, the appliers and our splash.mpk.
-cp "$root"/client/patches/{classic-creation.json,apply_patches.py,patchset.py,splash.mpk} "$c/patches/"
+# Client patches (classic character creation and splash, the default layout for new characters): our patch data,
+# the appliers and our splash.mpk.
+cp "$root"/client/patches/{classic-creation.json,default-layout.json,apply_patches.py,patchset.py,splash.mpk} "$c/patches/"
 cp "$root"/client/windows/{connect-hearthdaoc.bat,patch-client.bat,patch-client.ps1} "$c/windows/"
-cp "$root"/client/patches/{classic-creation.json,splash.mpk} "$c/windows/patches/"
+cp "$root"/client/patches/{classic-creation.json,default-layout.json,splash.mpk} "$c/windows/patches/"
 # The client's content ID, in the bundle and beside it on the release: play.sh doesn't offer a newer release with
 # the installed one, since only the server changed. SHA-256 of the bundled files' SHA-256 sums and paths (as
 # sha256sum prints them, in path order), without VERSION, which only names the release.

@@ -1,11 +1,21 @@
 #!/usr/bin/env python3
-"""The Guild of Shadows chain's dialogue (quests of levels 7 to 50) in the world data.
+"""Quest texts in the world data: the Guild of Shadows chain's dialogue (levels 7 to 50), and the classic quests'
+period lines, names and class words, without the guides' leftovers.
 
-Upstream left most of the chain's text empty ("[Traveler's]") or filled with walkthrough notes. The texts are in
-quest_dialogue.json, beside this file; world_fixes.py calls apply() inside its transaction, right after
-epic_chains.apply() (the chain's rows, including the fork's own level-50 ones, must exist), under its own savepoint:
-if it fails it is rolled back alone, apply() returns only the "not applied" line, and the other fixes and the start
-go on.
+Upstream left most of the chain's text empty ("[Traveler's]") or filled with walkthrough notes. Its generator also lost
+the line that offers some classic quests (level 5's "Cleric Mulgrut" at Hugh Gallen showed only his wares) and wrote
+<Player>, which the server replaces with the player's name, where the period named someone else (Durren, Askheim, ...)
+or said a plain word ("Well", Wariel's "What is your [name]?"). It also kept the class the period guides' authors were
+called by ("Good luck to thee Theurgist.") and the guides' placeholders for it ("(class name)"), which every class read:
+the file says <Class>, which the server replaces with the player's class, and New Crest's accept keyword, which
+DataQuest compares as it is, is each row's own class. The guides' placeholder for the player's name ("(your name
+here)", and The Lost Stone's whisper keyword "<your name>", which DataQuest now matches as the player reads it) is
+<Player>; their placeholder for the player's race ("(your characters race)") is <Race>; and what is no one's
+words is cut: the web page upstream scraped after Mystemas's last line, and the kill tasks' notes on Allakhazam.
+The texts are in quest_dialogue.json, beside this file;
+world_fixes.py calls apply() inside its transaction, right after epic_chains.apply() (the chain's rows, including the
+fork's own level-50 ones, must exist), under its own savepoint: if it fails it is rolled back alone, apply() returns
+only the "not applied" line, and the other fixes and the start go on.
 
 Unlike the other world fixes this one has no marker. It runs at every start and changes a row only while the columns
 it sets still hold a text the file's guard lists: upstream's (as epic_chains.py leaves them) or an earlier version of
@@ -15,9 +25,12 @@ in the start log at every start, so a quest whose upstream text an upgrade chang
 upstream's text) is seen.
 
 The file:
-  {"quests": [{"step": "7", "set": {...}, "guard": {"21500": ["<digest>", ...]}}]}
+  {"quests": [{"step": "7", "set": {...}, "guard": {"21500": ["<digest>", ...]}},
+              {"ids": [20207], "name": "Cleric Mulgrut", "set": {...}, "guard": {"20207": ["<digest>", ...]}}]}
 - step: a key of epic_chains_data.json "steps"; its "ids" are the quest IDs of the classes, in that file's order
   ("classes"); a null ID is skipped.
+- ids: instead of a step, plain quest IDs (the classic quests), which get the same text; a per-class object is refused.
+  name is for the reader. A quest ID is in one entry only.
 - set: DataQuest columns to set (AcceptText, Description, SourceText, StepType, StepText, TargetText, AdvanceText,
   FinishText, StepItemTemplates, CollectItemTemplate, StartName, QuestDependency). A value is a string (every class),
   an object with all five class names, or (for the per-stage columns SourceText, StepType, StepText, TargetText,
@@ -31,9 +44,10 @@ The file:
 - guard: for each quest ID, the digests of its `set` columns' values that may be replaced. digest() makes them.
   `quest_dialogue.py --seal` appends to every quest's guard list the digest of the file's own current text for that
   quest (computed from the file alone, no world needed). `--digests WORLD.db` prints the digests of the text WORLD
-  holds (after epic_chains), which is upstream's text only on a clean world; with `--current` it applies this file to
-  its copy first. It is still needed when an entry's set of columns changes: old worlds' values are digested over the
-  new column set, which only a world can give.
+  holds (after epic_chains), by step or ids, which is upstream's text only on a clean world; with `--current` it
+  applies this file to its copy first. It is needed for a new entry (upstream's digests start its guard lists) and
+  when an entry's set of columns changes: old worlds' values are digested over the new column set, which only a world
+  can give.
 
 To revise the text: edit it, run
   python3 deploy/bin/quest_dialogue.py --seal
@@ -128,29 +142,55 @@ def _rows(conn, ids):
     return {qid: stype for qid, stype in conn.execute(f"SELECT ID, IFNULL(StepType, '') FROM DataQuest WHERE ID IN ({marks})", ids)}
 
 
+def label(entry):
+    """How --digests names an entry: its step, or "ids" and its quest IDs."""
+    return entry["step"] if "step" in entry else "ids " + ", ".join(str(qid) for qid in entry["ids"])
+
+
+def _quests(entry, chains):
+    """(names, {name: quest id}): the quests an entry rewrites, by the names its values are given for. A step's names
+    are the classes (a null ID is skipped). An ids entry has one text for all its quests, named by their IDs."""
+    if ("step" in entry) == ("ids" in entry):
+        raise ValueError("an entry names a step or ids, one of them")
+    if "step" in entry:
+        step = entry["step"]
+        if step not in chains["steps"]:
+            raise ValueError(f"unknown step {step}")
+        classes = list(chains["classes"])
+        return classes, {name: qid for name, qid in zip(classes, chains["steps"][step]["ids"]) if qid is not None}
+    ids = entry["ids"]
+    if not isinstance(ids, list) or not ids or any(type(qid) is not int for qid in ids) or len(set(ids)) != len(ids):
+        raise ValueError(f"ids {ids!r}: a list of quest IDs, each once")
+    for column, value in entry["set"].items():
+        if any(isinstance(part, dict) for part in (value if isinstance(value, list) else [value])):
+            raise ValueError(f"quests {', '.join(map(str, ids))}: {column} has a per-class object, which only a step's "
+                             "entry takes")
+    return [str(qid) for qid in ids], {str(qid): qid for qid in ids}
+
+
 def _plan(conn, data, chains):
     """The work: [(quest id, columns in sorted order, new values, guard digests)], after checking the whole file. The
     new values are None for a row whose number of stages (its StepType) is not the length of a per-stage list: the
     owner or a later world changed that quest's steps, so the file's text doesn't fit it, and the row is left alone
     (the other rows still apply)."""
-    classes = list(chains["classes"])
-    plan, seen = [], set()
+    plan, seen, quests = [], set(), set()
     for entry in data.get("quests", []):
-        step = entry["step"]
-        if step in seen:
-            raise ValueError(f"step {step} appears twice")
-        seen.add(step)
-        if step not in chains["steps"]:
-            raise ValueError(f"unknown step {step}")
-        ids = chains["steps"][step]["ids"]
-        by_class = {name: qid for name, qid in zip(classes, ids) if qid is not None}
+        if "step" in entry:
+            if entry["step"] in seen:
+                raise ValueError(f"step {entry['step']} appears twice")
+            seen.add(entry["step"])
+        names, by_name = _quests(entry, chains)
+        for qid in by_name.values():
+            if qid in quests:
+                raise ValueError(f"quest {qid} is in two entries")
+            quests.add(qid)
         columns = sorted(entry["set"])
-        stype = _rows(conn, list(by_class.values())) if by_class else {}
-        stages = {name: (len(stype[qid].split("|")) if qid in stype else None) for name, qid in by_class.items()}
-        for name in classes:
+        stype = _rows(conn, list(by_name.values())) if by_name else {}
+        stages = {name: (len(stype[qid].split("|")) if qid in stype else None) for name, qid in by_name.items()}
+        for name in names:
             stages.setdefault(name, None)
-        resolved = {column: resolve(column, entry["set"][column], classes, stages) for column in columns}
-        for name, qid in by_class.items():
+        resolved = {column: resolve(column, entry["set"][column], names, stages) for column in columns}
+        for name, qid in by_name.items():
             values = [resolved[column][name] for column in columns]
             plan.append((qid, columns, None if None in values else values,
                          set(entry.get("guard", {}).get(str(qid), []))))
@@ -158,7 +198,7 @@ def _plan(conn, data, chains):
 
 
 def apply(conn, now=None, data=None, chains=None):
-    """Rewrite the chain's dialogue where it still holds a known earlier text; returns the summary line, the "not
+    """Rewrite the quests' texts where they still hold a known earlier text; returns the summary line, the "not
     applied" line, or nothing. `chains` is epic_chains_data.json's contents.
 
     Inside an open transaction (world_fixes.py's), nothing here commits; on a connection with none open, the
@@ -213,7 +253,7 @@ def summary(rewritten, kept):
 
 
 def digests(world, data=None, chains=None, current=False):
-    """{step: {quest id: digest}} of the text every entry's `set` columns hold, read from a copy of the world that
+    """{step or ids: {quest id: digest}} of the text every entry's `set` columns hold, read from a copy of the world that
     has had epic_chains applied (when it lacks the marker): upstream's text on a clean world. With `current`, this fix
     is applied to the copy too, so these are the digests of the file's own text, which the next revision's guard lists
     need; a row the fix leaves with another text is an error, not a wrong digest. The world itself is not changed."""
@@ -233,12 +273,11 @@ def digests(world, data=None, chains=None, current=False):
                 _apply_on_copy(conn, data, chains)
             for entry in data.get("quests", []):
                 columns = sorted(entry["set"])
-                ids = [qid for qid in chains["steps"][entry["step"]]["ids"] if qid is not None]
-                out[entry["step"]] = {}
-                for qid in ids:
+                out[label(entry)] = {}
+                for qid in _quests(entry, chains)[1].values():
                     row = conn.execute(f"SELECT {', '.join(columns)} FROM DataQuest WHERE ID=?", (qid,)).fetchone()
                     if row is not None:
-                        out[entry["step"]][str(qid)] = digest(list(row))
+                        out[label(entry)][str(qid)] = digest(list(row))
         finally:
             conn.close()
     return out
@@ -260,15 +299,14 @@ def _apply_on_copy(conn, data, chains):
 def own_digests(data, chains):
     """{quest id: digest} of the file's own current text for each quest of every entry, computed from the file alone.
     Without a world the stage counts of a per-stage list can't be checked; that is fine for a digest."""
-    classes = list(chains["classes"])
     out = {}
     for entry in data.get("quests", []):
+        names, by_name = _quests(entry, chains)
         columns = sorted(entry["set"])
-        resolved = {column: resolve(column, entry["set"][column], classes, {name: None for name in classes})
+        resolved = {column: resolve(column, entry["set"][column], names, {name: None for name in names})
                     for column in columns}
-        for name, qid in zip(classes, chains["steps"][entry["step"]]["ids"]):
-            if qid is not None:
-                out[str(qid)] = digest([resolved[column][name] for column in columns])
+        for name, qid in by_name.items():
+            out[str(qid)] = digest([resolved[column][name] for column in columns])
     return out
 
 
@@ -288,7 +326,7 @@ def seal(path=DATA_FILE, chains=None):
     added = []
     for entry in data.get("quests", []):
         guard = entry.setdefault("guard", {})
-        for qid in [str(q) for q in chains["steps"][entry["step"]]["ids"] if q is not None]:
+        for qid in [str(q) for q in _quests(entry, chains)[1].values()]:
             if own[qid] not in guard.setdefault(qid, []):
                 guard[qid].append(own[qid])
                 added.append(qid)
@@ -303,13 +341,14 @@ def _now():
 
 
 def main(argv=None):
-    ap = argparse.ArgumentParser(description="The Guild of Shadows chain's dialogue: seal the guard lists, print digests.")
+    ap = argparse.ArgumentParser(description="Quest texts in the world data: seal the guard lists, print digests.")
     ap.add_argument("--seal", action="store_true",
                     help="append the digest of the file's own current text to each quest's guard list (run it after "
                          "editing the text, then commit)")
     ap.add_argument("--digests", metavar="WORLD.db",
-                    help="print {step: {quest id: digest}} of the text each entry's set columns hold in the world, after "
-                         "the epic chains (upstream's text on a clean world); needed when an entry's set of columns changes")
+                    help="print {step or ids: {quest id: digest}} of the text each entry's set columns hold in the "
+                         "world, after the epic chains (upstream's text on a clean world); needed for a new entry and when "
+                         "an entry's set of columns changes")
     ap.add_argument("--current", action="store_true",
                     help="with --digests: apply this file to the copy first, printing the digests of the file's own text")
     a = ap.parse_args(argv)

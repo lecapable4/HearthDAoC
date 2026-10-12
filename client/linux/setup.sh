@@ -50,7 +50,7 @@ if [[ -f "$here/CONTENT_ID" ]]; then
     CONTENT_ID="$(head -n 1 "$here/CONTENT_ID" | tr -d '\r' | sed -n '/^[0-9a-f]\{64\}$/p')"
 fi
 # The client patches (client/patches): installed in $DEST/patches, where play.sh applies them at every launch.
-PATCH_FILES=(apply_patches.py patchset.py classic-creation.json splash.mpk)
+PATCH_FILES=(apply_patches.py patchset.py classic-creation.json default-layout.json splash.mpk)
 PATCHER="$(find_file patches/apply_patches.py client/patches/apply_patches.py)"  # its own line: set -e sees a failure
 PATCH_SRC="$(dirname "$PATCHER")"
 for f in "${PATCH_FILES[@]}"; do
@@ -78,22 +78,28 @@ echo "Copying your base client (read only) to $DEST/client ..."
 rsync -a --delete --exclude='*.dxvk-cache' --exclude='/logs/' --exclude='/login.log' "$BASE/" "$CLIENT/"
 echo "Fetching the OfflineDAoC $EDITION client files (each verified) ..."
 python3 "$FETCH" --lock "$LOCK" client --edition "$EDITION" --client-dir "$CLIENT"
-# Classic character creation and the HearthDAoC splash. A fresh copy of this bundle's patch files
-# replaces $DEST/patches (nothing from an older release is left), and is applied from there. Exit 3
-# means the applier refused a client file it doesn't know (e.g. the b edition) and changed nothing:
-# the client works.
-echo "Applying HearthDAoC's client patches (classic character creation, loading splash) ..."
+# Classic character creation and the HearthDAoC splash (classic-creation.json), and the window layout new
+# characters start with (default-layout.json). A fresh copy of this bundle's patch files replaces $DEST/patches
+# (nothing from an older release is left), and each set is applied from there on its own. Exit 3 means the
+# applier refused a client file that set doesn't know (e.g. the b edition's game.dll) and changed nothing of it:
+# the client works, and the other set is still applied.
+echo "Applying HearthDAoC's client patches (classic character creation, loading splash, default layout) ..."
 rm -rf "$DEST/patches.new"
 mkdir "$DEST/patches.new"
 for f in "${PATCH_FILES[@]}"; do cp "$PATCH_SRC/$f" "$DEST/patches.new/"; done
 if [[ -d "$DEST/patches" ]]; then mv "$DEST/patches" "$DEST/patches.old"; fi
 mv "$DEST/patches.new" "$DEST/patches"
-rc=0; python3 "$DEST/patches/apply_patches.py" --client "$CLIENT" || rc=$?
-if [[ $rc -eq 3 ]]; then
-    echo "Warning: the client was set up without HearthDAoC's patches (see the message above)." >&2
-elif [[ $rc -ne 0 ]]; then
-    echo "Patching the client failed (apply_patches.py exit $rc, see the message above)." >&2; exit 1
-fi
+apply_set() {  # apply_set <patch set> <what the client is set up without when the set is refused>
+    local rc=0
+    python3 "$DEST/patches/apply_patches.py" --client "$CLIENT" --patchset "$DEST/patches/$1" || rc=$?
+    if [[ $rc -eq 3 ]]; then
+        echo "Warning: the client was set up without $2 (see the message above)." >&2
+    elif [[ $rc -ne 0 ]]; then
+        echo "Patching the client failed (apply_patches.py exit $rc, see the message above)." >&2; exit 1
+    fi
+}
+apply_set classic-creation.json "HearthDAoC's classic creation patches"
+apply_set default-layout.json "HearthDAoC's default layout"
 # A new file renamed over play.sh: a running play.sh (one that is updating itself) goes on reading its own file.
 sed -e "s|@SERVER@|$SERVER|g" -e "s|@EDITION@|$EDITION|g" "$TEMPLATE" > "$DEST/play.sh.new"
 chmod +x "$DEST/play.sh.new"

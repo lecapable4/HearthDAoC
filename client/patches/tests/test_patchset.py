@@ -120,6 +120,8 @@ class LoadTests(unittest.TestCase):
     def test_loads_a_valid_patch_set(self):
         loaded = self.load(fixture_patchset())
         self.assertEqual([f["path"] for f in loaded["files"]], FILES)
+        loaded = self.load(dict(fixture_patchset(), refused="(for example a file changed by hand)."))
+        self.assertEqual(loaded["refused"], "(for example a file changed by hand).")
 
     def test_rejects_unsafe_paths(self):
         for bad in ("/etc/passwd", "../game.dll", "pregame/../../game.dll", "pregame\\splash.mpk",
@@ -155,6 +157,8 @@ class LoadTests(unittest.TestCase):
             "duplicate path": lambda d: d["files"].append(dict(d["files"][0], path="GAME.DLL")),
             "empty find": lambda d: d["files"][1]["ops"][0].update(find=""),
             "text outside Latin-1": lambda d: d["files"][1]["ops"][0].update(replace="\u2014"),
+            "refused not text": lambda d: d.update(refused=5),
+            "refused null": lambda d: d.update(refused=None),
         }
         for name, change in cases.items():
             data = fixture_patchset()

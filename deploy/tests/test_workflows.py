@@ -91,7 +91,7 @@ class MergeIsReleaseTests(unittest.TestCase):
 # has no YAML reader. GitHub's Ubuntu runners have ruby; without it these tests are skipped.
 RUBY = shutil.which("ruby")
 YAML_TO_JSON = "require 'yaml'; require 'json'; puts JSON.generate(YAML.safe_load(File.read(ARGV[0])))"
-PATCH_SET = os.path.join(ROOT, "client", "patches", "classic-creation.json")
+PATCH_SETS = [os.path.join(ROOT, "client", "patches", name) for name in ("classic-creation.json", "default-layout.json")]
 TEST_JOB, RELEASE_JOB = "test-build-publish", "release-assets"
 MPK_PROJECT = "source/tools/OfflineDaoc.Mpk/OfflineDaoc.Mpk.csproj"
 MPK_TOOL = "source/tools/OfflineDaoc.Mpk/bin/Release/net10.0/OfflineDaoc.Mpk.dll"
@@ -121,8 +121,11 @@ class ClientPatchWorkflowTests(unittest.TestCase):
         run = subprocess.run([RUBY, "-e", YAML_TO_JSON, os.path.join(WORKFLOWS, "server-image.yml")],
                              capture_output=True, text=True, check=True)
         cls.jobs = json.loads(run.stdout)["jobs"]
-        with open(PATCH_SET, encoding="utf-8") as f:
-            cls.patched = sorted(entry["path"] for entry in json.load(f)["files"])
+        cls.patched = []
+        for path in PATCH_SETS:  # every file of both patch sets
+            with open(path, encoding="utf-8") as f:
+                cls.patched += [entry["path"] for entry in json.load(f)["files"]]
+        cls.patched.sort()
 
     def steps(self, job):
         return self.jobs[job]["steps"]
@@ -234,6 +237,7 @@ SERVER_UNIT_TESTS = ("dotnet test source/server/Tests/Tests.csproj --nologo --fi
                      '"FullyQualifiedName~UT_CommandPrivLevelOverrides|FullyQualifiedName~UT_SiStartChoice'
                      '|FullyQualifiedName~UT_ClassicBattlegrounds'
                      '|FullyQualifiedName~UT_DataQuestDependency|FullyQualifiedName~UT_DataQuestDeliveryItem|FullyQualifiedName~UT_DataQuestOffers'
+                     '|FullyQualifiedName~UT_DataQuestWhisper'
                      '|FullyQualifiedName~UT_QuestNames'
                      '|FullyQualifiedName~UT_ClassicQuestsExtra'
                      '|FullyQualifiedName~UT_EpicChain'
@@ -258,6 +262,7 @@ class ServerUnitTestWorkflowTests(unittest.TestCase):
         names = re.findall(r"FullyQualifiedName~(\w+)", SERVER_UNIT_TESTS)
         self.assertEqual(names, ["UT_CommandPrivLevelOverrides", "UT_SiStartChoice", "UT_ClassicBattlegrounds",
                                  "UT_DataQuestDependency", "UT_DataQuestDeliveryItem", "UT_DataQuestOffers",
+                                 "UT_DataQuestWhisper",
                                  "UT_QuestNames",
                                  "UT_ClassicQuestsExtra",
                                  "UT_EpicChain",

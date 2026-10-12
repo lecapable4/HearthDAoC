@@ -13,6 +13,7 @@ import sys
 import tempfile
 import unittest
 
+from tests.test_layout import STOCK_INI, STOCK_INI_PATCHED, fixture_layout_set
 from tests.test_patchset import (CHANGED_MESSAGE, DLL, DLL_PATCHED, FILES, SPLASH, SPLASH_NEW, STRANGER,
                                  UNKNOWN_MESSAGE, XML, XML_PATCHED, Fixture, fixture_patchset, read, sha, write,
                                  write_patchset)
@@ -83,7 +84,13 @@ INVALID = {
     "unsafe bundled source": (_op(2, source="../splash.mpk"), "unsafe path: '../splash.mpk'"),
     "source without a file op": (_file(0, after="source"),
                                  "game.dll: \"after\": \"source\" needs exactly one file operation"),
+    "refused not text": (lambda d: d.update(refused=["x"]), "{patchset}: 'refused' must be text"),
+    "refused null": (lambda d: d.update(refused=None), "{patchset}: 'refused' must be text"),
 }
+LAYOUT_PATCHED = "Patched: default.ini (original saved as default.ini.hearthdaoc-orig)\n"
+LAYOUT_REFUSED = ("Not patched: default.ini is not the file this HearthDAoC release supports (for example one changed "
+                  "by hand, or an older or newer upstream client). New characters start with the game's standard "
+                  "window layout.\n")
 
 
 class ApplierCases:
@@ -152,6 +159,49 @@ class ApplierCases:
         self.assertEqual((r.returncode, r.stdout, r.stderr), (3, UNKNOWN_MESSAGE.format(path="game.dll")
                                                               + MISSING_MESSAGE.format(path=FILES[1]), ""))
         self.assertEqual(self.fx.snapshot(), before)
+
+    def test_a_patch_set_s_refused_text_follows_the_unknown_file(self):
+        data = fixture_patchset()
+        data["refused"] = "(for example one changed by hand). New characters start with the standard layout."
+        write_patchset(self.fx.patchset_path, data)
+        write(self.fx.path("game.dll"), STRANGER)
+        os.remove(self.fx.path(FILES[1]))
+        before = self.fx.snapshot()
+        r = self.run_tool()
+        self.assertEqual((r.returncode, r.stdout, r.stderr),
+                         (3, "Not patched: game.dll is not the file this HearthDAoC release supports (for example one "
+                             "changed by hand). New characters start with the standard layout.\n"
+                             + MISSING_MESSAGE.format(path=FILES[1]), ""))
+        self.assertEqual(self.fx.snapshot(), before)
+
+    def test_two_patch_sets_on_one_client_each_apply_and_restore_on_their_own(self):
+        # classic-creation.json and default-layout.json are applied by separate runs: one refused never stops the
+        # other, and each restores only its own files.
+        layout = os.path.join(self.fx.bundle, "default-layout.json")
+        write_patchset(layout, fixture_layout_set())
+        write(self.fx.path("default.ini"), STOCK_INI)
+        write(self.fx.path("game.dll"), STRANGER)  # e.g. the b edition's: classic creation is refused
+        self.assertEqual(self.run_tool().returncode, 3)
+        r = self.run_tool(patchset=layout)
+        self.assertEqual((r.returncode, r.stdout, r.stderr), (0, LAYOUT_PATCHED, ""))
+        self.assertEqual(read(self.fx.path("default.ini")), STOCK_INI_PATCHED)
+        r = self.run_tool(patchset=layout)
+        self.assertEqual((r.returncode, r.stdout, r.stderr), (0, "Already patched: default.ini\n", ""))
+        write(self.fx.path("game.dll"), DLL)
+        r = self.run_tool()
+        self.assertEqual((r.returncode, r.stdout, r.stderr), (0, PATCHED, ""))
+        self.assertEqual(read(self.fx.path("default.ini")), STOCK_INI_PATCHED)
+        r = self.run_tool("restore", patchset=layout)
+        self.assertEqual((r.returncode, r.stdout, r.stderr), (0, "Restored: default.ini\n", ""))
+        self.assertEqual(read(self.fx.path("default.ini")), STOCK_INI)
+        self.assertEqual(read(self.fx.path("game.dll")), DLL_PATCHED)
+        # The other way round: a default.ini changed by hand is refused, with the layout's own text.
+        write(self.fx.path("default.ini"), STRANGER)
+        r = self.run_tool(patchset=layout)
+        self.assertEqual((r.returncode, r.stdout, r.stderr), (3, LAYOUT_REFUSED, ""))
+        self.assertEqual(read(self.fx.path("default.ini")), STRANGER)
+        r = self.run_tool()
+        self.assertEqual((r.returncode, r.stdout), (0, "".join(f"Already patched: {f}\n" for f in FILES)), r.stderr)
 
     def test_restore_puts_the_originals_back(self):
         self.assertEqual(self.run_tool().returncode, 0)
@@ -367,12 +417,17 @@ class WindowsFilesTests(unittest.TestCase):
                 self.assertTrue(data.endswith(b"\r\n"))
                 self.assertEqual(data.count(b"\n"), data.count(b"\r\n"))
 
-    def test_bat_runs_the_script_and_returns_its_exit_code(self):
+    def test_bat_runs_the_script_for_each_patch_set_and_returns_the_exit_code(self):
+        # Once for each patch set with the player's options, or once for the one -PatchSet names; how it
+        # chooses runs under Wine in client/tests/test_windows_bat.sh.
         text = read(BAT).decode("ascii")
+        for name in ("classic-creation.json", "default-layout.json"):
+            self.assertIn('powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0patch-client.ps1" '
+                          f'-PatchSet "%~dp0patches\\{name}" %*\r\n', text)
         self.assertIn('powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0patch-client.ps1" %*\r\n', text)
         self.assertIn('set "RC=%ERRORLEVEL%"\r\n', text)
         self.assertIn(" pause\r\n", text)  # only when double-clicked, so the player can read the result
-        self.assertTrue(text.endswith("exit /b %RC%\r\n"))
+        self.assertIn("\r\nexit /b %RC%\r\n", text)
 
     def test_ps1_avoids_powershell_7_only_syntax(self):
         text = read(PS1).decode("ascii")

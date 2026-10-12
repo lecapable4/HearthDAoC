@@ -77,6 +77,8 @@ namespace DOL.GS.Quests
 	/// 
 	/// AdvanceText - The text needed, if any, to advance this step.  If no step requires advance text then this can be null, otherwise
 	/// text must be provided for every step.  Empty values || are ok.
+	/// HearthDAoC: a text with a token the server replaces (<Player>, the player's name) also matches as the player reads it,
+	/// without case (QuestWhispers.Advances); a plain text still needs the exact text.
 	/// 
 	/// TargetName - Must be in the format Name;RegionID|Name;RegionID.... RegionID can be 0 to indicate any Target of the correct Name can advance the quest
 	/// HearthDAoC: the name, and StartName, match an object's name without case (QuestNames.Same).
@@ -2790,7 +2792,10 @@ namespace DOL.GS.Quests
 			//log.DebugFormat("Whisper {0}, listening for {1}, on step type {2}", text, AdvanceText, m_stepTypes[Step - 1]);
 
 			// HearthDAoC: names compare without case (QuestNames.Same): upstream's quest data spells many targets differently from their spawns.
-			if (QuestNames.Same(TargetName, obj.Name) && (TargetRegion == obj.CurrentRegionID || TargetRegion == 0) && AdvanceText == text)
+			// HearthDAoC: an AdvanceText with a token the server replaces (<Player>: "The Lost Stone" asks the player's name) is also
+			// matched as the player reads it, without case (QuestWhispers.Advances); upstream compared only the text as it is.
+			if (QuestNames.Same(TargetName, obj.Name) && (TargetRegion == obj.CurrentRegionID || TargetRegion == 0)
+				&& QuestWhispers.Advances(AdvanceText, BehaviourUtils.GetPersonalizedMessage(AdvanceText, p), text))
 			{
 				switch (StepType)
 				{

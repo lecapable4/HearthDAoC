@@ -10,7 +10,8 @@
     to connect-hearthdaoc.bat, in runtime\client-opendaoc\app of the OfflineDAoC install.
 
     -Client    the client folder, the one with game.dll (default: this script's folder)
-    -PatchSet  the patch set (default: patches\classic-creation.json next to this script)
+    -PatchSet  the patch set (default: patches\classic-creation.json next to this script;
+               patches\default-layout.json, the other one, is applied by its own run)
     -Bundle    the folder with the bundled files, such as splash.mpk (default: the patch set's folder)
     -Check     only report each file's state
     -Restore   put the original files back (only over files that are still the patched ones)
@@ -28,6 +29,8 @@
       is restored.
     - Every write goes through a temporary file in the same folder and then replaces the file.
     - Only the patch set's own relative paths inside the client folder are touched.
+    - A patch set's "refused" text, when it has one, follows "is not the file this HearthDAoC
+      release supports" for a refused file.
 
     Exit codes:
       0  patched, already patched or restored (-Check: every file is known)
@@ -51,8 +54,10 @@ $OpFields = @{
 }
 $Latin1 = [Text.Encoding]::GetEncoding(28591)
 $Usage = 'Usage: patch-client.ps1 [-Client DIR] [-PatchSet FILE] [-Bundle DIR] [-Restore | -Check]'
-$UnknownMessage = 'Not patched: {0} is not the file this HearthDAoC release supports (for example the b ' +
-    'edition, or an older or newer upstream client). The client still works with the standard creation screen.'
+$UnknownMessage = 'Not patched: {0} is not the file this HearthDAoC release supports {1}'
+# What follows for a patch set without its own "refused" text (classic-creation.json).
+$DefaultRefused = '(for example the b edition, or an older or newer upstream client). The client still works ' +
+    'with the standard creation screen.'
 $MissingMessage = 'Not patched: {0} is missing from the client folder.'
 $ChangedMessage = 'Not restored: {0} has changed since it was patched (for example a newer client was installed); ' +
     'the saved original is kept as {0}{1}.'
@@ -180,6 +185,9 @@ function Read-PatchSet([string]$Path, [string]$Shown) {
     if (Test-Object $data) { $format = Get-Field $data 'format' }
     if (-not (Test-Integer $format) -or $format -ne 1) {
         throw (New-PatchError ('{0}: not a format 1 patch set' -f $Shown))
+    }
+    if ((Test-Field $data 'refused') -and -not ((Get-Field $data 'refused') -is [string])) {
+        throw (New-PatchError ("{0}: 'refused' must be text" -f $Shown))
     }
     $files = Get-Field $data 'files'
     if (-not (Test-List $files) -or $files.Count -eq 0) {
@@ -473,9 +481,11 @@ try {
         exit 0
     }
     if ($Refused.Count -gt 0) {
+        $why = $DefaultRefused
+        if (Test-Field $Set 'refused') { $why = Get-Field $Set 'refused' }
         foreach ($s in $Refused) {
             if ($s.State -eq 'unknown') {
-                Write-Out ($UnknownMessage -f $s.Path)
+                Write-Out ($UnknownMessage -f $s.Path, $why)
             } else {
                 Write-Out ($MissingMessage -f $s.Path)
             }

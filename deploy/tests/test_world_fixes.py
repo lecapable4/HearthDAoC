@@ -5,11 +5,13 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 BIN = os.path.join(HERE, "..", "bin")
 sys.path.insert(0, BIN)
 
+import quest_dialogue as qd  # noqa: E402
 import world_fixes as wf  # noqa: E402
 
 TEST_WORLD = os.environ.get("HDC_TEST_WORLD")
@@ -109,6 +111,101 @@ class DuplicateTownspeopleTests(unittest.TestCase):
         self.assertEqual(self.q("SELECT COUNT(*) FROM Mob WHERE Name='Someone'"), [(2,)])
 
 
+GRAENT_GOES, GRAENT_STAYS = "1e0dc1a7-6b01-4a38-845d-f8ef417a09e1", "deecddf1-2306-4194-a3e8-bab803d450fa"
+TRAINER = "DOL.GS.Trainer.FighterTrainer"
+GRAENT_LINE = "Duplicate townspeople removed, archived in fork_removed_mobs: Master Graent"
+
+
+class DuplicateRowTests(unittest.TestCase):
+    """Prydwen Keep's two Master Graents: the one among the merchants outside goes, the one in the keep stays."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.db = os.path.join(self.tmp.name, "world.db")
+        with sqlite3.connect(self.db) as c:
+            for stmt in SCHEMA:
+                c.execute(stmt)
+            c.execute(MOB)
+            self.add(c, GRAENT_STAYS, TRAINER, "Master Graent", None, 1, 574197, 530518, 2933)
+            self.add(c, GRAENT_GOES, TRAINER, "Master Graent", None, 1, 574886, 530169, 2896)
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    add = staticmethod(DuplicateTownspeopleTests.add)
+    q = DuplicateTownspeopleTests.q
+
+    def change(self, sql, *args):
+        with sqlite3.connect(self.db) as c:
+            c.execute(sql, args)
+
+    def test_the_trainer_outside_goes_and_the_one_in_the_keep_stays(self):
+        self.assertEqual(wf.apply(self.db), [GRAENT_LINE])
+        self.assertEqual(self.q("SELECT Mob_ID, X, Y FROM Mob"), [(GRAENT_STAYS, 574197, 530518)])
+        self.assertEqual(self.q("SELECT Mob_ID, Name, ClassType, Region, X, Y, Z, FixId FROM fork_removed_mobs"),
+                         [(GRAENT_GOES, "Master Graent", TRAINER, 1, 574886, 530169, 2896, "duplicate-townspeople")])
+        self.assertEqual(wf.apply(self.db), [])
+        self.assertEqual(self.q("SELECT COUNT(*) FROM fork_removed_mobs"), [(1,)])
+
+    def test_one_line_names_the_townspeople_and_master_graent(self):
+        with sqlite3.connect(self.db) as c:
+            self.add(c, "m1", "DOL.GS.GameMerchant", "Ley Manton", "tpl", 1, 511475, 380909, 7992)
+            self.add(c, "n1", "DOL.GS.GameNPC", "Ley Manton", None, 1, 511475, 380909, 7992)
+            self.add(c, "m2", "DOL.GS.GameMerchant", "Tria Ellowis", "tpl2", 1, 508468, 476039, 2304)
+            self.add(c, "n2", "DOL.GS.GameNPC", "Tria Ellowis", "", 1, 508468, 476039, 2304)
+        self.assertEqual(wf.apply(self.db), [
+            "Duplicate townspeople removed, archived in fork_removed_mobs: Ley Manton, Master Graent, Tria Ellowis"])
+        self.assertEqual(self.q("SELECT Mob_ID FROM fork_removed_mobs ORDER BY Mob_ID"), [(GRAENT_GOES,), ("n1",), ("n2",)])
+
+    def test_a_world_whose_townspeople_went_earlier_loses_only_master_graent(self):
+        # A world started by hearth.7 to hearth.11: Ley Manton's and Tria Ellowis's copies are in the archive.
+        with sqlite3.connect(self.db) as c:
+            self.add(c, "m1", "DOL.GS.GameMerchant", "Ley Manton", "tpl", 1, 511475, 380909, 7992)
+            self.add(c, "n1", "DOL.GS.GameNPC", "Ley Manton", None, 1, 511475, 380909, 7992)
+        with mock.patch.object(wf, "DUPLICATE_ROWS", []):
+            self.assertEqual(wf.apply(self.db), ["Duplicate townspeople removed, archived in fork_removed_mobs: Ley Manton"])
+        self.assertEqual(wf.apply(self.db), [GRAENT_LINE])
+        self.assertEqual(self.q("SELECT Mob_ID FROM fork_removed_mobs ORDER BY Mob_ID"), [(GRAENT_GOES,), ("n1",)])
+
+    def test_a_row_the_owner_changed_stays(self):
+        for column, value in (("Name", "Master Graentt"), ("ClassType", "DOL.GS.GameNPC"), ("Region", 2),
+                              ("X", 574887), ("Y", 1), ("Z", 2897)):
+            with self.subTest(column):
+                self.change(f"UPDATE Mob SET {column}=? WHERE Mob_ID=?", value, GRAENT_GOES)
+                try:
+                    self.assertEqual(wf.apply(self.db), [])
+                    self.assertEqual(self.q("SELECT COUNT(*) FROM Mob"), [(2,)])
+                finally:
+                    self.change("DELETE FROM Mob WHERE Mob_ID=?", GRAENT_GOES)
+                    with sqlite3.connect(self.db) as c:
+                        self.add(c, GRAENT_GOES, TRAINER, "Master Graent", None, 1, 574886, 530169, 2896)
+
+    def test_without_the_trainer_in_the_keep_the_one_outside_stays(self):
+        for name, sql in (("gone", "DELETE FROM Mob WHERE Mob_ID=?"),
+                          ("renamed", "UPDATE Mob SET Name='Master Grant' WHERE Mob_ID=?"),
+                          ("in another region", "UPDATE Mob SET Region=2 WHERE Mob_ID=?")):
+            with self.subTest(name):
+                self.change(sql, GRAENT_STAYS)
+                try:
+                    self.assertEqual(wf.apply(self.db), [])
+                    self.assertEqual(self.q(f"SELECT Mob_ID FROM Mob WHERE Mob_ID='{GRAENT_GOES}'"), [(GRAENT_GOES,)])
+                finally:
+                    self.change("DELETE FROM Mob WHERE Mob_ID=?", GRAENT_STAYS)
+                    with sqlite3.connect(self.db) as c:
+                        self.add(c, GRAENT_STAYS, TRAINER, "Master Graent", None, 1, 574197, 530518, 2933)
+
+    def test_only_that_row_goes_never_the_one_in_the_keep_or_another_at_its_spot(self):
+        # The kept trainer moved onto the other's spot, and a third one there too: only the listed row goes.
+        self.change("UPDATE Mob SET X=574886, Y=530169, Z=2896 WHERE Mob_ID=?", GRAENT_STAYS)
+        with sqlite3.connect(self.db) as c:
+            self.add(c, "another", TRAINER, "Master Graent", None, 1, 574886, 530169, 2896)
+        self.assertEqual(wf.apply(self.db), [GRAENT_LINE])
+        self.assertEqual(self.q("SELECT Mob_ID FROM Mob ORDER BY Mob_ID"), [("another",), (GRAENT_STAYS,)])
+        # Without the listed row, nothing else of that name goes.
+        self.assertEqual(wf.apply(self.db), [])
+        self.assertEqual(self.q("SELECT COUNT(*) FROM Mob"), [(2,)])
+
+
 class FixesTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -175,7 +272,7 @@ class FixesTests(unittest.TestCase):
             "Disciple (Necromancer's base class) enabled: disabled_classes 20;33;34;39;58-62 -> 33;34;39;58-62",
             "Saracen Disciples get a starting location (with the Inconnu Disciples, region 51)",
             "Welcome messages now name HearthDAoC (motd, starting_msg)",
-            "Duplicate townspeople removed, archived in fork_removed_mobs: Ley Manton, Tria Ellowis",
+            "Duplicate townspeople removed, archived in fork_removed_mobs: Ley Manton, Master Graent, Tria Ellowis",
             "Battlegrounds: classic level and realm rank limits for Abermenai, Thidranki, Murdaigean, Caledonia",
             "Battlegrounds: Caledon is shown as Caledonia; no zone XP bonus in Thidranki, Caledonia",
             "Battlegrounds: keep levels for the ranges (Dun Abermenai base level 19, Thidranki Faste base level 24, "
@@ -188,20 +285,50 @@ class FixesTests(unittest.TestCase):
             "Epic chains: Guild of Shadows 60 links, 60 XP and coin, 4 Supply Runs closed, 2 rewards and 7 texts "
             "fixed; 87 other links; 41 items added, 36 item fixes; 5 level-50 quests, Lord Elidyn's camp 17 restored; "
             "Shadows_50: 0 finished carried, 0 removed, 0 epic vests recharged",
-            "Quest dialogue: 65 quests rewritten",
-            "Mob fixes: 4 corrected: Agisthil (Mob fe76247d-ab9e-5a21-b66a-f629e577c87b), Agisthil (NpcTemplate 12070), "
-            "Frund (NpcTemplate 12165), Frund (Mob 3ce2271f-b9f6-4504-b55a-250da35504ba)",
+            "Quest dialogue: 145 quests rewritten",
+            "Mob fixes: 5 corrected: Agisthil (Mob fe76247d-ab9e-5a21-b66a-f629e577c87b), Agisthil (NpcTemplate 12070), "
+            "Frund (NpcTemplate 12165), Frund (Mob 3ce2271f-b9f6-4504-b55a-250da35504ba), "
+            "Cloudy Green Stone (ItemTemplate cq_alb_cloudy_green_stone)",
         ])
         self.assertEqual(self.q("SELECT Mob_ID FROM fork_removed_mobs WHERE FixId='duplicate-townspeople' ORDER BY Mob_ID"),
-                         [("231313cf-eb6a-408f-9811-f697c705ffb7",), ("cc83cc14-e5ff-4eb1-b35c-8ad140793909",)])
+                         [(GRAENT_GOES,), ("231313cf-eb6a-408f-9811-f697c705ffb7",),
+                          ("cc83cc14-e5ff-4eb1-b35c-8ad140793909",)])
         self.assertEqual(self.q("SELECT Mob_ID FROM Mob WHERE Name IN ('Ley Manton', 'Tria Ellowis') ORDER BY Mob_ID"),
                          [("2b478cbe-cb3f-44e3-bc86-c5f05ad4714d",), ("a4de3772-723f-452f-9c1a-a00a64e50922",)])
+        self.assertEqual(self.q("SELECT Mob_ID, Region, X, Y, Z FROM Mob WHERE Name='Master Graent'"),
+                         [(GRAENT_STAYS, 1, 574197, 530518, 2933)])
         self.assertEqual(self.q("SELECT FixId FROM fork_world_fixes"),
                          [("classic-battlegrounds-v2",), ("epic-chains-v1",)])
         self.assertEqual(self.q("SELECT Value FROM ServerProperty WHERE `Key`='disabled_classes'"), [("33;34;39;58-62",)])
         self.assertEqual(self.q("SELECT RaceID FROM StartupLocation WHERE ClassID=20 ORDER BY RaceID"), [(1,), (4,), (13,)])
         self.assertEqual(dict(self.q("SELECT `Key`, Value FROM ServerProperty WHERE `Key` IN ('motd', 'starting_msg')")),
                          wf.HEARTHDAOC_WELCOME)
+
+    @unittest.skipUnless(TEST_WORLD, "needs HDC_TEST_WORLD (a clean classic world database)")
+    def test_shipped_world_started_before_master_graent_was_listed(self):
+        # A world that hearth.7 to hearth.11 started had every other fix already: its next start removes only the
+        # Master Graent among the merchants outside Prydwen Keep.
+        shutil.copyfile(TEST_WORLD, self.db)
+        with mock.patch.object(wf, "DUPLICATE_ROWS", []):
+            self.assertIn("Duplicate townspeople removed, archived in fork_removed_mobs: Ley Manton, Tria Ellowis",
+                          wf.apply(self.db))
+        self.assertEqual(self.q("SELECT COUNT(*) FROM Mob WHERE Name='Master Graent'"), [(2,)])
+        self.assertEqual(wf.apply(self.db), [GRAENT_LINE])
+        self.assertEqual(self.q("SELECT Mob_ID FROM Mob WHERE Name='Master Graent'"), [(GRAENT_STAYS,)])
+        self.assertEqual(self.q(f"SELECT Name, NPCTemplateID, X, Y FROM fork_removed_mobs WHERE Mob_ID='{GRAENT_GOES}'"),
+                         [("Master Graent", -1, 574886, 530169)])
+        self.assertEqual(wf.apply(self.db), [])
+
+    @unittest.skipUnless(TEST_WORLD, "needs HDC_TEST_WORLD (a clean classic world database)")
+    def test_shipped_world_started_before_the_classic_quests_texts(self):
+        # A world hearth.9 to hearth.11 started has the Guild of Shadows chain's dialogue (the file's step entries): its
+        # next start rewrites only the classic quests' texts (the ids entries, 80 quest rows), and the next nothing.
+        shutil.copyfile(TEST_WORLD, self.db)
+        data = qd.load_data()
+        with mock.patch.object(qd, "load_data", return_value=dict(data, quests=[e for e in data["quests"] if "step" in e])):
+            self.assertIn("Quest dialogue: 65 quests rewritten", wf.apply(self.db))
+        self.assertEqual(wf.apply(self.db), ["Quest dialogue: 80 quests rewritten"])
+        self.assertEqual(wf.apply(self.db), [])
 
 
 if __name__ == "__main__":

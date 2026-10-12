@@ -32,6 +32,14 @@
    "expect": {"Region": 1, "X": 491936, "Y": 484744, "Z": 1032},
    "set": {"X": 537351, "Y": 451347, "Z": 2999},
    "why": "The 2001-2002 walkthrough and its comments have both thieves at the red dwarf camp (Black Mountains South 53899, 17267, where Agisthil stands): \"Frund and Agisthil spawn frequently near\" the shaman; the bestiary (2002-09-21) has both at \"52k, 17k\". Upstream put Frund far west of the camp (owner 2026-10-10: move him beside Agisthil). The spot is Agisthil's mirrored across Shaman Aslis, so the two thieves flank the shaman: 157 units from Agisthil, 78 from the shaman (as Agisthil is), 159 or more from every other camp mob; Z is the shaman's, the nearest camp mob's. His RoamingRange (200) stays."
+  },
+  {
+   "name": "Cloudy Green Stone",
+   "table": "ItemTemplate",
+   "id": "cq_alb_cloudy_green_stone",
+   "expect": {"Price": 0},
+   "set": {"Price": 100},
+   "why": "\"Zombie Problem\" (level 4, Gronyr Gloyw outside Prydwen Keep): the Allakhazam page as archived 2004-11-01 says he gives \"a cloudy green stone (worth about 50 copper)\" for each rotting hog tail; upstream's reward has price 0, so a merchant pays nothing. Price 100 sells for 50 copper at item_sell_ratio 50 (owner 2026-10-11)."
   }
  ]
 }

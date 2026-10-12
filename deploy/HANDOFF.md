@@ -109,9 +109,13 @@ For example, `./hdc stop && ./hdc bot-goals set 20-49 20 20 30 30`, then the oth
 way, then `./hdc up`.
 
 **Duplicate townspeople.** Upstream's world has two copies of Ley Manton and of Tria Ellowis at the same
-spot (the merchant and a plain NPC). At every start, a plain copy standing exactly on its merchant is removed
-and kept in `fork_removed_mobs` (FixId `duplicate-townspeople`); `./hdc fixes` shows `Duplicate townspeople
-removed`. Nothing else is touched, and a world without the copies is left alone.
+spot (the merchant and a plain NPC), and two Master Graents, the fighter trainer, in Prydwen Keep: one in the
+keep's middle structure, by the healer and the town crier, and one among the merchants just outside. At every
+start, a plain copy standing exactly on its merchant is removed, and so is the Master Graent outside (only that
+row, while it is still at its spot and the one in the keep is there); each is kept in `fork_removed_mobs`
+(FixId `duplicate-townspeople`). `./hdc fixes` shows `Duplicate townspeople removed, archived in
+fork_removed_mobs: ...` with their names; a world that lost the townspeople's copies at an earlier start shows
+only `Master Graent`. Nothing else is touched, and a world without the copies is left alone.
 
 **Classic battlegrounds.** At its first start, a world gets the classic battlegrounds (Abermenai 15-19,
 Thidranki 20-24, Murdaigean 25-29, Caledonia 30-35); `./hdc fixes` shows each change on a line starting
@@ -130,10 +134,23 @@ Battleground keep guard levels follow `keep_guard_level_multiplier` (1.6), which
 keeps' guards. The realm rank caps (1L2, 1L3, 1L5, 1L9) hold on every way in: the frontier porter, the town
 teleporters' [Battlegrounds] choice, and for bots too.
 
-**Guild of Shadows dialogue.** Upstream left most of the Guild of Shadows chain's dialogue (levels 7 to 50)
-empty or filled with walkthrough notes. After each start, `./hdc fixes` shows `Quest dialogue: N quests
-rewritten` when the texts of the chain's quests (`deploy/bin/quest_dialogue.json`, every class's version) were
-changed, and nothing when they are up to date. Besides the texts (accept keyword, description, journal steps and
+**Quest texts.** Upstream left most of the Guild of Shadows chain's dialogue (levels 7 to 50) empty or filled
+with walkthrough notes. Its quest generator also lost the line that offers some classic quests (level 5's "Cleric
+Mulgrut": Hugh Gallen showed only his wares) and wrote `<Player>`, the player's own name in game, where the period
+named someone else or said a plain word ("Well", Wariel's "What is your [name]?"). It also kept the class the
+period guides' authors were called by ("Good luck to thee Theurgist.") and the guides' placeholders for it
+("(class name)"), which every class read: they are now `<Class>`, which the server replaces with the player's class
+(New Crest's accept keyword, which must match as it is, is each trainer's own class). The guides' placeholder for the
+player's name ("(your name here)") is `<Player>`, and so is The Lost Stone's whisper keyword (upstream's "<your
+name>", which no whisper matched: the server now matches a whisper keyword holding `<Player>` as the player reads it,
+their own name, without case). Their placeholder for the player's race ("(your characters race)", at Mystemas) is
+`<Race>`. The web page upstream scraped after Mystemas's last line, and the editors' notes on
+Allakhazam in two kill tasks' journals, are gone. After each start, `./hdc fixes`
+shows `Quest dialogue: N quests rewritten` when the texts of
+the chain's quests (every class's version) or of those classic quests (`deploy/bin/quest_dialogue.json`) were
+changed, and nothing when they are up to date: `Quest dialogue: 145 quests rewritten` on a new world, and
+`Quest dialogue: 80 quests rewritten` (the classic quests) at the first start after an update from hearth.9,
+hearth.10 or hearth.11 (a world an older release started also gets the chain's quests rewritten). Besides the texts (accept keyword, description, journal steps and
 what the NPCs say), the file can set a quest's step items, step types and turn-in items, but never its number of
 stages: a quest whose stages differ from the file's is kept. It can also set a quest's giver (`StartName`) and the
 quests it needs (`QuestDependency`): the Shrouded Isles 7 and 11 ("Strange Beings", "Shades and Shadows") are given
@@ -146,19 +163,20 @@ and a later release with revised text reaches a world that had the earlier one. 
 start (`M left as they are (their text differs from upstream's and this file's): 21500, ...`): your own edits,
 or, after an upstream upgrade, quests whose upstream text changed, which keep upstream's text until the file is
 updated. If it fails, the start log says `Quest dialogue: not applied (...)`, the quests keep the
-text they have, and it tries again at the next start. The NPCs' chat lines are in `hearthdaoc-quests.json`
-(`Chat`), which replaces upstream's line for the same NPC and keyword. To revise the text: edit it in `quest_dialogue.json`, run
+text they have, and it tries again at the next start. The NPCs' chat lines (the chain's, and the classic
+quests' lost lines, names, words and class words) are in `hearthdaoc-quests.json` (`Chat`), which replaces upstream's line for the same NPC
+and keyword. To revise the text: edit it in `quest_dialogue.json`, run
 `python3 deploy/bin/quest_dialogue.py --seal` (it appends the digest of the file's own text to each quest's guard
 list) and commit; a test fails until you do. Every committed version of the text is then guarded, so a later
-revision reaches a world that holds any earlier committed version. Only when an entry's set of columns changes
-is `python3 deploy/bin/quest_dialogue.py --digests <world.db> [--current]` still needed (it prints the digests of
-the text a world holds, which is upstream's only on a clean world).
+revision reaches a world that holds any earlier committed version. Only for a new entry, or when an entry's set of
+columns changes, is `python3 deploy/bin/quest_dialogue.py --digests <world.db> [--current]` still needed (it prints
+the digests of the text a world holds, which is upstream's only on a clean world).
 
-**Mob fixes.** Period corrections to upstream's monsters, from the quest archives: level 11's thieves Frund and
-Agisthil are level 10, and Frund stands at the red dwarf camp beside Agisthil (`deploy/bin/mob_fixes.json`; each
-entry says why, with its source). After each start, `./hdc fixes` shows `Mob fixes: N corrected: ...` when rows were
-changed, and nothing when they are up to date. There is no marker: a row (a `Mob` row, or the `NpcTemplate` rows of
-a template) changes only while it still holds every value upstream shipped, so a monster you changed yourself is
+**Mob fixes.** Period corrections to upstream's monsters and items, from the quest archives: level 11's thieves Frund
+and Agisthil are level 10, Frund stands at the red dwarf camp beside Agisthil, and "Zombie Problem"'s Cloudy Green
+Stone sells for 50 copper (`deploy/bin/mob_fixes.json`; each entry says why, with its source). After each start, `./hdc fixes` shows `Mob fixes: N corrected: ...` when rows were
+changed, and nothing when they are up to date. There is no marker: a row (a `Mob` row, the `NpcTemplate` rows of
+a template, or an `ItemTemplate` row) changes only while it still holds every value upstream shipped, so a monster you changed yourself is
 kept; kept rows are named at every start (`M left as they are (they hold neither upstream's values nor this
 file's): Frund (Mob 3ce2...)`). If it fails (for example, a column the file names is not in the table), the start
 log says `Mob fixes: not applied (...)`, the monsters keep the values they have, and it tries again at the next

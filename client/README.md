@@ -6,7 +6,7 @@
 # HearthDAoC player guide
 
 This bundle connects your copy of the game client (OfflineDAoC's) to a HearthDAoC server, and gives
-it a classic character creation screen.
+it a classic character creation screen and a window layout for new characters.
 
 ## Before you start
 
@@ -47,7 +47,7 @@ password appears on the game's command line, and it is saved on your PC as plain
    This builds a separate client in `~/Games/HearthDAoC`. It downloads about 45 MB of OfflineDAoC
    files, each checked against the official release, installs HearthDAoC's patches in
    `~/Games/HearthDAoC/patches` and applies them. If it warns that the client was set up without
-   HearthDAoC's patches, see Troubleshooting: the game still works. It saves these options in
+   HearthDAoC's classic creation patches or default layout, see Troubleshooting: the game still works. It saves these options in
    `~/Games/HearthDAoC/hearthdaoc-client.conf`, for updates.
 3. In Steam: Games → **Add a Non-Steam Game** → Browse → `~/Games/HearthDAoC/play.sh`.
    Leave "Force the use of a specific Steam Play compatibility tool" **unchecked**. Any launch
@@ -90,7 +90,7 @@ With the `classic` edition, creating a character works as in classic Dark Age of
 The patch changes only `game.dll` and two files in the client's `pregame` folder
 (`character_customize_stats.xml` and `splash.mpk`), and keeps each original next to it as
 `<file>.hearthdaoc-orig`. It changes nothing in any other client, such as the `b` edition: the game
-then works with the standard creation screen.
+then works with the standard creation screen. The default layout (below) is a patch of its own.
 
 **Where you start.** A new character of a classic race, such as a Briton, Troll or Celt (not an
 Inconnu, Valkyn, Sylvan, Half Ogre, Frostalf, Shar or Minotaur), first enters the world in its usual home village. A few seconds later, a
@@ -100,6 +100,47 @@ point, where you return after a death; Decline keeps you at home. Each character
 If the question goes away unanswered, for example because you logged out, it comes back at your next
 login while the character is still level 1. The question comes from the server, not from the patch,
 so it also appears with the standard creation screen, unless the server has turned it off.
+
+## The window layout of new characters
+
+When the game runs at 1920x1080 (the screen size in the game's options), a new character starts with the
+window layout of the server owner's character Charles Martel:
+
+- The first two quickbars are stacked at the top left; the third is hidden.
+- The Main and Combat chat windows sit side by side along the bottom.
+- The group window is at the bottom left and the character sheet at the top right. The portrait and
+  vitals, the clock, the lag meter and the compass are together at the bottom right.
+- The menu bar and the floating target window are hidden.
+
+Its quickbars are empty, as before: hotkeys point at a character's own spells, styles and items. At
+another screen size, the windows start where the game puts them. Every new character, at any screen
+size, also starts with that character's name plate settings (its chat, camera and tooltip settings are
+the game's own). Key bindings and graphics settings, which the game keeps for all your characters
+together, don't change.
+
+**Your characters keep their own layout.** The game saves a character's layout in its own settings file
+(`<Name>-5.ini`) when the character leaves the world, and uses that file from then on; HearthDAoC never
+changes it. So the characters you have keep their layout, and a new character keeps whatever you move
+in its first session. Only a character without a settings file, a new one, starts with this layout. (A
+new character with the first name of one you deleted gets the old character's file: the game doesn't
+delete it.)
+
+The patch adds the layout at the top of the client's `default.ini`, the file the game takes a new
+character's layout from; the game's own layouts for every screen size stay below it. It keeps the
+original as `default.ini.hearthdaoc-orig`. It is a patch of its own: the `b` edition gets it too, and
+classic creation doesn't need it.
+
+**To keep the game's standard layout for new characters,** put the original `default.ini` back and
+remove the layout patch, so that the game stops applying it at each launch:
+
+- **Linux:** in a terminal, run
+  `python3 ~/Games/HearthDAoC/patches/apply_patches.py --client ~/Games/HearthDAoC/client --patchset ~/Games/HearthDAoC/patches/default-layout.json --restore`
+  and then `rm ~/Games/HearthDAoC/patches/default-layout.json`.
+- **Windows:** open a Command Prompt in `runtime\client-opendaoc\app` (see Going back to the standard
+  creation screen) and run `patch-client.bat -PatchSet patches\default-layout.json -Restore`. Only when it
+  printed `Restored: default.ini`, delete `default-layout.json` from the `patches` folder.
+
+Updating to a new release brings the layout back; repeat these steps after the update.
 
 ## Battlegrounds
 
@@ -132,18 +173,20 @@ On Linux, `play.sh` first looks for a newer HearthDAoC release, and asks you bef
 Updating to a new release).
 
 Each time you start the game, `play.sh` (Linux) or `connect-hearthdaoc.bat` (Windows) checks
-HearthDAoC's patches just before the game starts:
+HearthDAoC's two patches just before the game starts, each on its own: classic creation, then the
+default layout.
 
 - A client that is already patched is only checked; nothing is written.
 - If something put an original file back (for example a repair of the install, or OfflineDAoC's own
   launcher), that file is patched again.
-- With a client the patches don't support (for example the `b` edition), nothing is changed and the
-  game starts with the standard creation screen. `play.sh` says so in one line;
-  `connect-hearthdaoc.bat` prints "Not patched: …".
-- If patching fails, you get a warning and the game **still starts**, maybe with the standard
-  creation screen. On Linux, when you start from Steam, the warning also shows in a window (with
-  `zenity`) or as a notification (with `notify-send`). On Windows, the window waits for a key before
-  the game starts. See Troubleshooting.
+- When a patch doesn't support your client (classic creation with the `b` edition, for example), it
+  changes nothing and the game starts without it, with the standard creation screen or the standard
+  layout for new characters. `play.sh` says so in one line; `connect-hearthdaoc.bat` prints
+  "Not patched: …". The other patch is still applied.
+- If a patch fails, you get a warning and the game **still starts**, maybe without that patch. On
+  Linux, when you start from Steam, the warning also shows in a window (with `zenity`) or as a
+  notification (with `notify-send`). On Windows, the window waits for a key before the game starts.
+  See Troubleshooting.
 
 Then the game starts and connects to the server.
 
@@ -182,24 +225,28 @@ release. You can always update by hand the same way: download and unpack the new
 `runtime\client-opendaoc\app` again, replacing the old files. Your `hearthdaoc.cfg` stays. The next
 start of `connect-hearthdaoc.bat` applies the new release's patches.
 
-If you went back to the standard creation screen (below), updating turns classic creation on again:
-on Linux, repeat the two commands below after the update; on Windows, copy only
-`connect-hearthdaoc.bat` from the new `windows` folder.
+If you went back to the standard creation screen (below) or the standard layout for new characters
+(above), updating turns them on again: repeat those steps after the update.
 
 ## Going back to the standard creation screen
 
-Put the original files back, then remove the patches so that the game stops applying them at each
-launch.
+Put the original files back, then remove the classic creation patch so that the game stops applying
+it at each launch. The default layout for new characters (above) stays.
 
 - **Linux:** in a terminal, run
   `python3 ~/Games/HearthDAoC/patches/apply_patches.py --client ~/Games/HearthDAoC/client --restore`
-  and then `rm -r ~/Games/HearthDAoC/patches`. To get classic creation back, run `setup.sh` again.
+  and then `rm ~/Games/HearthDAoC/patches/classic-creation.json`. To get classic creation back, run
+  `setup.sh` again.
 - **Windows:** open a Command Prompt in `runtime\client-opendaoc\app` (in File Explorer, type `cmd`
-  in that folder's address bar and press Enter) and run `patch-client.bat -Restore`. If your
-  OfflineDAoC is under `C:\Program Files`, open the Command Prompt as administrator instead (Start,
-  type `cmd`, choose **Run as administrator**, then `cd /d "<your app folder>"`). Only when it printed
-  `Restored:` for each file, delete `patch-client.ps1` and the `patches` folder from that folder. To
-  get classic creation back, copy them from the bundle's `windows` folder again.
+  in that folder's address bar and press Enter) and run
+  `patch-client.bat -PatchSet patches\classic-creation.json -Restore`. If your OfflineDAoC is under
+  `C:\Program Files`, open the Command Prompt as administrator instead (Start, type `cmd`, choose
+  **Run as administrator**, then `cd /d "<your app folder>"`). Only when it printed `Restored:` for
+  each file, delete `classic-creation.json` from the `patches` folder. To get classic creation back,
+  copy it from the bundle's `windows\patches` folder again.
+
+To put back the originals of both patches at once, run `patch-client.bat -Restore` on Windows; on
+Linux, run both restore commands.
 
 The restore puts an original back only over the patched file. If a file has changed since it was
 patched (for example a newer client was installed), it says so and restores nothing.
@@ -208,19 +255,25 @@ If you set up the Linux client with `--dest`, use that folder instead of `~/Game
 
 ## Troubleshooting
 
-**"Not patched", or the standard creation screen.** HearthDAoC's patches support only the
-OfflineDAoC 0.35 `classic` client. Any other client, such as the `b` edition or an older or newer
-upstream client, keeps the standard creation screen and plays normally.
+**"Not patched", or the standard creation screen.** HearthDAoC's classic creation patches support
+only the OfflineDAoC 0.35 `classic` client. Any other client, such as the `b` edition or an older or
+newer upstream client, keeps the standard creation screen and plays normally.
 
-**Windows: a warning at every start that the client patches could not be applied.** Usually
+**"Not patched: default.ini", or new characters with the standard layout.** The default layout
+supports the `default.ini` of both OfflineDAoC 0.35 editions. A `default.ini` changed by hand, or an
+older or newer upstream client's, isn't patched: new characters start with that file's layout, and the
+game plays normally. To get the layout, put OfflineDAoC's file back (on Linux, run `setup.sh` again).
+
+**Windows: a warning at every start that the client patches or the default layout could not be
+applied.** Usually
 Windows doesn't let you change files in your OfflineDAoC folder, for example because it is under
 `C:\Program Files`. Right-click `patch-client.bat` and choose **Run as administrator**, once. Later
 starts only check the patched files, which needs no administrator. If the warning comes back after
 something put the original files back, do it again. Simpler in the long run: install OfflineDAoC in a
 folder you own, such as `C:\Games\OfflineDAoC`, where nothing needs administrator.
 
-**Linux: a warning that the client patches could not be applied.** Run `~/Games/HearthDAoC/play.sh`
-in a terminal to see the message. Running `setup.sh` again from the bundle installs the patches
+**Linux: a warning that the client patches or the default layout could not be applied.** Run
+`~/Games/HearthDAoC/play.sh` in a terminal to see the message. Running `setup.sh` again from the bundle installs the patches
 again.
 
 **Linux: the update failed.** The warning says what failed; run `~/Games/HearthDAoC/play.sh` in a

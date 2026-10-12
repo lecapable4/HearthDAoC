@@ -3,8 +3,9 @@
 
     apply_patches.py --client DIR [--patchset FILE] [--bundle DIR] [--restore | --check]
 
-The patch set defaults to classic-creation.json next to this script. Bundled files, such as
-splash.mpk, are looked up in the patch set's folder unless --bundle names another one.
+The patch set defaults to classic-creation.json next to this script; default-layout.json, the other
+one, is applied by its own run. Bundled files, such as splash.mpk, are looked up in the patch set's
+folder unless --bundle names another one.
 --check only reports each file's state. --restore puts the backed-up originals back, but only
 over files that are still the patched ones.
 
@@ -24,8 +25,10 @@ import patchset  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_PATCHSET = os.path.join(HERE, "classic-creation.json")
-UNKNOWN = ("Not patched: {path} is not the file this HearthDAoC release supports (for example the b "
-           "edition, or an older or newer upstream client). The client still works with the standard creation screen.")
+UNKNOWN = "Not patched: {path} is not the file this HearthDAoC release supports {refused}"
+# What follows for a patch set without its own "refused" text (classic-creation.json).
+REFUSED = ("(for example the b edition, or an older or newer upstream client). The client still works with the "
+           "standard creation screen.")
 MISSING = "Not patched: {path} is missing from the client folder."
 CHANGED = ("Not restored: {path} has changed since it was patched (for example a newer client was installed); "
            "the saved original is kept as {backup}.")
@@ -60,8 +63,9 @@ def run(args):
             print(f"{path}: {state}")
         return 3 if refused else 0
     if refused:
+        why = pset.get("refused", REFUSED)
         for path, state in refused:
-            print((UNKNOWN if state == "unknown" else MISSING).format(path=path))
+            print((UNKNOWN if state == "unknown" else MISSING).format(path=path, refused=why))
         return 3
     for path, result in patchset.apply(args.client, pset, bundle):
         if result == "patched":
