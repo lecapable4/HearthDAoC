@@ -1,5 +1,5 @@
 """Quest texts in the world data: deploy/bin/quest_dialogue.py and its data file quest_dialogue.json (the Guild of
-Shadows chain's dialogue, and the classic quests' period lines, names and class words).
+Shadows chain's dialogue, and the classic quests' period lines, names and class words, without the guides' leftovers).
 
 The synthetic tests use a tiny DataQuest table and data passed in. The tests of the real data file run world_fixes on a
 copy of a clean classic world (HDC_TEST_WORLD).
@@ -606,8 +606,54 @@ for _ids, _column, _stages, _old, _new, _class in CLASS_WORD_FIXES:
     for _qid in _ids:
         for _stage in _stages:
             CLASS_WORDS.setdefault((_qid, _column, _stage), []).append((_old, _new))
+# The page upstream scraped with Mystemas's last line (Strange Bedfellows): the guide's reward, then the site's footer.
+SCRAPED_PAGE = (" Reward: Perfect Life Stone Free account required to post You must log in or create an account to post "
+                "messages. Subscribe Privacy Policy Terms of Service Forum Rules Featured Game Sites HEARTHSTONE Top Decks "
+                "Database Sites Wowhead EverQuest EverQuest II Addon Sites MMOUI WowInterface ESOUI RiftUI SWTORUI "
+                "EQInterface EQ2Interface LOTROInterface CWMods SecretUI Community Sites Wowhead Forums Join the world's "
+                "largest MMO gaming network. No account? Sign up now! Connect With Fanbyte \u00a9 2026 Fanbyte LLC")
+BILIOUS_NOTE = "Allakhazam spells the monster 'billious goo'; the server's monster is 'bilious goo' (same creature, Dales of Devwy)."
+YEARLING_NOTE = "Allakhazam: the yearlings live in the Plains of Gwyddneau (level 42-44)."
+# Other leftovers of the period guides that upstream's generator copied into the texts (2026-10-11): the guides'
+# placeholders for the player's class ("(character class)") and name ("(your name here)", and Gavon Montgomery's
+# whisper keyword "<your name>" in The Lost Stone, which no whisper matched), now <Class> and <Player>; the web page
+# scraped after Mystemas's last line, cut (the guide's line ends there, without a stop); and the kill tasks' editors'
+# notes on Allakhazam, now a plain hint. Each: the quests, the column, its stages, upstream's words, the fork's.
+LEFTOVER_FIXES = [
+    ((20071,), "Description", (1,), "Blessings upon you this day, noble (character class).",
+     "Blessings upon you this day, noble <Class>."),
+    ((20192, 20193, 20194, 20195), "AdvanceText", (1,), "<your name>", "<Player>"),
+    ((20192, 20193, 20194, 20195), "SourceText", (1,), "(whisper: <your name>)", "(whisper: <Player>)"),
+    ((20192, 20193, 20194, 20195), "StepText", (1,), "(whisper: <your name>)", "(whisper: <Player>)"),
+    ((20694,), "SourceText", (1,), BILIOUS_NOTE, "Bilious goo are found in the Dales of Devwy."),
+    ((20694,), "StepText", (1,), BILIOUS_NOTE, "Bilious goo are found in the Dales of Devwy."),
+    ((20695,), "SourceText", (1,), YEARLING_NOTE, "The yearlings live in the Plains of Gwyddneau."),
+    ((20695,), "StepText", (1,), YEARLING_NOTE, "The yearlings live in the Plains of Gwyddneau."),
+    ((20702,), "TargetText", (1, 3, 6), SCRAPED_PAGE, ""),
+    (tuple(range(20983, 20995)), "Description", (1,), "(your name here), it is time", "<Player>, it is time"),
+    ((21397,), "TargetText", (2, 4), "You're a brave (character class), to have", "You're a brave <Class>, to have"),
+]
+LEFTOVER_WORDS = {}  # (quest id, column, stage): [(upstream's words, the fork's)]
+for _ids, _column, _stages, _old, _new in LEFTOVER_FIXES:
+    for _qid in _ids:
+        for _stage in _stages:
+            LEFTOVER_WORDS.setdefault((_qid, _column, _stage), []).append((_old, _new))
+# Every listed change but the <Player> slots: the class words first, then the leftovers.
+FIXED_WORDS = {key: CLASS_WORDS.get(key, []) + LEFTOVER_WORDS.get(key, []) for key in {*CLASS_WORDS, *LEFTOVER_WORDS}}
 TEXT_COLUMNS = ("AcceptText", "Description", "SourceText", "StepText", "TargetText", "AdvanceText", "FinishText")
+# The guides' placeholders for the player's class and name: no text may hold one (compared without case).
+GUIDE_PLACEHOLDERS = ("(character class)", "(class name)", "(your class here)", "(your name here)", "<your name>",
+                      "(player name)")
+# A web page's text, and the site the guides were taken from: no one's words in the world.
+SCRAPED_WORDS = ("Free account required", "You must log in", "Fanbyte", "Privacy Policy", "Allakhazam")
+BEHAVIOUR_UTILS = os.path.join(HERE, "..", "..", "source", "server", "GameServer", "behaviour", "BehaviourUtils.cs")
 DATA_QUEST = os.path.join(HERE, "..", "..", "source", "server", "GameServer", "quests", "QuestsMgr", "DataQuest.cs")
+
+
+def server_tokens():
+    """The tokens BehaviourUtils.GetPersonalizedMessage replaces in what the server sends: <Player>, <Class>, ..."""
+    with open(BEHAVIOUR_UTILS, encoding="utf-8-sig") as f:
+        return set(re.findall(r'"(<[A-Za-z]+>)"', f.read()))
 
 
 def with_class_words(text, words):
@@ -667,40 +713,45 @@ class ClassicQuestTextTests(unittest.TestCase):
                 self.assertEqual(new, f"{old} {line}")
 
     def test_every_other_text_is_upstreams_with_period_names_and_words_for_player(self):
-        # Only the <Player> slots and the class words change; every other character stays upstream's.
+        # Only the <Player> slots, the class words and the guides' leftovers change; every other character stays
+        # upstream's.
         names = set()
         for (qid, column, stage), (old, new) in self.changed.items():
             if column == "Description" and qid in LOST_LINES:
                 continue
             with self.subTest(quest=qid, column=column, stage=stage):
-                old = with_class_words(old, CLASS_WORDS.get((qid, column, stage), []))
+                old = with_class_words(old, FIXED_WORDS.get((qid, column, stage), []))
                 slots = "|".join(re.escape(slot) for slot in ["<Player>"] + sorted(PERIOD_NAMES | PERIOD_WORDS))
                 match = re.fullmatch(f"({slots})".join(re.escape(part) for part in old.split("<Player>")), new)
                 self.assertTrue(match, new)
                 names |= set(match.groups())
         self.assertEqual(names - {"<Player>"}, PERIOD_NAMES | PERIOD_WORDS)
         # Names: 37 stages of 21 texts; words: 27 stages of 4 texts (Silver Run's and Amora's Aid's in every class
-        # row); class words: 44 stages of 24 rows of 16 quests, none of them among the others.
-        self.assertEqual(len(self.changed), 37 + 27 + len(LOST_LINES) + 44)
+        # row); class words: 44 stages of 24 rows of 16 quests, none of them among the others; the guides' leftovers:
+        # 31 more stages of 20 rows (Strange Bedfellows' 3 are among the class words').
+        self.assertEqual(len(self.changed), 37 + 27 + len(LOST_LINES) + 44 + 31)
 
     def test_no_fixed_text_still_says_player(self):
-        # A stage changed for its class words alone keeps upstream's <Player> (a class said as a title is <Player>
-        # there, which the owner left for later: issues #101-#103).
+        # A stage changed for its listed words alone keeps upstream's <Player> (a class said as a title is <Player>
+        # there, which the owner left for later: issues #101-#103), plus the guides' placeholders for the player's
+        # name, which are <Player> now.
         for (qid, column, stage), (old, new) in self.changed.items():
             with self.subTest(quest=qid, column=column, stage=stage):
-                if new == with_class_words(old, CLASS_WORDS.get((qid, column, stage), [])):
-                    self.assertEqual(new.count("<Player>"), old.count("<Player>"))
+                words = FIXED_WORDS.get((qid, column, stage), [])
+                if new == with_class_words(old, words):
+                    placeholders = sum(fork.count("<Player>") - guide.count("<Player>") for guide, fork in words)
+                    self.assertEqual(new.count("<Player>"), old.count("<Player>") + placeholders)
                 else:
                     self.assertEqual(new.count("<Player>"), ADDRESSES_THE_PLAYER.get((qid, column, stage), 0))
 
     def test_the_class_the_guides_authors_were_called_by_is_the_players(self):
         # Gral Bermorn's "Good luck to thee Theurgist." (Weakened Bonds, open to every class), the Mages' and
         # Elementalists' "Greetings young Disciple", the guides' "(class name)" in Fall of an Emperor, ...
-        for key, words in CLASS_WORDS.items():
+        for key in CLASS_WORDS:
             with self.subTest(quest=key[0], column=key[1], stage=key[2]):
                 self.assertTrue(key in self.changed, "the fix does not change this stage")
                 old, new = self.changed[key]
-                self.assertEqual(new, with_class_words(old, words))
+                self.assertEqual(new, with_class_words(old, FIXED_WORDS[key]))
 
     def test_no_quest_text_shows_a_class_word_the_fork_fixed_to_another_class(self):
         # The guard, over every quest row of the world: a text that still has the guides' words is offered to their
@@ -723,6 +774,96 @@ class ClassicQuestTextTests(unittest.TestCase):
                         kept.add(qid)
         self.assertEqual(shown, [])
         self.assertEqual(sorted(kept), [20194, 20351, 21024, 21028, 21036, 21097, 21099])
+
+    def test_the_guides_leftovers_are_fixed(self):
+        for key, words in LEFTOVER_WORDS.items():
+            with self.subTest(quest=key[0], column=key[1], stage=key[2]):
+                self.assertTrue(key in self.changed, "the fix does not change this stage")
+                old, new = self.changed[key]
+                self.assertEqual(new, with_class_words(old, FIXED_WORDS[key]))
+
+    def stage(self, qid, column, stage):
+        text, = self.conn.execute(f"SELECT {column} FROM DataQuest WHERE ID=?", (qid,)).fetchone()
+        return (text or "").split("|")[stage - 1]
+
+    def test_cristin_and_tethra_call_the_player_by_their_class(self):
+        # The guides' "(character class)" (Cristin's Supplies, Spicket, Spackit and Spykit; both open to every class).
+        self.assertTrue(self.stage(20071, "Description", 1).startswith(
+            "Blessings upon you this day, noble <Class>. I have the finest wares in all of Connacht"))
+        for stage in (2, 4):
+            with self.subTest(stage=stage):
+                text = self.stage(21397, "TargetText", stage)
+                self.assertIn("I suppose it matters not. You're a brave <Class>, to have defeated this infamous "
+                              "spraggon. Have you defeated [many more]?", text)
+                self.assertEqual(text.count("<Player>"), 2)
+
+    def test_the_traveler_s_way_trainers_send_the_player_out_by_name(self):
+        # The guide's "(your name here)", in every class's row (Midgard).
+        for qid in range(20983, 20995):
+            with self.subTest(quest=qid):
+                self.assertEqual(self.stage(qid, "Description", 1),
+                                 "<Player>, it is time to send you out into the lands beyond ours. Explore these other "
+                                 "lands and tell them of our house's good will and [aid those we can].")
+
+    def test_gavon_montgomery_is_told_the_players_name(self):
+        # The guide: "When he asks, tell him your name." Stage 1 is a whisper step at Gavon Montgomery: the player
+        # whispers the name the server puts for <Player> (QuestWhispers.Advances), which the journal shows.
+        for qid in (20192, 20193, 20194, 20195):
+            with self.subTest(quest=qid):
+                self.assertEqual(self.stage(qid, "StepType", 1), "6")
+                self.assertEqual(self.stage(qid, "AdvanceText", 1), "<Player>")
+                for column in ("SourceText", "StepText"):
+                    self.assertEqual(self.stage(qid, column, 1),
+                                     "Seek out Gavon Montgomery at Caifelle. (whisper: <Player>)")
+                self.assertIn(" What is your name? We have quite a task ahead of us.", self.stage(qid, "TargetText", 1))
+        self.assertTrue(self.stage(20194, "TargetText", 1).startswith("Greetings Friar. "))
+
+    def test_mystemas_s_last_line_ends_where_the_guide_s_does(self):
+        # The guide's line has no stop after "(minstrel)"; the page around it is no one's words.
+        for stage in (1, 3, 6):
+            with self.subTest(stage=stage):
+                self.assertTrue(self.stage(20702, "TargetText", stage).endswith(
+                    "Do you [Understand] me? Good. Now get going before someone sees us talking. Bring me Caisha like a "
+                    "good little <Class>"))
+
+    def test_the_kill_tasks_say_where_without_the_editors_notes(self):
+        for qid, text in ((20694, "Kill bilious goo and bring Achae Smith the Billious Goo Piece. Bilious goo are found "
+                                  "in the Dales of Devwy."),
+                          (20695, "Kill cliff yale yearling and bring Wenthian Sy'Lian the Cliff Yale Yearling Essence. "
+                                  "The yearlings live in the Plains of Gwyddneau.")):
+            for column in ("SourceText", "StepText"):
+                with self.subTest(quest=qid, column=column):
+                    self.assertEqual(self.stage(qid, column, 1), text)
+
+    def test_no_quest_text_holds_a_guides_placeholder(self):
+        # The guard, over every quest row of the world, whatever classes it is open to.
+        rows = self.conn.execute(f"SELECT ID, {', '.join(TEXT_COLUMNS)} FROM DataQuest").fetchall()
+        held = [(qid, column, placeholder) for qid, *texts in rows for column, text in zip(TEXT_COLUMNS, texts)
+                for placeholder in GUIDE_PLACEHOLDERS if placeholder in (text or "").lower()]
+        self.assertEqual(held, [])
+
+    def test_no_quest_text_holds_a_web_page_or_names_its_site(self):
+        rows = self.conn.execute(f"SELECT ID, {', '.join(TEXT_COLUMNS)} FROM DataQuest").fetchall()
+        held = [(qid, column, words) for qid, *texts in rows for column, text in zip(TEXT_COLUMNS, texts)
+                for words in SCRAPED_WORDS if words.lower() in (text or "").lower()]
+        self.assertEqual(held, [])
+
+    def test_a_whisper_keyword_holds_no_token_the_server_does_not_replace(self):
+        # A whisper step's AdvanceText may hold a token the server replaces (<Player>: the player's name), which
+        # DataQuest matches as the player reads it (QuestWhispers.Advances). Any other <...> stays as it is, so no
+        # whisper matches it. An accept keyword is compared as it is (CheckOfferedQuestWhisper): no token at all.
+        tokens = server_tokens()
+        self.assertLessEqual({"<Player>", "<Class>", "<Race>"}, tokens)
+        unknown = []
+        for qid, step_types, advances, accept in self.conn.execute(
+                "SELECT ID, StepType, AdvanceText, AcceptText FROM DataQuest"):
+            advances = (advances or "").split("|")
+            for stage, step_type in enumerate((step_types or "").split("|"), 1):
+                if step_type.strip() in ("6", "7") and stage <= len(advances):
+                    unknown += [(qid, stage, token) for token in re.findall(r"<[^<>]*>", advances[stage - 1])
+                                if token not in tokens]
+            unknown += [(qid, "AcceptText", token) for token in re.findall(r"<[^<>]*>", accept or "")]
+        self.assertEqual(unknown, [])
 
 
 class WhisperKeywordSourceTests(unittest.TestCase):

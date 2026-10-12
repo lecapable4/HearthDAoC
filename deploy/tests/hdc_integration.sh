@@ -40,7 +40,7 @@ docker exec hearthdaoc-it-server grep -q "<DBAutosaveInterval>7</DBAutosaveInter
 echo "ok - autosave interval comes from .env"
 out="$(hdc fixes)" || fail "hdc fixes exited $?: $out"
 grep -qE "^=== Start .* UTC, release ${IMAGE##*:}, upstream [^ ]+ ===$" <<<"$out" || fail "hdc fixes: no header with the release: $out"
-grep -q "^Quest dialogue: 128 quests rewritten$" <<<"$out" || fail "hdc fixes does not show this start's world fixes: $out"
+grep -q "^Quest dialogue: 145 quests rewritten$" <<<"$out" || fail "hdc fixes does not show this start's world fixes: $out"
 echo "ok - hdc fixes shows this start's world fixes, with the release compose passed"
 out="$(hdc status 2>&1)" || fail "status exited $?: $out"
 grep -q "edition .* classic" <<<"$out" || fail "status: $out"
@@ -59,7 +59,7 @@ grep -q "Saved" <<<"$(hdc bot-goals set 50 10 30 60)" || fail "bot-goals set whi
 grep -q "plvl 3" <<<"$(hdc account plvl Tester1 3)" || fail "plvl while stopped"
 latest="$(hdc backups | awk '/-manual.db/ {print $NF}' | tail -1)"
 grep -q "Restored" <<<"$(hdc restore "$latest")" || fail "restore"
-grep -q "^Quest dialogue: 128 quests rewritten$" <<<"$(hdc fixes)" || fail "hdc fixes while stopped"
+grep -q "^Quest dialogue: 145 quests rewritten$" <<<"$(hdc fixes)" || fail "hdc fixes while stopped"
 echo "ok - stopped-only commands work when stopped, and hdc fixes too"
 sed -i 's/^HEARTHDAOC_EDITION=classic/HEARTHDAOC_EDITION=b/' "$W/.env"
 if out="$(hdc up 2>&1)"; then fail "hdc up did not report the refused start"; fi

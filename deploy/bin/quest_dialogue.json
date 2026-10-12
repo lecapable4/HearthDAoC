@@ -1,5 +1,5 @@
 {
- "_about": "The Guild of Shadows chain's dialogue (owner 2026-10-09: upstream offered \"[Traveler's]\" and said nothing else), and the classic quests' period lines, names and class words (quest entry scan 2026-10-11: the line that offers a quest's first keyword, and the names and plain words upstream's generator replaced with <Player>, such as Wariel's [name] in \"What is your [name]?\"; and, class-word scan 2026-10-11, the class the guides' authors were called by and the guides' placeholders for it, as <Class>, the player's class, with New Crest's accept keyword the row's own class; every other character is upstream's). deploy/bin/quest_dialogue.py writes it into the DataQuest rows at every start; \"step\" is a key of epic_chains_data.json \"steps\" (one quest ID per class), \"ids\" plain quest IDs that get the same text (\"name\" is for the reader); a value is one text for every class, an object by class (a step only), or a list with one entry per stage. \"guard\": the digests of the values a row may hold for the fix to change it (upstream's after epic-chains-v1, then each earlier version of this file). Chat lines are in deploy/hearthdaoc-quests.json.",
+ "_about": "The Guild of Shadows chain's dialogue (owner 2026-10-09: upstream offered \"[Traveler's]\" and said nothing else), and the classic quests' period lines, names and class words (quest entry scan 2026-10-11: the line that offers a quest's first keyword, and the names and plain words upstream's generator replaced with <Player>, such as Wariel's [name] in \"What is your [name]?\"; and, class-word scan 2026-10-11, the class the guides' authors were called by and the guides' placeholders for it, as <Class>, the player's class, with New Crest's accept keyword the row's own class; and the guides' other leftovers, 2026-10-11: their placeholders for the player's class and name, as <Class> and <Player> (The Lost Stone's whisper keyword too, which the server matches as the player reads it), the web page scraped after Mystemas's last line cut, and the kill tasks' notes on Allakhazam put as a plain hint; every other character is upstream's). deploy/bin/quest_dialogue.py writes it into the DataQuest rows at every start; \"step\" is a key of epic_chains_data.json \"steps\" (one quest ID per class), \"ids\" plain quest IDs that get the same text (\"name\" is for the reader); a value is one text for every class, an object by class (a step only), or a list with one entry per stage. \"guard\": the digests of the values a row may hold for the fix to change it (upstream's after epic-chains-v1, then each earlier version of this file). Chat lines are in deploy/hearthdaoc-quests.json.",
  "quests": [
   {
    "step": "7",
@@ -998,6 +998,21 @@
   },
   {
    "ids": [
+    20071
+   ],
+   "name": "Cristin's Supplies",
+   "set": {
+    "Description": "Blessings upon you this day, noble <Class>. I have the finest wares in all of Connacht, and I humbly thank thee for taking a minute of your most valuable time to view my wares. Although I am not talented enough to [make the armor] , I do sell fine things."
+   },
+   "guard": {
+    "20071": [
+     "e9b847099f19df1909079fddd929ce08167d7b74322199c3db039b5e2ea50223",
+     "817dd2f6e3ccf7f5e93abc5fac6aef3ff266aeaaed9dacb44c7354d16e49a340"
+    ]
+   }
+  },
+  {
+   "ids": [
     20099
    ],
    "name": "Trapper's Pride",
@@ -1106,6 +1121,24 @@
    ],
    "name": "The Lost Stone",
    "set": {
+    "AdvanceText": [
+     "<Player>",
+     "",
+     "",
+     ""
+    ],
+    "SourceText": [
+     "Seek out Gavon Montgomery at Caifelle. (whisper: <Player>)",
+     "",
+     "",
+     ""
+    ],
+    "StepText": [
+     "Seek out Gavon Montgomery at Caifelle. (whisper: <Player>)",
+     "Get the missing stone from the urchin rabblerousers south of Caifelle. (1/2)",
+     "Get the missing stone from the urchin rabblerousers south of Caifelle. (2/2)",
+     "Return the plain flat gray stone to Gavon Montgomery."
+    ],
     "TargetText": [
      "Greetings <Class>. I see that your trainer received the message fromt he Defenders. What is your name? We have quite a task ahead of us. I was once a Scout for the Defenders of Albion before I hurt my leg. Since I can no longer do my duty, the Defenders have helped set me up s as merchant. It's not what I had planned to be doing , but it puts food on my table. Even though I am not an active member of the Defenders, I still do what I can to help. Lately that has meant [tracking down lost objects]. As you may know, the Defenders of Albion are always searching for better ways to defend the realm from enemies. Our duty is hard, for these days we face not onlythe enemies that nip at our borders but also the ones that exist amongst us. Anything that can be done or used to make our fight a little easier is always well supported among the Defenders. That is [why I was sent] here. One of the Inconnu that has been helping us to defend the realm against the Drakoran located and recovered a stone that seems to weaken the Drakoran. Our Theurgists back in Camelot wish to examine and study this stone so that it can possibly be duplicated and used to aid us in this fight. If we [only had it now]! This Inconnu was coming back from getting the stone when he was attacked and overpowered by a pack of urchin rabblerousers. They stole the stone and ran off into the wilds when the Inconnu mandaged to crawl back here. So far no one has been able to capture the little rabblerouser that has it. Go now and seek out the urchin rabblerouser that has it. They are tricky and throw it around, so keep trying until you find it. We are counting on you. Were you able to find the stone? The Defenders in Albion are waiting for it so they can begin trying to duplicate it. I must send it to them soon. This isn't the stone I seek! I was told it was plain, flat, gray stone. It may have special properties, but the Defenders will have to investigate it. Did you find another stone? This stone doesn't look like it will do much, but we hope that it will. I shall get this over to Camelot right away. The Defenders of Albion sent this over for the person who was able to recover the lost stone. Here take it, and know that you have helped to defend the realm!",
      "",
@@ -1115,16 +1148,51 @@
    },
    "guard": {
     "20192": [
-     "59333a550fd0642d67cdc2cdd85185c3646978bae3889f7c13fd9ed44d78cb03",
-     "2abe863c90f2e49924c3bdbed444ae56f4114e9a917f3b25b6e5ff6ff8e7b9c6"
+     "20f4a13e8105fa7ebf205c95f90206db812a1b9df187b54cfa98acc623a6bbea",
+     "f2bed6f444f2c007e68017b746883fe31abf9dfb9d5eb1acc986d3c61523d64f",
+     "289f9e60180de19b2c40337a5c926310c6c060a673552eb5f7de398965673ffd"
     ],
     "20193": [
-     "59333a550fd0642d67cdc2cdd85185c3646978bae3889f7c13fd9ed44d78cb03",
-     "2abe863c90f2e49924c3bdbed444ae56f4114e9a917f3b25b6e5ff6ff8e7b9c6"
+     "20f4a13e8105fa7ebf205c95f90206db812a1b9df187b54cfa98acc623a6bbea",
+     "f2bed6f444f2c007e68017b746883fe31abf9dfb9d5eb1acc986d3c61523d64f",
+     "289f9e60180de19b2c40337a5c926310c6c060a673552eb5f7de398965673ffd"
     ],
     "20195": [
-     "59333a550fd0642d67cdc2cdd85185c3646978bae3889f7c13fd9ed44d78cb03",
-     "2abe863c90f2e49924c3bdbed444ae56f4114e9a917f3b25b6e5ff6ff8e7b9c6"
+     "20f4a13e8105fa7ebf205c95f90206db812a1b9df187b54cfa98acc623a6bbea",
+     "f2bed6f444f2c007e68017b746883fe31abf9dfb9d5eb1acc986d3c61523d64f",
+     "289f9e60180de19b2c40337a5c926310c6c060a673552eb5f7de398965673ffd"
+    ]
+   }
+  },
+  {
+   "ids": [
+    20194
+   ],
+   "name": "The Lost Stone",
+   "set": {
+    "AdvanceText": [
+     "<Player>",
+     "",
+     "",
+     ""
+    ],
+    "SourceText": [
+     "Seek out Gavon Montgomery at Caifelle. (whisper: <Player>)",
+     "",
+     "",
+     ""
+    ],
+    "StepText": [
+     "Seek out Gavon Montgomery at Caifelle. (whisper: <Player>)",
+     "Get the missing stone from the urchin rabblerousers south of Caifelle. (1/2)",
+     "Get the missing stone from the urchin rabblerousers south of Caifelle. (2/2)",
+     "Return the plain flat gray stone to Gavon Montgomery."
+    ]
+   },
+   "guard": {
+    "20194": [
+     "9ccdd239a418eba1162d4dbac31c17b45c6f59be2ade52d84a605499f4e230e7",
+     "ab923da976e833cdad81ec8f4b5bc155db1082fc6f762137a3d9444da76f03d8"
     ]
    }
   },
@@ -1330,23 +1398,64 @@
   },
   {
    "ids": [
+    20694
+   ],
+   "name": "Billious Goo Pieces -- Kill Task",
+   "set": {
+    "SourceText": [
+     "Kill bilious goo and bring Achae Smith the Billious Goo Piece. Bilious goo are found in the Dales of Devwy."
+    ],
+    "StepText": [
+     "Kill bilious goo and bring Achae Smith the Billious Goo Piece. Bilious goo are found in the Dales of Devwy."
+    ]
+   },
+   "guard": {
+    "20694": [
+     "1bd1593bcaf4dfbc50cde5d494a3fd9fe3c83b681fe6371045b2ac5e42881353",
+     "ef778c5e482b5a8e87e411983121d81c9e02d13b625a508d11797f8841c5db26"
+    ]
+   }
+  },
+  {
+   "ids": [
+    20695
+   ],
+   "name": "Cliff Yale Yearling Essence -- Kill Task",
+   "set": {
+    "SourceText": [
+     "Kill cliff yale yearling and bring Wenthian Sy'Lian the Cliff Yale Yearling Essence. The yearlings live in the Plains of Gwyddneau."
+    ],
+    "StepText": [
+     "Kill cliff yale yearling and bring Wenthian Sy'Lian the Cliff Yale Yearling Essence. The yearlings live in the Plains of Gwyddneau."
+    ]
+   },
+   "guard": {
+    "20695": [
+     "9d64c008eb08dbf2109c52c25135223195aa1e2903ff1d5079e4c032355baf63",
+     "fa8058fee5ea099cb59be292bdbed8084605e44973a19fb1cd534ad7f2ec85f9"
+    ]
+   }
+  },
+  {
+   "ids": [
     20702
    ],
    "name": "Strange Bedfellows",
    "set": {
     "TargetText": [
-     "Eh? What do you think you are [looking] at, ugly (your characters race)? What? Are you as stupid as you look? Maybe not, eh. You come down here with big ideas and try to do good deeds. I say the faster you go get yourself killed, the better. Wait a [second]! You are that idiot who killed Malroch. Hehe, that was pretty foolish of you. Everyone in Darkness Falls has heard of you and is looking to cash in on the [bounty] for your head. What? Do you think mortals are the only ones who use bounties? Any demon that slays you is supposed to be rewarded by the Master, but I have seen how he rewards his followers. I used to be one of the strongest demons in the Master's army and now look at me. The Master changed me into an imp as [punishment] for something I had nothing to do with. How was I supposed to know the Master already had a plan? Anyway now I am really upset and I need your help to get some revenge on a few demons. If you help me I will tell you things that may just keep you alive a tad longer in the future. Let's say I know something about an ambassador that has been helping the lands of Albion to an early [demise]. I thought that might get your attention, but before I start telling what I know, I want some proof that you can handle yourself in battle. After all, you might have just been lucky when you beat the poor old Malroch. I want you to sneak into the area where the dragon of your land sleeps and return with something for me. You do this for me and I will tell you something of what I [know]. Let's see. What should I have you get, eh? I know! I want a granite gem from a granite giant stonebreaker living in southwestern [Dartmoor]. They dig up some very interesting gems in those mountains. If you are wondering if you can trust me, don't worry your mind any longer. You can trust me, and I can't trust you. That keeps things simple in our future dealings. Now bring me what I want and stop wasting my time. [Step 3] Journey to southwestern Dartmoor and retrieve Granite Gem from a granite giant stonebreaker. Killed Granite Giant Stonebreaker at Dartmoor loc=11k 43k, got gem. Back to Mystemas in DF. Oh, you are back. I suppose you have what I asked for? Well maybe you are not as weak as I thought, but certainly as smart as I thought. So lets talk shall we? I know a few things that would turn you pale with fear. What do I [know], you ask? Well I am glad that you asked. My Master has sent forth an ambassador to your lands to convince your king that the main threat to Albion from the other realms is far greater than the [threat] darkness falls presents. This was done to increase the casualties on both sides of your stupid war. Each time a mortal falls in combat, we take a small portion of that creature's spirit and create one of the soultorn that roam deeper in Darkness Falls. The soultorn are then trained to fight in my Master's armies. See the brilliance of this [plan]? The more you fight, the more you die. The more you die, the stronger we get. Hehe, very nice eh? Master also has a method to get the freshest and strongest of your [spirits]. He watches which of your three realms is strongest on the field of battle and then allows only that realm to directly enter Darkness Falls. We can make far stronger soultorn from those that die here. In fact, once in a while we get very lucky and trap an entire creature's spirit here. There has been an especially strong [soultorn] captured recently. She was a foolish healer named Caisha who came here looking for her lost friend. Now our Princess is torturing her spirit so we can make it into a succubi. Prince Ba'alorian wants to use her in his army as a high priestess or something. Wait, I have an [idea]. You might be able to help both of us at the same time. The Ambassador normally stays at the Princess's side. You will need proof to take to your king that he is being lied to and the Ambassador should be carrying plans from the Prince that will help convince your king. You can help me by taking [Caisha's spirit]. If the Prince has her for a high priestess, I doubt I will ever get a chance to gain my Master's favor again. I would surely like to see the Prince's plan fail miserably and you would provide me the means to do that. So let me make it clear what you [need to do]. First, slay the ambassador and get his pouch of documents to take back to your king or whatever. Second, slay the Princess and her followers. You mst then slay Caisha's soultorn to release her spirit from its torment. Take this Soulstone. It will capture Caisha's spirit when she is slain so that no other demon captures her. Oh, one other [thing]. If you get captured, I will do everything within my power to ensure the inquisitors shred every last piece of your spirit before you can tell anyone our little plan. Do you [Understand] me? Good. Now get going before someone sees us talking. Bring me Caisha like a good little <Class> Reward: Perfect Life Stone Free account required to post You must log in or create an account to post messages. Subscribe Privacy Policy Terms of Service Forum Rules Featured Game Sites HEARTHSTONE Top Decks Database Sites Wowhead EverQuest EverQuest II Addon Sites MMOUI WowInterface ESOUI RiftUI SWTORUI EQInterface EQ2Interface LOTROInterface CWMods SecretUI Community Sites Wowhead Forums Join the world's largest MMO gaming network. No account? Sign up now! Connect With Fanbyte © 2026 Fanbyte LLC",
+     "Eh? What do you think you are [looking] at, ugly (your characters race)? What? Are you as stupid as you look? Maybe not, eh. You come down here with big ideas and try to do good deeds. I say the faster you go get yourself killed, the better. Wait a [second]! You are that idiot who killed Malroch. Hehe, that was pretty foolish of you. Everyone in Darkness Falls has heard of you and is looking to cash in on the [bounty] for your head. What? Do you think mortals are the only ones who use bounties? Any demon that slays you is supposed to be rewarded by the Master, but I have seen how he rewards his followers. I used to be one of the strongest demons in the Master's army and now look at me. The Master changed me into an imp as [punishment] for something I had nothing to do with. How was I supposed to know the Master already had a plan? Anyway now I am really upset and I need your help to get some revenge on a few demons. If you help me I will tell you things that may just keep you alive a tad longer in the future. Let's say I know something about an ambassador that has been helping the lands of Albion to an early [demise]. I thought that might get your attention, but before I start telling what I know, I want some proof that you can handle yourself in battle. After all, you might have just been lucky when you beat the poor old Malroch. I want you to sneak into the area where the dragon of your land sleeps and return with something for me. You do this for me and I will tell you something of what I [know]. Let's see. What should I have you get, eh? I know! I want a granite gem from a granite giant stonebreaker living in southwestern [Dartmoor]. They dig up some very interesting gems in those mountains. If you are wondering if you can trust me, don't worry your mind any longer. You can trust me, and I can't trust you. That keeps things simple in our future dealings. Now bring me what I want and stop wasting my time. [Step 3] Journey to southwestern Dartmoor and retrieve Granite Gem from a granite giant stonebreaker. Killed Granite Giant Stonebreaker at Dartmoor loc=11k 43k, got gem. Back to Mystemas in DF. Oh, you are back. I suppose you have what I asked for? Well maybe you are not as weak as I thought, but certainly as smart as I thought. So lets talk shall we? I know a few things that would turn you pale with fear. What do I [know], you ask? Well I am glad that you asked. My Master has sent forth an ambassador to your lands to convince your king that the main threat to Albion from the other realms is far greater than the [threat] darkness falls presents. This was done to increase the casualties on both sides of your stupid war. Each time a mortal falls in combat, we take a small portion of that creature's spirit and create one of the soultorn that roam deeper in Darkness Falls. The soultorn are then trained to fight in my Master's armies. See the brilliance of this [plan]? The more you fight, the more you die. The more you die, the stronger we get. Hehe, very nice eh? Master also has a method to get the freshest and strongest of your [spirits]. He watches which of your three realms is strongest on the field of battle and then allows only that realm to directly enter Darkness Falls. We can make far stronger soultorn from those that die here. In fact, once in a while we get very lucky and trap an entire creature's spirit here. There has been an especially strong [soultorn] captured recently. She was a foolish healer named Caisha who came here looking for her lost friend. Now our Princess is torturing her spirit so we can make it into a succubi. Prince Ba'alorian wants to use her in his army as a high priestess or something. Wait, I have an [idea]. You might be able to help both of us at the same time. The Ambassador normally stays at the Princess's side. You will need proof to take to your king that he is being lied to and the Ambassador should be carrying plans from the Prince that will help convince your king. You can help me by taking [Caisha's spirit]. If the Prince has her for a high priestess, I doubt I will ever get a chance to gain my Master's favor again. I would surely like to see the Prince's plan fail miserably and you would provide me the means to do that. So let me make it clear what you [need to do]. First, slay the ambassador and get his pouch of documents to take back to your king or whatever. Second, slay the Princess and her followers. You mst then slay Caisha's soultorn to release her spirit from its torment. Take this Soulstone. It will capture Caisha's spirit when she is slain so that no other demon captures her. Oh, one other [thing]. If you get captured, I will do everything within my power to ensure the inquisitors shred every last piece of your spirit before you can tell anyone our little plan. Do you [Understand] me? Good. Now get going before someone sees us talking. Bring me Caisha like a good little <Class>",
      "",
-     "Eh? What do you think you are [looking] at, ugly (your characters race)? What? Are you as stupid as you look? Maybe not, eh. You come down here with big ideas and try to do good deeds. I say the faster you go get yourself killed, the better. Wait a [second]! You are that idiot who killed Malroch. Hehe, that was pretty foolish of you. Everyone in Darkness Falls has heard of you and is looking to cash in on the [bounty] for your head. What? Do you think mortals are the only ones who use bounties? Any demon that slays you is supposed to be rewarded by the Master, but I have seen how he rewards his followers. I used to be one of the strongest demons in the Master's army and now look at me. The Master changed me into an imp as [punishment] for something I had nothing to do with. How was I supposed to know the Master already had a plan? Anyway now I am really upset and I need your help to get some revenge on a few demons. If you help me I will tell you things that may just keep you alive a tad longer in the future. Let's say I know something about an ambassador that has been helping the lands of Albion to an early [demise]. I thought that might get your attention, but before I start telling what I know, I want some proof that you can handle yourself in battle. After all, you might have just been lucky when you beat the poor old Malroch. I want you to sneak into the area where the dragon of your land sleeps and return with something for me. You do this for me and I will tell you something of what I [know]. Let's see. What should I have you get, eh? I know! I want a granite gem from a granite giant stonebreaker living in southwestern [Dartmoor]. They dig up some very interesting gems in those mountains. If you are wondering if you can trust me, don't worry your mind any longer. You can trust me, and I can't trust you. That keeps things simple in our future dealings. Now bring me what I want and stop wasting my time. [Step 3] Journey to southwestern Dartmoor and retrieve Granite Gem from a granite giant stonebreaker. Killed Granite Giant Stonebreaker at Dartmoor loc=11k 43k, got gem. Back to Mystemas in DF. Oh, you are back. I suppose you have what I asked for? Well maybe you are not as weak as I thought, but certainly as smart as I thought. So lets talk shall we? I know a few things that would turn you pale with fear. What do I [know], you ask? Well I am glad that you asked. My Master has sent forth an ambassador to your lands to convince your king that the main threat to Albion from the other realms is far greater than the [threat] darkness falls presents. This was done to increase the casualties on both sides of your stupid war. Each time a mortal falls in combat, we take a small portion of that creature's spirit and create one of the soultorn that roam deeper in Darkness Falls. The soultorn are then trained to fight in my Master's armies. See the brilliance of this [plan]? The more you fight, the more you die. The more you die, the stronger we get. Hehe, very nice eh? Master also has a method to get the freshest and strongest of your [spirits]. He watches which of your three realms is strongest on the field of battle and then allows only that realm to directly enter Darkness Falls. We can make far stronger soultorn from those that die here. In fact, once in a while we get very lucky and trap an entire creature's spirit here. There has been an especially strong [soultorn] captured recently. She was a foolish healer named Caisha who came here looking for her lost friend. Now our Princess is torturing her spirit so we can make it into a succubi. Prince Ba'alorian wants to use her in his army as a high priestess or something. Wait, I have an [idea]. You might be able to help both of us at the same time. The Ambassador normally stays at the Princess's side. You will need proof to take to your king that he is being lied to and the Ambassador should be carrying plans from the Prince that will help convince your king. You can help me by taking [Caisha's spirit]. If the Prince has her for a high priestess, I doubt I will ever get a chance to gain my Master's favor again. I would surely like to see the Prince's plan fail miserably and you would provide me the means to do that. So let me make it clear what you [need to do]. First, slay the ambassador and get his pouch of documents to take back to your king or whatever. Second, slay the Princess and her followers. You mst then slay Caisha's soultorn to release her spirit from its torment. Take this Soulstone. It will capture Caisha's spirit when she is slain so that no other demon captures her. Oh, one other [thing]. If you get captured, I will do everything within my power to ensure the inquisitors shred every last piece of your spirit before you can tell anyone our little plan. Do you [Understand] me? Good. Now get going before someone sees us talking. Bring me Caisha like a good little <Class> Reward: Perfect Life Stone Free account required to post You must log in or create an account to post messages. Subscribe Privacy Policy Terms of Service Forum Rules Featured Game Sites HEARTHSTONE Top Decks Database Sites Wowhead EverQuest EverQuest II Addon Sites MMOUI WowInterface ESOUI RiftUI SWTORUI EQInterface EQ2Interface LOTROInterface CWMods SecretUI Community Sites Wowhead Forums Join the world's largest MMO gaming network. No account? Sign up now! Connect With Fanbyte © 2026 Fanbyte LLC",
+     "Eh? What do you think you are [looking] at, ugly (your characters race)? What? Are you as stupid as you look? Maybe not, eh. You come down here with big ideas and try to do good deeds. I say the faster you go get yourself killed, the better. Wait a [second]! You are that idiot who killed Malroch. Hehe, that was pretty foolish of you. Everyone in Darkness Falls has heard of you and is looking to cash in on the [bounty] for your head. What? Do you think mortals are the only ones who use bounties? Any demon that slays you is supposed to be rewarded by the Master, but I have seen how he rewards his followers. I used to be one of the strongest demons in the Master's army and now look at me. The Master changed me into an imp as [punishment] for something I had nothing to do with. How was I supposed to know the Master already had a plan? Anyway now I am really upset and I need your help to get some revenge on a few demons. If you help me I will tell you things that may just keep you alive a tad longer in the future. Let's say I know something about an ambassador that has been helping the lands of Albion to an early [demise]. I thought that might get your attention, but before I start telling what I know, I want some proof that you can handle yourself in battle. After all, you might have just been lucky when you beat the poor old Malroch. I want you to sneak into the area where the dragon of your land sleeps and return with something for me. You do this for me and I will tell you something of what I [know]. Let's see. What should I have you get, eh? I know! I want a granite gem from a granite giant stonebreaker living in southwestern [Dartmoor]. They dig up some very interesting gems in those mountains. If you are wondering if you can trust me, don't worry your mind any longer. You can trust me, and I can't trust you. That keeps things simple in our future dealings. Now bring me what I want and stop wasting my time. [Step 3] Journey to southwestern Dartmoor and retrieve Granite Gem from a granite giant stonebreaker. Killed Granite Giant Stonebreaker at Dartmoor loc=11k 43k, got gem. Back to Mystemas in DF. Oh, you are back. I suppose you have what I asked for? Well maybe you are not as weak as I thought, but certainly as smart as I thought. So lets talk shall we? I know a few things that would turn you pale with fear. What do I [know], you ask? Well I am glad that you asked. My Master has sent forth an ambassador to your lands to convince your king that the main threat to Albion from the other realms is far greater than the [threat] darkness falls presents. This was done to increase the casualties on both sides of your stupid war. Each time a mortal falls in combat, we take a small portion of that creature's spirit and create one of the soultorn that roam deeper in Darkness Falls. The soultorn are then trained to fight in my Master's armies. See the brilliance of this [plan]? The more you fight, the more you die. The more you die, the stronger we get. Hehe, very nice eh? Master also has a method to get the freshest and strongest of your [spirits]. He watches which of your three realms is strongest on the field of battle and then allows only that realm to directly enter Darkness Falls. We can make far stronger soultorn from those that die here. In fact, once in a while we get very lucky and trap an entire creature's spirit here. There has been an especially strong [soultorn] captured recently. She was a foolish healer named Caisha who came here looking for her lost friend. Now our Princess is torturing her spirit so we can make it into a succubi. Prince Ba'alorian wants to use her in his army as a high priestess or something. Wait, I have an [idea]. You might be able to help both of us at the same time. The Ambassador normally stays at the Princess's side. You will need proof to take to your king that he is being lied to and the Ambassador should be carrying plans from the Prince that will help convince your king. You can help me by taking [Caisha's spirit]. If the Prince has her for a high priestess, I doubt I will ever get a chance to gain my Master's favor again. I would surely like to see the Prince's plan fail miserably and you would provide me the means to do that. So let me make it clear what you [need to do]. First, slay the ambassador and get his pouch of documents to take back to your king or whatever. Second, slay the Princess and her followers. You mst then slay Caisha's soultorn to release her spirit from its torment. Take this Soulstone. It will capture Caisha's spirit when she is slain so that no other demon captures her. Oh, one other [thing]. If you get captured, I will do everything within my power to ensure the inquisitors shred every last piece of your spirit before you can tell anyone our little plan. Do you [Understand] me? Good. Now get going before someone sees us talking. Bring me Caisha like a good little <Class>",
      "",
      "",
-     "Eh? What do you think you are [looking] at, ugly (your characters race)? What? Are you as stupid as you look? Maybe not, eh. You come down here with big ideas and try to do good deeds. I say the faster you go get yourself killed, the better. Wait a [second]! You are that idiot who killed Malroch. Hehe, that was pretty foolish of you. Everyone in Darkness Falls has heard of you and is looking to cash in on the [bounty] for your head. What? Do you think mortals are the only ones who use bounties? Any demon that slays you is supposed to be rewarded by the Master, but I have seen how he rewards his followers. I used to be one of the strongest demons in the Master's army and now look at me. The Master changed me into an imp as [punishment] for something I had nothing to do with. How was I supposed to know the Master already had a plan? Anyway now I am really upset and I need your help to get some revenge on a few demons. If you help me I will tell you things that may just keep you alive a tad longer in the future. Let's say I know something about an ambassador that has been helping the lands of Albion to an early [demise]. I thought that might get your attention, but before I start telling what I know, I want some proof that you can handle yourself in battle. After all, you might have just been lucky when you beat the poor old Malroch. I want you to sneak into the area where the dragon of your land sleeps and return with something for me. You do this for me and I will tell you something of what I [know]. Let's see. What should I have you get, eh? I know! I want a granite gem from a granite giant stonebreaker living in southwestern [Dartmoor]. They dig up some very interesting gems in those mountains. If you are wondering if you can trust me, don't worry your mind any longer. You can trust me, and I can't trust you. That keeps things simple in our future dealings. Now bring me what I want and stop wasting my time. [Step 3] Journey to southwestern Dartmoor and retrieve Granite Gem from a granite giant stonebreaker. Killed Granite Giant Stonebreaker at Dartmoor loc=11k 43k, got gem. Back to Mystemas in DF. Oh, you are back. I suppose you have what I asked for? Well maybe you are not as weak as I thought, but certainly as smart as I thought. So lets talk shall we? I know a few things that would turn you pale with fear. What do I [know], you ask? Well I am glad that you asked. My Master has sent forth an ambassador to your lands to convince your king that the main threat to Albion from the other realms is far greater than the [threat] darkness falls presents. This was done to increase the casualties on both sides of your stupid war. Each time a mortal falls in combat, we take a small portion of that creature's spirit and create one of the soultorn that roam deeper in Darkness Falls. The soultorn are then trained to fight in my Master's armies. See the brilliance of this [plan]? The more you fight, the more you die. The more you die, the stronger we get. Hehe, very nice eh? Master also has a method to get the freshest and strongest of your [spirits]. He watches which of your three realms is strongest on the field of battle and then allows only that realm to directly enter Darkness Falls. We can make far stronger soultorn from those that die here. In fact, once in a while we get very lucky and trap an entire creature's spirit here. There has been an especially strong [soultorn] captured recently. She was a foolish healer named Caisha who came here looking for her lost friend. Now our Princess is torturing her spirit so we can make it into a succubi. Prince Ba'alorian wants to use her in his army as a high priestess or something. Wait, I have an [idea]. You might be able to help both of us at the same time. The Ambassador normally stays at the Princess's side. You will need proof to take to your king that he is being lied to and the Ambassador should be carrying plans from the Prince that will help convince your king. You can help me by taking [Caisha's spirit]. If the Prince has her for a high priestess, I doubt I will ever get a chance to gain my Master's favor again. I would surely like to see the Prince's plan fail miserably and you would provide me the means to do that. So let me make it clear what you [need to do]. First, slay the ambassador and get his pouch of documents to take back to your king or whatever. Second, slay the Princess and her followers. You mst then slay Caisha's soultorn to release her spirit from its torment. Take this Soulstone. It will capture Caisha's spirit when she is slain so that no other demon captures her. Oh, one other [thing]. If you get captured, I will do everything within my power to ensure the inquisitors shred every last piece of your spirit before you can tell anyone our little plan. Do you [Understand] me? Good. Now get going before someone sees us talking. Bring me Caisha like a good little <Class> Reward: Perfect Life Stone Free account required to post You must log in or create an account to post messages. Subscribe Privacy Policy Terms of Service Forum Rules Featured Game Sites HEARTHSTONE Top Decks Database Sites Wowhead EverQuest EverQuest II Addon Sites MMOUI WowInterface ESOUI RiftUI SWTORUI EQInterface EQ2Interface LOTROInterface CWMods SecretUI Community Sites Wowhead Forums Join the world's largest MMO gaming network. No account? Sign up now! Connect With Fanbyte © 2026 Fanbyte LLC"
+     "Eh? What do you think you are [looking] at, ugly (your characters race)? What? Are you as stupid as you look? Maybe not, eh. You come down here with big ideas and try to do good deeds. I say the faster you go get yourself killed, the better. Wait a [second]! You are that idiot who killed Malroch. Hehe, that was pretty foolish of you. Everyone in Darkness Falls has heard of you and is looking to cash in on the [bounty] for your head. What? Do you think mortals are the only ones who use bounties? Any demon that slays you is supposed to be rewarded by the Master, but I have seen how he rewards his followers. I used to be one of the strongest demons in the Master's army and now look at me. The Master changed me into an imp as [punishment] for something I had nothing to do with. How was I supposed to know the Master already had a plan? Anyway now I am really upset and I need your help to get some revenge on a few demons. If you help me I will tell you things that may just keep you alive a tad longer in the future. Let's say I know something about an ambassador that has been helping the lands of Albion to an early [demise]. I thought that might get your attention, but before I start telling what I know, I want some proof that you can handle yourself in battle. After all, you might have just been lucky when you beat the poor old Malroch. I want you to sneak into the area where the dragon of your land sleeps and return with something for me. You do this for me and I will tell you something of what I [know]. Let's see. What should I have you get, eh? I know! I want a granite gem from a granite giant stonebreaker living in southwestern [Dartmoor]. They dig up some very interesting gems in those mountains. If you are wondering if you can trust me, don't worry your mind any longer. You can trust me, and I can't trust you. That keeps things simple in our future dealings. Now bring me what I want and stop wasting my time. [Step 3] Journey to southwestern Dartmoor and retrieve Granite Gem from a granite giant stonebreaker. Killed Granite Giant Stonebreaker at Dartmoor loc=11k 43k, got gem. Back to Mystemas in DF. Oh, you are back. I suppose you have what I asked for? Well maybe you are not as weak as I thought, but certainly as smart as I thought. So lets talk shall we? I know a few things that would turn you pale with fear. What do I [know], you ask? Well I am glad that you asked. My Master has sent forth an ambassador to your lands to convince your king that the main threat to Albion from the other realms is far greater than the [threat] darkness falls presents. This was done to increase the casualties on both sides of your stupid war. Each time a mortal falls in combat, we take a small portion of that creature's spirit and create one of the soultorn that roam deeper in Darkness Falls. The soultorn are then trained to fight in my Master's armies. See the brilliance of this [plan]? The more you fight, the more you die. The more you die, the stronger we get. Hehe, very nice eh? Master also has a method to get the freshest and strongest of your [spirits]. He watches which of your three realms is strongest on the field of battle and then allows only that realm to directly enter Darkness Falls. We can make far stronger soultorn from those that die here. In fact, once in a while we get very lucky and trap an entire creature's spirit here. There has been an especially strong [soultorn] captured recently. She was a foolish healer named Caisha who came here looking for her lost friend. Now our Princess is torturing her spirit so we can make it into a succubi. Prince Ba'alorian wants to use her in his army as a high priestess or something. Wait, I have an [idea]. You might be able to help both of us at the same time. The Ambassador normally stays at the Princess's side. You will need proof to take to your king that he is being lied to and the Ambassador should be carrying plans from the Prince that will help convince your king. You can help me by taking [Caisha's spirit]. If the Prince has her for a high priestess, I doubt I will ever get a chance to gain my Master's favor again. I would surely like to see the Prince's plan fail miserably and you would provide me the means to do that. So let me make it clear what you [need to do]. First, slay the ambassador and get his pouch of documents to take back to your king or whatever. Second, slay the Princess and her followers. You mst then slay Caisha's soultorn to release her spirit from its torment. Take this Soulstone. It will capture Caisha's spirit when she is slain so that no other demon captures her. Oh, one other [thing]. If you get captured, I will do everything within my power to ensure the inquisitors shred every last piece of your spirit before you can tell anyone our little plan. Do you [Understand] me? Good. Now get going before someone sees us talking. Bring me Caisha like a good little <Class>"
     ]
    },
    "guard": {
     "20702": [
      "6741ddfddd6ff96e51250fbb8627b692c874fa22e8bb74ded56e7015caafba94",
-     "a7f17dd32a2f08fd31c402bbebd3c422370ff1be25f1289d6e753f9006d6ba30"
+     "a7f17dd32a2f08fd31c402bbebd3c422370ff1be25f1289d6e753f9006d6ba30",
+     "133352e99aab83347a89a9e754ff62c3bd77e66e9846c450f9c3d0a1391cf8c1"
     ]
    }
   },
@@ -1392,6 +1501,76 @@
     "20905": [
      "ca66d1a658669b0f414a0212b8eea42265118bc61d35764b1fcc27e89236086a",
      "58b4f71ac4c7e8c25749783611673d2ff025d164044915af5fdfad9a5d54cf76"
+    ]
+   }
+  },
+  {
+   "ids": [
+    20983,
+    20984,
+    20985,
+    20986,
+    20987,
+    20988,
+    20989,
+    20990,
+    20991,
+    20992,
+    20993,
+    20994
+   ],
+   "name": "Traveler's Way",
+   "set": {
+    "Description": "<Player>, it is time to send you out into the lands beyond ours. Explore these other lands and tell them of our house's good will and [aid those we can]."
+   },
+   "guard": {
+    "20983": [
+     "a033eb952451155788dc80e8c765d040db213406555f5112d4a72185cfbc799a",
+     "3fa54df36e287ac66fdbf3ec876adbd3dc6b3746661bdaf94cfe9a9a32c97921"
+    ],
+    "20984": [
+     "a033eb952451155788dc80e8c765d040db213406555f5112d4a72185cfbc799a",
+     "3fa54df36e287ac66fdbf3ec876adbd3dc6b3746661bdaf94cfe9a9a32c97921"
+    ],
+    "20985": [
+     "a033eb952451155788dc80e8c765d040db213406555f5112d4a72185cfbc799a",
+     "3fa54df36e287ac66fdbf3ec876adbd3dc6b3746661bdaf94cfe9a9a32c97921"
+    ],
+    "20986": [
+     "a033eb952451155788dc80e8c765d040db213406555f5112d4a72185cfbc799a",
+     "3fa54df36e287ac66fdbf3ec876adbd3dc6b3746661bdaf94cfe9a9a32c97921"
+    ],
+    "20987": [
+     "a033eb952451155788dc80e8c765d040db213406555f5112d4a72185cfbc799a",
+     "3fa54df36e287ac66fdbf3ec876adbd3dc6b3746661bdaf94cfe9a9a32c97921"
+    ],
+    "20988": [
+     "a033eb952451155788dc80e8c765d040db213406555f5112d4a72185cfbc799a",
+     "3fa54df36e287ac66fdbf3ec876adbd3dc6b3746661bdaf94cfe9a9a32c97921"
+    ],
+    "20989": [
+     "a033eb952451155788dc80e8c765d040db213406555f5112d4a72185cfbc799a",
+     "3fa54df36e287ac66fdbf3ec876adbd3dc6b3746661bdaf94cfe9a9a32c97921"
+    ],
+    "20990": [
+     "a033eb952451155788dc80e8c765d040db213406555f5112d4a72185cfbc799a",
+     "3fa54df36e287ac66fdbf3ec876adbd3dc6b3746661bdaf94cfe9a9a32c97921"
+    ],
+    "20991": [
+     "a033eb952451155788dc80e8c765d040db213406555f5112d4a72185cfbc799a",
+     "3fa54df36e287ac66fdbf3ec876adbd3dc6b3746661bdaf94cfe9a9a32c97921"
+    ],
+    "20992": [
+     "a033eb952451155788dc80e8c765d040db213406555f5112d4a72185cfbc799a",
+     "3fa54df36e287ac66fdbf3ec876adbd3dc6b3746661bdaf94cfe9a9a32c97921"
+    ],
+    "20993": [
+     "a033eb952451155788dc80e8c765d040db213406555f5112d4a72185cfbc799a",
+     "3fa54df36e287ac66fdbf3ec876adbd3dc6b3746661bdaf94cfe9a9a32c97921"
+    ],
+    "20994": [
+     "a033eb952451155788dc80e8c765d040db213406555f5112d4a72185cfbc799a",
+     "3fa54df36e287ac66fdbf3ec876adbd3dc6b3746661bdaf94cfe9a9a32c97921"
     ]
    }
   },
@@ -1736,6 +1915,27 @@
     "21354": [
      "b477fa8107d45e5978710a9d2bb2602a367165095612261def23dd125eb3fb05",
      "3b277ea08138998318432a614220128fc998fe43152ed22d832d26d6759f11a1"
+    ]
+   }
+  },
+  {
+   "ids": [
+    21397
+   ],
+   "name": "Spicket, Spackit and Spykit",
+   "set": {
+    "TargetText": [
+     "",
+     "Yes then, there are some that seem to posess (sic) this strange ability to grow in size, though I'm told not many can. I suppose it matters not. You're a brave <Class>, to have defeated this infamous spraggon. Have you defeated [many more]? Have you their heads then? I will pay you for each head, friend, if you give them to me. Or have you [no more heads]? You have done a great thing in killing these spraggon. They are horrible. They run through the land, tearing up good fields, destroying. There is said to be an item of magical enchantment on the spraggon you killed, the large one. You didn't mention it. Perhaps you didn't find it? He may have hidden it somewhere. That's what they normally do. Could you please search for this enchanted item? I have a personal interest in it. I believe it would be hidden by the bridge on the road to Druim Ligen. Thank you, <Player>. The spraggon have been unusually villianous (sic), and I mean to find out why. This may help us. Good day to you, <Player>, and please, consider spraggon hunting a sport. You're quite good at it.",
+     "",
+     "Yes then, there are some that seem to posess (sic) this strange ability to grow in size, though I'm told not many can. I suppose it matters not. You're a brave <Class>, to have defeated this infamous spraggon. Have you defeated [many more]? Have you their heads then? I will pay you for each head, friend, if you give them to me. Or have you [no more heads]? You have done a great thing in killing these spraggon. They are horrible. They run through the land, tearing up good fields, destroying. There is said to be an item of magical enchantment on the spraggon you killed, the large one. You didn't mention it. Perhaps you didn't find it? He may have hidden it somewhere. That's what they normally do. Could you please search for this enchanted item? I have a personal interest in it. I believe it would be hidden by the bridge on the road to Druim Ligen. Thank you, <Player>. The spraggon have been unusually villianous (sic), and I mean to find out why. This may help us. Good day to you, <Player>, and please, consider spraggon hunting a sport. You're quite good at it.",
+     ""
+    ]
+   },
+   "guard": {
+    "21397": [
+     "7b59680e6e98d87fa3542bc719f3126339fdf33dc5bc8b1606b037d324297848",
+     "37ba0abf92ea51bc4db6cbb8f799d59cb1a9d90c790c48af897f314f2c54f166"
     ]
    }
   },

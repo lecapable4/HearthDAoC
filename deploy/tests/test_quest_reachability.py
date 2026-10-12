@@ -8,8 +8,8 @@ reply for that NPC, which may offer more keywords. Upstream's generator lost lin
 someone else, which left two more without a way in. It also wrote <Player> for plain words ("Aye, Well, it's") and
 the player's class, kept spaces in keys that a click never sends, and filed Kylirean's lines under another name. It
 also kept the class the guides' authors were called by ("Good luck to thee Theurgist.") and the guides' placeholders
-("(class name)"), which every class read. The fixes are in deploy/hearthdaoc-quests.json (Chat) and
-deploy/bin/quest_dialogue.json (world texts).
+("(class name)"), which every class read, and the web page it scraped after Mystemas's last line. The fixes are in
+deploy/hearthdaoc-quests.json (Chat) and deploy/bin/quest_dialogue.json (world texts).
 
 The world tests run world_fixes on a copy of a clean classic world (HDC_TEST_WORLD) and merge upstream's Chat with the
 fork's as ClassicQuests.MergeChat does. Upstream's Chat is in its classic-quests.json, a server file the first start
@@ -149,6 +149,21 @@ CHAT_CLASS_WORDS = {
 }
 
 
+# The web page upstream scraped with Mystemas's last line (Strange Bedfellows): the guide's reward, then the site's
+# footer, "... (c) 2026 Fanbyte LLC". The fork's reply ends where the guide's line does, without a stop.
+SCRAPED_FROM = {("mystemas", "understand"): " Reward: Perfect Life Stone Free account required to post "}
+# The guides' placeholders for the player's class and name, and a web page's words: in no reply (without case).
+GUIDE_PLACEHOLDERS = ("(character class)", "(class name)", "(your class here)", "(your name here)", "<your name>",
+                      "(player name)")
+SCRAPED_WORDS = ("Free account required", "You must log in", "Fanbyte", "Privacy Policy", "Allakhazam")
+
+
+def not_the_npcs_words(chat):
+    """[(npc, keyword, words)]: the replies of `chat` that hold a guide's placeholder or a web page's words."""
+    return [(npc, key, words) for npc, lines in chat.items() for key, reply in lines.items()
+            for words in GUIDE_PLACEHOLDERS + SCRAPED_WORDS if words.lower() in (reply or "").lower()]
+
+
 def with_class_words(text, words):
     """`text` with each (upstream's words, the fork's) pair of `words` replaced; upstream's words are there once."""
     for old, new in words:
@@ -219,14 +234,38 @@ class PeriodChatTests(unittest.TestCase):
                          "story and study the tomb well, you will find the key to [learning] the name of the emperor. "
                          "Best of luck <Player>!")
 
+    def test_mystemas_s_last_line_ends_where_the_guide_s_does(self):
+        self.assertEqual(self.chat["mystemas"]["understand"],
+                         "Good. Now get going before someone sees us talking. Bring me Caisha like a good little <Class>")
+
+    def test_no_fork_reply_holds_a_guides_placeholder_or_a_web_page(self):
+        self.assertEqual(not_the_npcs_words(self.chat), [])
+
     @unittest.skipUnless(UPSTREAM_QUESTS, "needs upstream's classic-quests.json (HDC_CLASSIC_QUESTS)")
     def test_the_class_word_replies_are_upstreams_with_the_players_class(self):
-        # Only the class words change: Mystemas's reply keeps the page footer upstream scraped after it.
+        # Only the class words change, and Mystemas's reply ends before the page upstream scraped after it, which runs
+        # to the reply's end.
         with open(UPSTREAM_QUESTS, encoding="utf-8") as f:
             upstream = merged_chat(json.load(f).get("Chat"), {})
         for (npc, key, upstream_key), words in CHAT_CLASS_WORDS.items():
             with self.subTest(npc=npc, keyword=key):
-                self.assertEqual(self.chat[npc][key], with_class_words(upstream[npc][upstream_key], words))
+                reply = upstream[npc][upstream_key]
+                if (npc, key) in SCRAPED_FROM:
+                    reply, page = reply.split(SCRAPED_FROM[(npc, key)])
+                    self.assertTrue(page.endswith(" Connect With Fanbyte \u00a9 2026 Fanbyte LLC"), page)
+                self.assertEqual(self.chat[npc][key], with_class_words(reply, words))
+
+    @unittest.skipUnless(UPSTREAM_QUESTS, "needs upstream's classic-quests.json (HDC_CLASSIC_QUESTS)")
+    def test_no_reply_holds_a_guides_placeholder_or_a_web_page(self):
+        # The guard, with upstream's Chat merged as MergeChat does, over every key, whether a whisper reaches it or not:
+        # upstream's replies that hold one (Mystemas's [Understand], Iohannes Aldar's [pay generously], Grindan Halig's
+        # [willing to bear the weight]) are all replaced by the fork's.
+        with open(UPSTREAM_QUESTS, encoding="utf-8") as f:
+            upstream = json.load(f).get("Chat")
+        self.assertEqual(sorted({(npc, key) for npc, key, _words in not_the_npcs_words(merged_chat(upstream, {}))}),
+                         [("grindan halig", "willing to bear the weight"), ("iohannes aldar", "pay generously"),
+                          ("mystemas", "understand")])
+        self.assertEqual(not_the_npcs_words(merged_chat(upstream, extra_chat())), [])
 
     @unittest.skipUnless(UPSTREAM_QUESTS, "needs upstream's classic-quests.json (HDC_CLASSIC_QUESTS)")
     def test_no_reply_a_whisper_reaches_says_a_class_word_the_fork_fixed(self):

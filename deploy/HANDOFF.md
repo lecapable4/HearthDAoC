@@ -140,11 +140,15 @@ Mulgrut": Hugh Gallen showed only his wares) and wrote `<Player>`, the player's 
 named someone else or said a plain word ("Well", Wariel's "What is your [name]?"). It also kept the class the
 period guides' authors were called by ("Good luck to thee Theurgist.") and the guides' placeholders for it
 ("(class name)"), which every class read: they are now `<Class>`, which the server replaces with the player's class
-(New Crest's accept keyword, which must match as it is, is each trainer's own class). After each start, `./hdc fixes`
+(New Crest's accept keyword, which must match as it is, is each trainer's own class). The guides' placeholder for the
+player's name ("(your name here)") is `<Player>`, and so is The Lost Stone's whisper keyword (upstream's "<your
+name>", which no whisper matched: the server now matches a whisper keyword holding `<Player>` as the player reads it,
+their own name, without case). The web page upstream scraped after Mystemas's last line, and the editors' notes on
+Allakhazam in two kill tasks' journals, are gone. After each start, `./hdc fixes`
 shows `Quest dialogue: N quests rewritten` when the texts of
 the chain's quests (every class's version) or of those classic quests (`deploy/bin/quest_dialogue.json`) were
-changed, and nothing when they are up to date: `Quest dialogue: 128 quests rewritten` on a new world, and
-`Quest dialogue: 63 quests rewritten` (the classic quests) at the first start after an update from hearth.9,
+changed, and nothing when they are up to date: `Quest dialogue: 145 quests rewritten` on a new world, and
+`Quest dialogue: 80 quests rewritten` (the classic quests) at the first start after an update from hearth.9,
 hearth.10 or hearth.11 (a world an older release started also gets the chain's quests rewritten). Besides the texts (accept keyword, description, journal steps and
 what the NPCs say), the file can set a quest's step items, step types and turn-in items, but never its number of
 stages: a quest whose stages differ from the file's is kept. It can also set a quest's giver (`StartName`) and the
