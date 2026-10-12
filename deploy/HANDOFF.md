@@ -172,11 +172,13 @@ revision reaches a world that holds any earlier committed version. Only for a ne
 columns changes, is `python3 deploy/bin/quest_dialogue.py --digests <world.db> [--current]` still needed (it prints
 the digests of the text a world holds, which is upstream's only on a clean world).
 
-**Mob fixes.** Period corrections to upstream's monsters and items, from the quest archives: level 11's thieves Frund
-and Agisthil are level 10, Frund stands at the red dwarf camp beside Agisthil, and "Zombie Problem"'s Cloudy Green
-Stone sells for 50 copper (`deploy/bin/mob_fixes.json`; each entry says why, with its source). After each start, `./hdc fixes` shows `Mob fixes: N corrected: ...` when rows were
+**Mob fixes.** Period corrections to upstream's monsters, items and quests, from the quest archives: level 11's thieves
+Frund and Agisthil are level 10, Frund stands at the red dwarf camp beside Agisthil, "Zombie Problem"'s Cloudy Green
+Stones sell for 50 copper, and ten classic quests that handed their reward twice (two Belts of Animation from "Cleric
+Mulgrut", two stones per hog tail, four flint weapons per chert) hand it once (`deploy/bin/mob_fixes.json`; each
+entry says why, with its source). After each start, `./hdc fixes` shows `Mob fixes: N corrected: ...` when rows were
 changed, and nothing when they are up to date. There is no marker: a row (a `Mob` row, the `NpcTemplate` rows of
-a template, or an `ItemTemplate` row) changes only while it still holds every value upstream shipped, so a monster you changed yourself is
+a template, an `ItemTemplate` row or a `DataQuest` row) changes only while it still holds every value upstream shipped, so a monster you changed yourself is
 kept; kept rows are named at every start (`M left as they are (they hold neither upstream's values nor this
 file's): Frund (Mob 3ce2...)`). If it fails (for example, a column the file names is not in the table), the start
 log says `Mob fixes: not applied (...)`, the monsters keep the values they have, and it tries again at the next
