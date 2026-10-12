@@ -137,11 +137,14 @@ teleporters' [Battlegrounds] choice, and for bots too.
 **Quest texts.** Upstream left most of the Guild of Shadows chain's dialogue (levels 7 to 50) empty or filled
 with walkthrough notes. Its quest generator also lost the line that offers some classic quests (level 5's "Cleric
 Mulgrut": Hugh Gallen showed only his wares) and wrote `<Player>`, the player's own name in game, where the period
-named someone else or said a plain word ("Well", Wariel's "What is your [name]?"). After each start, `./hdc fixes`
+named someone else or said a plain word ("Well", Wariel's "What is your [name]?"). It also kept the class the
+period guides' authors were called by ("Good luck to thee Theurgist.") and the guides' placeholders for it
+("(class name)"), which every class read: they are now `<Class>`, which the server replaces with the player's class
+(New Crest's accept keyword, which must match as it is, is each trainer's own class). After each start, `./hdc fixes`
 shows `Quest dialogue: N quests rewritten` when the texts of
 the chain's quests (every class's version) or of those classic quests (`deploy/bin/quest_dialogue.json`) were
-changed, and nothing when they are up to date: `Quest dialogue: 107 quests rewritten` on a new world, and
-`Quest dialogue: 42 quests rewritten` (the classic quests) at the first start after an update from hearth.9,
+changed, and nothing when they are up to date: `Quest dialogue: 128 quests rewritten` on a new world, and
+`Quest dialogue: 63 quests rewritten` (the classic quests) at the first start after an update from hearth.9,
 hearth.10 or hearth.11 (a world an older release started also gets the chain's quests rewritten). Besides the texts (accept keyword, description, journal steps and
 what the NPCs say), the file can set a quest's step items, step types and turn-in items, but never its number of
 stages: a quest whose stages differ from the file's is kept. It can also set a quest's giver (`StartName`) and the
@@ -156,7 +159,7 @@ start (`M left as they are (their text differs from upstream's and this file's):
 or, after an upstream upgrade, quests whose upstream text changed, which keep upstream's text until the file is
 updated. If it fails, the start log says `Quest dialogue: not applied (...)`, the quests keep the
 text they have, and it tries again at the next start. The NPCs' chat lines (the chain's, and the classic
-quests' lost lines, names and words) are in `hearthdaoc-quests.json` (`Chat`), which replaces upstream's line for the same NPC
+quests' lost lines, names, words and class words) are in `hearthdaoc-quests.json` (`Chat`), which replaces upstream's line for the same NPC
 and keyword. To revise the text: edit it in `quest_dialogue.json`, run
 `python3 deploy/bin/quest_dialogue.py --seal` (it appends the digest of the file's own text to each quest's guard
 list) and commit; a test fails until you do. Every committed version of the text is then guarded, so a later

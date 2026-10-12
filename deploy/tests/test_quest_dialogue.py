@@ -1,5 +1,5 @@
 """Quest texts in the world data: deploy/bin/quest_dialogue.py and its data file quest_dialogue.json (the Guild of
-Shadows chain's dialogue, and the classic quests' period lines and names).
+Shadows chain's dialogue, and the classic quests' period lines, names and class words).
 
 The synthetic tests use a tiny DataQuest table and data passed in. The tests of the real data file run world_fixes on a
 copy of a clean classic world (HDC_TEST_WORLD).
@@ -548,6 +548,85 @@ PERIOD_WORDS = {"Now", "Well", "[name]"}
 # and "I hope you find it useful, <Player>!" ("Silver Run").
 ADDRESSES_THE_PLAYER = {(21142, "TargetText", 1): 3, (21142, "TargetText", 6): 3}
 ADDRESSES_THE_PLAYER.update({(qid, "TargetText", stage): 2 for qid in (20288, 20289, 20290, 20291) for stage in (1, 5)})
+# The class the guides' authors were called by, which upstream's generator kept as plain text, so every class of a quest
+# open to others read the author's (class-word scan, 2026-10-11), and the guides' placeholders for it ("(class name)").
+# The fix is <Class>, which the server replaces with the player's class (female names included). New Crest's accept
+# keyword, which DataQuest compares as it is, is each row's own class instead (Runemaster at Etta Greavers,
+# Spiritmaster at Palda; Teija's Bonedancer row stays). Each: the quests, the column, its stages, upstream's words, the
+# fork's, and the class they name (eCharacterClass; None for a placeholder). Only these words change: a stage keeps
+# upstream's <Player>.
+CLASS_WORD_FIXES = [
+    ((20008,), "TargetText", (1, 3),
+     "I see, you're a fighter. Has Mistress Laws", "I see, you're a <Class>. Has Mistress Laws", 14),
+    ((20009,), "TargetText", (1,),
+     "Greetings young Disciple. What be thy name?", "Greetings young <Class>. What be thy name?", 20),
+    ((20100,), "Description", (1,),
+     "even more dangerous for a your Viking like you", "even more dangerous for a your <Class> like you", 35),
+    ((20100,), "TargetText", (1, 3), "Lo, I see a young Viking before me.", "Lo, I see a young <Class> before me.", 35),
+    ((20101,), "TargetText", (1, 3),
+     "Mystic, here to do some [exploring]?", "<Class>, here to do some [exploring]?", 36),
+    ((20101,), "TargetText", (1, 3),
+     "Here you are! Good working with your Mystic.", "Here you are! Good working with your <Class>.", 36),
+    ((20104,), "SourceText", (1,), "Ah a brave Mystic you are! Great!", "Ah a brave <Class> you are! Great!", 36),
+    ((20192, 20193, 20195), "TargetText", (1, 4),
+     "Greetings Friar. I see that your trainer received", "Greetings <Class>. I see that your trainer received", 10),
+    ((20349,), "AcceptText", (1,), "Bonedancer", "Runemaster", 30),
+    ((20349,), "Description", (1,),
+     "Ah, [Bonedancer]. You've aided Karle before", "Ah, [Runemaster]. You've aided Karle before", 30),
+    ((20350,), "AcceptText", (1,), "Bonedancer", "Spiritmaster", 30),
+    ((20350,), "Description", (1,),
+     "Ah, [Bonedancer]. You've aided Karle before", "Ah, [Spiritmaster]. You've aided Karle before", 30),
+    ((20373,), "TargetText", (1,),
+     "You look like a (your class here) with a purpose", "You look like a <Class> with a purpose", None),
+    ((20639,), "TargetText", (2, 13), "Here, take these instructions to aid you. Good luck to thee Theurgist.",
+     "Here, take these instructions to aid you. Good luck to thee <Class>.", 5),
+    ((20702,), "TargetText", (1, 3, 6),
+     "Bring me Caisha like a good little (minstrel)", "Bring me Caisha like a good little <Class>", None),
+    ((20811,), "TargetText", (2, 3),
+     "What can I do for you, fine Forester?", "What can I do for you, fine <Class>?", 57),
+    ((21023, 21025, 21026, 21027), "FinishText", (1,), "I sent word to Elizabeth that a Berserker was helping me",
+     "I sent word to Elizabeth that a <Class> was helping me", 31),
+    ((21035, 21037), "Description", (1,),
+     "Hail Spiritmaster! Many great adventures await you", "Hail <Class>! Many great adventures await you", 27),
+    ((21035, 21037), "SourceText", (1,), "Good hourney to you Spiritmaster!", "Good hourney to you <Class>!", 27),
+    ((21035, 21037), "TargetText", (4,), "You are indeed a great Spiritmaster! You don't have another do you?",
+     "You are indeed a great <Class>! You don't have another do you?", 27),
+    ((21096, 21098), "FinishText", (1,),
+     "will be restored. Safe journey Spiritmaster.", "will be restored. Safe journey <Class>.", 27),
+    ((21096, 21098), "TargetText", (1,), "I can assist you no more Spiritmaster. May the gods guard you",
+     "I can assist you no more <Class>. May the gods guard you", 27),
+    ((21282,), "Description", (1,),
+     "Hello there Shaman. MightI interest you", "Hello there <Class>. MightI interest you", 28),
+    ((21354,), "TargetText", (1, 12), "This is great (class name)!", "This is great <Class>!", None),
+    ((21354,), "TargetText", (1, 12), "Good luck (class name)!", "Good luck <Class>!", None),
+    ((21354,), "TargetText", (1, 12), "I welcome your return (class name).", "I welcome your return <Class>.", None),
+]
+CLASS_WORDS = {}  # (quest id, column, stage): [(upstream's words, the fork's)]
+for _ids, _column, _stages, _old, _new, _class in CLASS_WORD_FIXES:
+    for _qid in _ids:
+        for _stage in _stages:
+            CLASS_WORDS.setdefault((_qid, _column, _stage), []).append((_old, _new))
+TEXT_COLUMNS = ("AcceptText", "Description", "SourceText", "StepText", "TargetText", "AdvanceText", "FinishText")
+
+
+def with_class_words(text, words):
+    """`text` with each (upstream's words, the fork's) pair of `words` replaced; upstream's words are there once."""
+    for old, new in words:
+        if text.count(old) != 1:
+            raise AssertionError(f"{old!r} is in the text {text.count(old)} times, not once")
+        text = text.replace(old, new)
+    return text
+
+
+def disabled_classes(conn):
+    """The class IDs the world's disabled_classes server property names ("33;34;39;58-62"): no one plays them."""
+    value, = conn.execute("SELECT Value FROM ServerProperty WHERE `Key`='disabled_classes'").fetchone()
+    out = set()
+    for part in (value or "").split(";"):
+        first, _, last = part.strip().partition("-")
+        if first:
+            out |= set(range(int(first), int(last or first) + 1))
+    return out
 
 
 @unittest.skipUnless(TEST_WORLD, "needs HDC_TEST_WORLD (a clean classic world database)")
@@ -587,25 +666,62 @@ class ClassicQuestTextTests(unittest.TestCase):
                 self.assertEqual(new, f"{old} {line}")
 
     def test_every_other_text_is_upstreams_with_period_names_and_words_for_player(self):
-        # Only the <Player> slots change; every other character stays upstream's.
+        # Only the <Player> slots and the class words change; every other character stays upstream's.
         names = set()
         for (qid, column, stage), (old, new) in self.changed.items():
             if column == "Description" and qid in LOST_LINES:
                 continue
             with self.subTest(quest=qid, column=column, stage=stage):
+                old = with_class_words(old, CLASS_WORDS.get((qid, column, stage), []))
                 slots = "|".join(re.escape(slot) for slot in ["<Player>"] + sorted(PERIOD_NAMES | PERIOD_WORDS))
                 match = re.fullmatch(f"({slots})".join(re.escape(part) for part in old.split("<Player>")), new)
                 self.assertTrue(match, new)
                 names |= set(match.groups())
         self.assertEqual(names - {"<Player>"}, PERIOD_NAMES | PERIOD_WORDS)
         # Names: 37 stages of 21 texts; words: 27 stages of 4 texts (Silver Run's and Amora's Aid's in every class
-        # row).
-        self.assertEqual(len(self.changed), 37 + 27 + len(LOST_LINES))
+        # row); class words: 44 stages of 24 rows of 16 quests, none of them among the others.
+        self.assertEqual(len(self.changed), 37 + 27 + len(LOST_LINES) + 44)
 
     def test_no_fixed_text_still_says_player(self):
-        for (qid, column, stage), (_old, new) in self.changed.items():
+        # A stage changed for its class words alone keeps upstream's <Player> (a class said as a title is <Player>
+        # there, which the owner left for later: issues #101-#103).
+        for (qid, column, stage), (old, new) in self.changed.items():
             with self.subTest(quest=qid, column=column, stage=stage):
-                self.assertEqual(new.count("<Player>"), ADDRESSES_THE_PLAYER.get((qid, column, stage), 0))
+                if new == with_class_words(old, CLASS_WORDS.get((qid, column, stage), [])):
+                    self.assertEqual(new.count("<Player>"), old.count("<Player>"))
+                else:
+                    self.assertEqual(new.count("<Player>"), ADDRESSES_THE_PLAYER.get((qid, column, stage), 0))
+
+    def test_the_class_the_guides_authors_were_called_by_is_the_players(self):
+        # Gral Bermorn's "Good luck to thee Theurgist." (Weakened Bonds, open to every class), the Mages' and
+        # Elementalists' "Greetings young Disciple", the guides' "(class name)" in Fall of an Emperor, ...
+        for key, words in CLASS_WORDS.items():
+            with self.subTest(quest=key[0], column=key[1], stage=key[2]):
+                self.assertTrue(key in self.changed, "the fix does not change this stage")
+                old, new = self.changed[key]
+                self.assertEqual(new, with_class_words(old, words))
+
+    def test_no_quest_text_shows_a_class_word_the_fork_fixed_to_another_class(self):
+        # The guard, over every quest row of the world: a text that still has the guides' words is offered to their
+        # class alone, or to classes no one plays (disabled_classes: Dark Essence's Valkyrie row, Siv's Spirit's
+        # Warlock row). The Friar's Lost Stone, Teija's New Crest, the Spiritmaster's Grenlock Clan and Siv's Spirit
+        # and the Berserker's Dark Essence keep them. A placeholder is offered to no one. New Crest's accept keyword, a
+        # class name alone, is checked by test_quest_reachability.py.
+        disabled = disabled_classes(self.conn)
+        rows = self.conn.execute(f"SELECT ID, AllowedClasses, {', '.join(TEXT_COLUMNS)} FROM DataQuest").fetchall()
+        shown, kept = [], set()
+        for _ids, column, _stages, old, _new, cls in CLASS_WORD_FIXES:
+            if column == "AcceptText":
+                continue
+            for qid, allowed, *texts in rows:
+                if any(old in (text or "") for text in texts):
+                    classes = {int(c) for c in (allowed or "").split("|") if c}
+                    if cls is None or not classes or not classes <= {cls} | disabled:
+                        shown.append((qid, old))
+                    else:
+                        kept.add(qid)
+        self.assertEqual(shown, [])
+        self.assertEqual(sorted(kept), [20194, 20351, 21024, 21028, 21036, 21097, 21099])
 
 
 @unittest.skipUnless(TEST_WORLD, "needs HDC_TEST_WORLD (a clean classic world database)")

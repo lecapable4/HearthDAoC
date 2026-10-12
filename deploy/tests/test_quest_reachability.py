@@ -365,6 +365,19 @@ class ReachabilityTests(unittest.TestCase):
                 self.assertIn("<Class>", self.chat[npc][whisper_key(key)])
         self.assertIn("slay a few", offered(["[have a moment]"], self.chat["broc"]))
 
+    def test_new_crest_is_offered_under_each_trainers_own_class(self):
+        # The guide's author was a Bonedancer, and upstream's Runemaster and Spiritmaster rows asked for [Bonedancer]
+        # too. DataQuest compares the accept keyword as it is (no <Class>), so each row's is its own class.
+        for qid, giver, accept, allowed in ((20349, "Etta Greavers", "Runemaster", "29"),
+                                            (20350, "Palda", "Spiritmaster", "27"),
+                                            (20351, "Teija", "Bonedancer", "30")):
+            with self.subTest(quest=qid):
+                row = self.conn.execute("SELECT StartName, AcceptText, AllowedClasses, Description FROM DataQuest "
+                                        "WHERE ID=?", (qid,)).fetchone()
+                self.assertEqual(row[:3], (giver, accept, allowed))
+                self.assertTrue(row[3].startswith(f"Ah, [{accept}]. You've aided Karle before, haven't you?"), row[3])
+                self.assertIn(accept, offered(self.said[giver.lower()], self.chat.get(giver.lower(), {})))
+
     def test_the_words_that_were_player_in_quest_texts_are_the_guides(self):
         # Upstream's generator took "Now" and "Well" for names. Silver Run's Crace keeps <Player> where he speaks to the
         # player ("Well, Elline, did you get the sporites?", "I hope you find it useful, Warden!").

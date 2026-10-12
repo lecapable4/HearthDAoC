@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
 """Quest texts in the world data: the Guild of Shadows chain's dialogue (levels 7 to 50), and the classic quests'
-period lines and names.
+period lines, names and class words.
 
 Upstream left most of the chain's text empty ("[Traveler's]") or filled with walkthrough notes. Its generator also lost
 the line that offers some classic quests (level 5's "Cleric Mulgrut" at Hugh Gallen showed only his wares) and wrote
 <Player>, which the server replaces with the player's name, where the period named someone else (Durren, Askheim, ...)
-or said a plain word ("Well", Wariel's "What is your [name]?"). The texts are in quest_dialogue.json, beside this file;
+or said a plain word ("Well", Wariel's "What is your [name]?"). It also kept the class the period guides' authors were
+called by ("Good luck to thee Theurgist.") and the guides' placeholders for it ("(class name)"), which every class read:
+the file says <Class>, which the server replaces with the player's class, and New Crest's accept keyword, which
+DataQuest compares as it is, is each row's own class. The texts are in quest_dialogue.json, beside this file;
 world_fixes.py calls apply() inside its transaction, right after epic_chains.apply() (the chain's rows, including the
 fork's own level-50 ones, must exist), under its own savepoint: if it fails it is rolled back alone, apply() returns
 only the "not applied" line, and the other fixes and the start go on.

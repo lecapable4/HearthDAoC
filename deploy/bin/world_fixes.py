@@ -21,8 +21,9 @@
 6. The epic chains (sub-project 4): epic_chains.py, once per world (the marker epic-chains-v1), after the
    battlegrounds and under its own savepoint like them: upstream's Guild of Shadows chain in order and complete, the
    real level-50 "Lord of Deceit", and every guild line's steps in order.
-7. Quest texts: the Guild of Shadows chain's dialogue (levels 7 to 50), and the classic quests' period lines and
-   names (the line that offers a quest's first keyword, and the names and words upstream wrote as <Player>):
+7. Quest texts: the Guild of Shadows chain's dialogue (levels 7 to 50), and the classic quests' period lines, names
+   and class words (the line that offers a quest's first keyword, the names and words upstream wrote as <Player>, and
+   the guides' authors' class, which upstream kept, as <Class>):
    quest_dialogue.py, right after the epic chains, under its own savepoint like them. It has no marker: at every
    start it rewrites the texts of a quest that still hold upstream's text or an earlier version of its own, and
    leaves the owner's own edits alone.
