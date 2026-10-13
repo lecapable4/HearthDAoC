@@ -1280,4 +1280,506 @@ public sealed class UT_RpTimerWait
         RpWaitMarker left = Waiting(RpWaitCase.Warband) with { Phase = RpWaitPhase.Left };
         Assert.That(RpTimerWait.WaitSpot(left, Look(RpWaitCase.Siege)), Is.EqualTo(BorderKeepSlot));
     }
+
+    // The warband of 3.4, regrouping by the Albion border keep in the Albion frontier (region 1): its rendezvous (the
+    // session's Rendezvous), two more members' slots beside BorderKeepSlot, and where a member died this death, 9,550
+    // from the rendezvous: a march of 50,000 ms at 191 units/s (300 lower: the march is horizontal).
+    private static readonly Vector3 Rendezvous = new(29_500, 31_000, 4_310);
+    private static readonly Vector3 SecondSlot = new(29_360, 31_220, 4_310);
+    private static readonly Vector3 ThirdSlot = new(29_500, 30_740, 4_310);
+    private static readonly Vector3 DeathSpot = new(29_500, 40_550, 4_010);
+    private const long March = 50_000;
+
+    // The gate's go with no march: it opens on the members (it writes), or it writes nothing (the switch off, a
+    // session that is not RvR, a committed force).
+    private static readonly RpWarbandGate OpensWithNoMarch = new(false, true, 0, 0);
+    private static readonly RpWarbandGate GoesWithNoWrites = new(false, false, 0, 0);
+
+    // A warband member released for death 3 to Albion's capital, Camelot (an invader's or a far death's release),
+    // with its RvR assignment.
+    private static RpWaitMarker ReleasedInCamelot() =>
+        new(3, RpWaitPhase.Released, RpWaitCase.None, CamelotRegion, Camelot, CamelotRegion, Camelot, RvrAssignment,
+            null, null, 0);
+
+    // A member as the gate sees it on a pass (3.4): its marker and time left, its death count 3 and its death record
+    // for it at DeathSpot in the Albion frontier, standing in the Albion frontier at its slot (BorderKeepSlot) with
+    // its RvR assignment and a best speed of 191. Each test sets what it is about (the record with a with).
+    private static RpWarbandMember Member(RpWaitMarker marker, long timeLeft, int deathCount = 3, ushort region = 1,
+        Vector3? slot = null, string assignmentId = RvrAssignment, double bestSpeed = 191) =>
+        new(marker, deathCount, timeLeft, new RpDeathRecord(deathCount, 1, DeathSpot, DeathTick, DeathTick), region,
+            slot ?? BorderKeepSlot, assignmentId, bestSpeed);
+
+    // Hook 4's gate on a pass of that warband's regroup: the switch on, an RvR session, no committed force and no
+    // relic carrier, unless a test says otherwise.
+    private static RpWarbandGate Gate(RpWarbandMember[] members, bool enabled = true,
+        eAutonomousObjectiveKind kind = eAutonomousObjectiveKind.RvR, bool forceCommitted = false,
+        bool relicCarrier = false) =>
+        RpTimerWait.WarbandWaits(enabled, kind, forceCommitted, relicCarrier, 1, Rendezvous, members);
+
+    // The gate's writes on that pass, at Now, for the warband's session.
+    private static RpWaitChange[] Marks(RpWarbandGate gate, RpWarbandMember[] members) =>
+        RpTimerWait.WarbandMarks(gate, 1, members, WarbandSession, Now);
+
+    // The holding gate turns the member's Released marker Waiting (a new marker): case warband, the rendezvous region,
+    // its slot as the spot, its assignment id now, the session id, no event keep, Started now; its start line.
+    private static void AssertTurnedWaiting(RpWaitChange change, RpWarbandMember member)
+    {
+        Assert.That(change.Before, Is.SameAs(member.Marker));
+        Assert.That(change.Changes, Is.True);
+        Assert.That(change.Next, Is.EqualTo(member.Marker with
+        {
+            Phase = RpWaitPhase.Waiting,
+            Case = RpWaitCase.Warband,
+            Region = 1,
+            Spot = member.Slot,
+            AssignmentId = member.AssignmentId,
+            SessionId = WarbandSession,
+            EventKeepId = null,
+            Started = Now,
+        }));
+        Assert.That(change.Action, Is.EqualTo(RpWaitAction.Start));
+        Assert.That(change.Reason, Is.EqualTo(RpWaitReason.None));
+    }
+
+    // The gate writes nothing: one change per member, in member order, each keeping its marker (null included).
+    private static void AssertNothingWritten(RpWaitChange[] changes, RpWarbandMember[] members)
+    {
+        Assert.That(changes, Has.Length.EqualTo(members.Length));
+        for (int i = 0; i < members.Length; i++)
+            AssertKept(changes[i], members[i].Marker);
+    }
+
+    // 3.4: the warband leaves together once its member released for this death with the most time left can make the
+    // march from the rendezvous to where it died: the gate holds while that time left is more than the march, and an
+    // equal one goes. The holder is the member with the most time left wherever it stands in the party, and the march
+    // is to its own death, not another member's (19,100 away: 100,000 ms).
+    [TestCase(240_000L, true)]
+    [TestCase(50_001L, true)]
+    [TestCase(50_000L, false)]
+    [TestCase(49_999L, false)]
+    public void TheGateWaitsWhileTheMostTimeLeftExceedsTheMarch(long holderTimeLeft, bool waits)
+    {
+        var farDeath = new RpDeathRecord(3, 1, new Vector3(Rendezvous.X, Rendezvous.Y + 19_100, 4_000), DeathTick,
+            DeathTick);
+        RpWarbandMember[] members =
+        {
+            Member(Released(), 30_000, slot: SecondSlot) with { Death = farDeath },
+            Member(Released(), holderTimeLeft),
+        };
+
+        Assert.That(Gate(members), Is.EqualTo(new RpWarbandGate(waits, true, March, holderTimeLeft)));
+    }
+
+    // 3.4, choice 18: a member resurrected in the field has no marker for its current death (none, or its previous
+    // death's, latched Left), so it doesn't hold the gate, however much time it has left; a released member does.
+    [Test]
+    public void AResurrectedMemberDoesNotHoldTheGate()
+    {
+        RpWarbandMember resurrected = Member(PreviousDeathsMarker(), 280_000);
+        RpWarbandMember neverReleased = Member(null, 290_000, slot: SecondSlot);
+        RpWarbandMember released = Member(Released(), 40_000, slot: ThirdSlot);
+
+        Assert.That(Gate(new[] { resurrected, neverReleased, released }),
+            Is.EqualTo(new RpWarbandGate(false, true, March, 40_000)));
+        Assert.That(Gate(new[] { resurrected, neverReleased }), Is.EqualTo(OpensWithNoMarch));
+    }
+
+    // Section 5, 3.4: never with a relic carrier in the party: go, even with members' time left above the march, and
+    // the gate opens on them as on any opening.
+    [Test]
+    public void ARelicCarrierMeansGo()
+    {
+        RpWarbandMember[] members =
+        {
+            Member(Waiting(RpWaitCase.Warband), 200_000),
+            Member(Released(), 240_000, slot: SecondSlot),
+        };
+
+        RpWarbandGate gate = Gate(members, relicCarrier: true);
+
+        Assert.That(gate, Is.EqualTo(OpensWithNoMarch));
+        RpWaitChange[] changes = Marks(gate, members);
+        AssertLatched(changes[0], members[0].Marker, RpWaitAction.Leave, RpWaitReason.Due);
+        AssertLatched(changes[1], members[1].Marker, RpWaitAction.Skip, RpWaitReason.Trip);
+    }
+
+    // 3.4: only RvR sessions wait. A Group PvE party reaches the same regroup completion after a wipe, and a monster
+    // kill restarts the timer too: go, and nothing written, even with members' time left above the march. Any other
+    // kind but RvR likewise.
+    [Test]
+    public void AGroupPveSessionMeansGoAndWritesNothing()
+    {
+        RpWarbandMember[] members =
+        {
+            Member(Waiting(RpWaitCase.Warband), 200_000),
+            Member(Released(), 240_000, slot: SecondSlot),
+        };
+        var notRvr = new[]
+        {
+            eAutonomousObjectiveKind.GroupPve, eAutonomousObjectiveKind.SoloPve, eAutonomousObjectiveKind.Battleground,
+        };
+        foreach (eAutonomousObjectiveKind kind in notRvr)
+        {
+            RpWarbandGate gate = Gate(members, kind: kind);
+
+            Assert.That(gate, Is.EqualTo(GoesWithNoWrites), kind.ToString());
+            AssertNothingWritten(Marks(gate, members), members);
+        }
+    }
+
+    // 3.4: every member released for this death is worth points already (time left 0): nobody holds the gate, and its
+    // opening latches them, a Released one with no line, a Waiting one with its leave.
+    [Test]
+    public void AllWorthMeansGo()
+    {
+        RpWarbandMember[] members =
+        {
+            Member(Waiting(RpWaitCase.Warband), 0),
+            Member(Released(), 0, slot: SecondSlot),
+        };
+
+        RpWarbandGate gate = Gate(members);
+
+        Assert.That(gate, Is.EqualTo(OpensWithNoMarch));
+        RpWaitChange[] changes = Marks(gate, members);
+        AssertLatched(changes[0], members[0].Marker, RpWaitAction.Leave, RpWaitReason.Due);
+        AssertLatched(changes[1], members[1].Marker, RpWaitAction.None, RpWaitReason.None);
+    }
+
+    // Section 6: with the switch off the gate says go at once and writes nothing, even with members Waiting or Released
+    // for this death above the march: a Waiting member stays Waiting until its own hook 3 ends it (off), never the gate
+    // (due), and a Released one stays Released, as hook 3 leaves it.
+    [Test]
+    public void TheSwitchOffMeansGoAndWritesNothing()
+    {
+        RpWarbandMember[] members =
+        {
+            Member(Waiting(RpWaitCase.Warband), 200_000),
+            Member(Released(), 240_000, slot: SecondSlot),
+        };
+
+        RpWarbandGate gate = Gate(members, enabled: false);
+
+        Assert.That(gate, Is.EqualTo(GoesWithNoWrites));
+        AssertNothingWritten(Marks(gate, members), members);
+        AssertLatched(LaterTurn(members[0].Marker, enabled: false), members[0].Marker, RpWaitAction.Leave,
+            RpWaitReason.Off);
+        AssertKept(LaterTurn(members[1].Marker, enabled: false), members[1].Marker);
+    }
+
+    // 3.4 "Not in a muster": a warband enrolled in an event whose battle has not started still regroups, but its force
+    // is committed (IsForceCommitted): go, and nothing written, even with members' time left above the march. A member
+    // already Waiting is its hook 3's to end (called, at the muster order).
+    [Test]
+    public void ACommittedForceMeansGoAndWritesNothing()
+    {
+        RpWarbandMember[] members =
+        {
+            Member(Waiting(RpWaitCase.Warband), 200_000),
+            Member(Released(), 240_000, slot: SecondSlot),
+        };
+
+        RpWarbandGate gate = Gate(members, forceCommitted: true);
+
+        Assert.That(gate, Is.EqualTo(GoesWithNoWrites));
+        AssertNothingWritten(Marks(gate, members), members);
+        AssertLatched(LaterTurn(members[0].Marker, musterOrder: true), members[0].Marker, RpWaitAction.Leave,
+            RpWaitReason.Called);
+    }
+
+    // 3.4: the march needs where the holder died for this death, in the rendezvous region. No death record, one for
+    // its previous death, or a death in another region (an invader's, in the Midgard frontier): go, even though
+    // another member's record would give a march (the holder decides).
+    [Test]
+    public void NoMatchingDeathRecordOrADeathInAnotherRegionMeansGo()
+    {
+        RpWarbandMember other = Member(Released(), 100_000, slot: SecondSlot);
+        RpWarbandMember holder = Member(Released(), 240_000);
+        Assert.That(Gate(new[] { other, holder }), Is.EqualTo(new RpWarbandGate(true, true, March, 240_000)));
+
+        RpDeathRecord[] unusable =
+        {
+            null,
+            new RpDeathRecord(2, 1, DeathSpot, DeathTick - 400_000, DeathTick - 400_000),
+            new RpDeathRecord(3, 100, DeathSpot, DeathTick, DeathTick),
+        };
+        foreach (RpDeathRecord death in unusable)
+            Assert.That(Gate(new[] { other, holder with { Death = death } }), Is.EqualTo(OpensWithNoMarch));
+    }
+
+    // 3.4: the march is at the best speed of the fastest member, holding the gate or not: a singer's own
+    // song of 140 (267.4 units/s) makes the 9,550 a march of 35,714 ms, so 40,000 left holds; a resurrected member at
+    // 300 (another's song on it) makes it 31,833.
+    [Test]
+    public void TheMarchIsAtTheFastestMembersBestSpeed()
+    {
+        RpWarbandMember holder = Member(Released(), 40_000);
+        Assert.That(Gate(new[] { holder }), Is.EqualTo(new RpWarbandGate(false, true, March, 40_000)));
+
+        RpWarbandMember singer = Member(Released(), 20_000, slot: SecondSlot, bestSpeed: 267.4);
+        Assert.That(Gate(new[] { holder, singer }), Is.EqualTo(new RpWarbandGate(true, true, 35_714, 40_000)));
+
+        RpWarbandMember resurrected = Member(null, 250_000, slot: ThirdSlot, bestSpeed: 300);
+        Assert.That(Gate(new[] { holder, singer, resurrected }),
+            Is.EqualTo(new RpWarbandGate(true, true, 31_833, 40_000)));
+    }
+
+    // 3.4, 2.4: a member whose wait for death 3 the gate ended is killed again, 5,730 from the rendezvous (a march of
+    // 30,000 ms), and released: hook 3 writes Released for death 4 over its Left marker, which holds the gate again
+    // and turns Waiting at its slot.
+    [Test]
+    public void AMemberKilledAgainAndReleasedMakesItWaitAgain()
+    {
+        RpWaitSlot slot = SlotWith(Waiting(RpWaitCase.Warband));
+        RpWarbandMember[] members = { Member(slot.Current, March) };
+        RpWarbandGate opened = Gate(members);
+        Assert.That(opened.Waits, Is.False);
+        RpWaitChange due = Marks(opened, members)[0];
+        Assert.That(due.Reason, Is.EqualTo(RpWaitReason.Due));
+        Assert.That(slot.TrySwap(due.Before, due.Next), Is.True);
+
+        Assert.That(slot.Apply(marker => RpTimerWait.Died(marker, 4)).Changes, Is.False);
+        RpWaitChange noted = ReleaseTurn(slot.Current, deathCount: 4);
+        Assert.That(slot.TrySwap(noted.Before, noted.Next), Is.True);
+
+        var secondDeath = new RpDeathRecord(4, 1, new Vector3(Rendezvous.X + 5_730, Rendezvous.Y, 4_200),
+            DeathTick + 400_000, DeathTick + 400_000);
+        members = new[] { Member(slot.Current, 280_000, deathCount: 4) with { Death = secondDeath } };
+        RpWarbandGate holding = Gate(members);
+
+        Assert.That(holding, Is.EqualTo(new RpWarbandGate(true, true, 30_000, 280_000)));
+        RpWaitChange[] changes = Marks(holding, members);
+        AssertTurnedWaiting(changes[0], members[0]);
+        Assert.That(changes[0].Next.DeathCount, Is.EqualTo(4));
+        Assert.That(slot.TrySwap(changes[0].Before, changes[0].Next), Is.True);
+    }
+
+    // 3.4: while the gate holds, each member Released for this death in the rendezvous region turns Waiting at the
+    // swap that writes it, with one start line: case warband, its slot as the spot, its assignment id now (a newer
+    // one than at its release, so its hook 3 keeps the wait), the session id, Started now. The holder too.
+    [Test]
+    public void WhileHoldingReleasedMembersAtTheRendezvousTurnWaiting()
+    {
+        RpWarbandMember[] members =
+        {
+            Member(Released(), 240_000),
+            Member(Released(), 120_000, slot: SecondSlot, assignmentId: "albion-40-13-RvR"),
+        };
+        RpWarbandGate gate = Gate(members);
+        Assert.That(gate, Is.EqualTo(new RpWarbandGate(true, true, March, 240_000)));
+
+        RpWaitChange[] changes = Marks(gate, members);
+
+        Assert.That(changes, Has.Length.EqualTo(2));
+        AssertTurnedWaiting(changes[0], members[0]);
+        AssertTurnedWaiting(changes[1], members[1]);
+        Assert.That(changes[0].Next.Spot, Is.EqualTo(BorderKeepSlot));
+        Assert.That(changes[1].Next.Spot, Is.EqualTo(SecondSlot));
+        Assert.That(changes[1].Next.AssignmentId, Is.EqualTo("albion-40-13-RvR"));
+        Assert.That(changes[1].Next.SessionId, Is.EqualTo("albion-7f3a-007"));
+        Assert.That(changes[1].Next.ReleasePoint, Is.EqualTo(Bind));
+        AssertKept(LaterTurn(changes[1].Next, assignmentId: "albion-40-13-RvR"), changes[1].Next);
+    }
+
+    // 3.4, a ruling (the spec's gate has no time-left condition): while the gate holds, a member Released for this
+    // death in the rendezvous region but worth points already (time left 0) stays Released, as a first look skips a
+    // bot already worth points with no line: no wait starts and no start line is logged. The gate's opening latches
+    // it with no line.
+    [Test]
+    public void WhileHoldingAReleasedMemberAlreadyWorthStaysReleased()
+    {
+        RpWarbandMember[] members =
+        {
+            Member(Released(), 240_000),
+            Member(Released(), 0, slot: SecondSlot),
+        };
+        RpWarbandGate gate = Gate(members);
+        Assert.That(gate, Is.EqualTo(new RpWarbandGate(true, true, March, 240_000)));
+
+        RpWaitChange[] changes = Marks(gate, members);
+
+        Assert.That(changes, Has.Length.EqualTo(2));
+        AssertTurnedWaiting(changes[0], members[0]);
+        AssertKept(changes[1], members[1].Marker);
+
+        RpWarbandMember[] opening = { members[0] with { TimeLeft = March }, members[1] };
+        gate = Gate(opening);
+        Assert.That(gate.Waits, Is.False);
+        AssertLatched(Marks(gate, opening)[1], members[1].Marker, RpWaitAction.None, RpWaitReason.None);
+    }
+
+    // 3.4: a member already Waiting is not written again while the gate holds: on later passes (once a second) its
+    // marker stays the same reference and no second start is logged, and it still holds the gate.
+    [Test]
+    public void AWaitingMemberIsNotWrittenAgain()
+    {
+        RpWaitSlot slot = SlotWith(Released());
+        RpWarbandMember[] first = { Member(slot.Current, 240_000) };
+        RpWaitChange start = Marks(Gate(first), first)[0];
+        Assert.That(start.Action, Is.EqualTo(RpWaitAction.Start));
+        Assert.That(slot.TrySwap(start.Before, start.Next), Is.True);
+
+        foreach (long timeLeft in new[] { 239_000L, 238_000L })
+        {
+            RpWarbandMember[] later = { Member(slot.Current, timeLeft) };
+            RpWarbandGate gate = Gate(later);
+
+            Assert.That(gate, Is.EqualTo(new RpWarbandGate(true, true, March, timeLeft)));
+            AssertNothingWritten(Marks(gate, later), later);
+        }
+    }
+
+    // 3.4: a member released to its capital stays Released while it is there and still holds the gate (its death in
+    // the frontier sets the march); on the first pass after it enters the rendezvous region it turns Waiting at its
+    // slot, the region of its wait the rendezvous region.
+    [Test]
+    public void AMemberInAnotherRegionStaysReleasedThenTurnsWaitingWhenItArrives()
+    {
+        RpWarbandMember atSlot = Member(Waiting(RpWaitCase.Warband), 150_000);
+        RpWarbandMember away = Member(ReleasedInCamelot(), 280_000, region: CamelotRegion, slot: SecondSlot);
+        RpWarbandMember[] members = { atSlot, away };
+        RpWarbandGate gate = Gate(members);
+
+        Assert.That(gate, Is.EqualTo(new RpWarbandGate(true, true, March, 280_000)));
+        AssertNothingWritten(Marks(gate, members), members);
+
+        RpWarbandMember arrived = away with { Region = 1, TimeLeft = 220_000 };
+        members = new[] { atSlot with { TimeLeft = 90_000 }, arrived };
+        gate = Gate(members);
+
+        Assert.That(gate, Is.EqualTo(new RpWarbandGate(true, true, March, 220_000)));
+        RpWaitChange[] changes = Marks(gate, members);
+        AssertKept(changes[0], atSlot.Marker);
+        AssertTurnedWaiting(changes[1], arrived);
+        Assert.That(changes[1].Next.Region, Is.EqualTo(1));
+        Assert.That(changes[1].Next.ReleaseRegion, Is.EqualTo(CamelotRegion));
+    }
+
+    // 3.4: while the gate holds, a member resurrected in the field (no marker for its death: none, or its previous
+    // death's) gets none, and a member whose marker is Left for this death (its first look skipped, or its hook 3
+    // ended its wait) stays Left: it walks back with the regroup and fights on.
+    [Test]
+    public void AResurrectedOrLeftMemberGetsNoMarker()
+    {
+        RpWarbandMember[] members =
+        {
+            Member(Released(), 240_000),
+            Member(null, 250_000, slot: SecondSlot),
+            Member(PreviousDeathsMarker(), 250_000, slot: SecondSlot),
+            Member(Released() with { Phase = RpWaitPhase.Left, Case = RpWaitCase.Frontier }, 200_000, slot: ThirdSlot),
+            Member(Waiting(RpWaitCase.Warband) with { Phase = RpWaitPhase.Left }, 200_000),
+        };
+        RpWarbandGate gate = Gate(members);
+
+        Assert.That(gate, Is.EqualTo(new RpWarbandGate(true, true, March, 240_000)));
+        RpWaitChange[] changes = Marks(gate, members);
+        AssertTurnedWaiting(changes[0], members[0]);
+        for (int i = 1; i < members.Length; i++)
+            AssertKept(changes[i], members[i].Marker);
+    }
+
+    // 3.4: when the gate opens, every member's marker for its current death is latched Left: a Waiting one with its
+    // leave (due), a Released one still worth nothing with its skip (trip), wherever it stands, and a Released one
+    // worth points already with no line. An older death's marker (Left, 3.7) and no marker are not touched.
+    [Test]
+    public void OpeningLatchesEveryMemberForThisDeath()
+    {
+        RpWarbandMember[] members =
+        {
+            Member(Waiting(RpWaitCase.Warband), March),
+            Member(Released(), 30_000, slot: SecondSlot),
+            Member(ReleasedInCamelot(), 20_000, region: CamelotRegion, slot: ThirdSlot),
+            Member(Released(), 0, slot: ThirdSlot),
+            Member(PreviousDeathsMarker(), 250_000),
+            Member(null, 250_000),
+        };
+        RpWarbandGate gate = Gate(members);
+
+        Assert.That(gate, Is.EqualTo(new RpWarbandGate(false, true, March, March)));
+        RpWaitChange[] changes = Marks(gate, members);
+        Assert.That(changes, Has.Length.EqualTo(6));
+        AssertLatched(changes[0], members[0].Marker, RpWaitAction.Leave, RpWaitReason.Due);
+        AssertLatched(changes[1], members[1].Marker, RpWaitAction.Skip, RpWaitReason.Trip);
+        AssertLatched(changes[2], members[2].Marker, RpWaitAction.Skip, RpWaitReason.Trip);
+        AssertLatched(changes[3], members[3].Marker, RpWaitAction.None, RpWaitReason.None);
+        AssertKept(changes[4], members[4].Marker);
+        AssertKept(changes[5], null);
+    }
+
+    // 3.4, 3.5: a member whose wait its hook 3 has already ended (its force's muster order: called) gets no new wait
+    // while the gate holds and no second leave (due) when it opens.
+    [Test]
+    public void AMarkerHook3AlreadyEndedGetsNoSecondLeave()
+    {
+        RpWaitSlot slot = SlotWith(Waiting(RpWaitCase.Warband));
+        RpWaitChange called = LaterTurn(slot.Current, musterOrder: true);
+        Assert.That(called.Reason, Is.EqualTo(RpWaitReason.Called));
+        Assert.That(slot.TrySwap(called.Before, called.Next), Is.True);
+        RpWarbandMember ended = Member(slot.Current, 200_000);
+
+        RpWarbandMember[] holding = { ended, Member(Released(), 240_000, slot: SecondSlot) };
+        RpWarbandGate gate = Gate(holding);
+        Assert.That(gate.Waits, Is.True);
+        AssertKept(Marks(gate, holding)[0], slot.Current);
+
+        RpWarbandMember[] opening = { ended with { TimeLeft = 40_000 }, Member(Released(), 30_000, slot: SecondSlot) };
+        gate = Gate(opening);
+        Assert.That(gate.Waits, Is.False);
+        AssertKept(Marks(gate, opening)[0], slot.Current);
+    }
+
+    // 7.2: the gate decides from the markers it read and swaps each change against its read. A marker that turns Left
+    // on another thread in between (a player's invite while Released; its own hook 3 while Waiting, here out of its
+    // group) stays Left: the gate's swap fails, and it logs nothing.
+    [Test]
+    public void AMarkerThatTurnsLeftBetweenReadAndWriteStaysLeft()
+    {
+        RpWaitSlot released = SlotWith(Released());
+        RpWarbandMember[] holding = { Member(released.Current, 240_000) };
+        RpWaitChange start = Marks(Gate(holding), holding)[0];
+        Assert.That(start.Action, Is.EqualTo(RpWaitAction.Start));
+        RpWaitChange invited = released.Apply(marker => RpTimerWait.JoinedGroup(marker, 3, true));
+        Assert.That(released.TrySwap(start.Before, start.Next), Is.False);
+        Assert.That(released.Current, Is.SameAs(invited.Next));
+        Assert.That(released.Current.Phase, Is.EqualTo(RpWaitPhase.Left));
+
+        RpWaitSlot waiting = SlotWith(Waiting(RpWaitCase.Warband));
+        RpWarbandMember[] opening = { Member(waiting.Current, March) };
+        RpWaitChange due = Marks(Gate(opening), opening)[0];
+        Assert.That(due.Reason, Is.EqualTo(RpWaitReason.Due));
+        RpWaitChange changed = LaterTurn(waiting.Current, inGroup: false);
+        Assert.That(waiting.TrySwap(changed.Before, changed.Next), Is.True);
+        Assert.That(waiting.TrySwap(due.Before, due.Next), Is.False);
+        Assert.That(waiting.Current, Is.SameAs(changed.Next));
+        Assert.That(waiting.Current.Phase, Is.EqualTo(RpWaitPhase.Left));
+    }
+
+    // 3.7: a member killed while waiting has its death count raised before the Dying handler latches its marker Left
+    // (died). Before the handler and after it, the gate neither holds for that marker nor writes it, holding or
+    // opening: no second leave.
+    [Test]
+    public void TheGateIgnoresAMarkerLatchedByADeath()
+    {
+        RpWaitSlot slot = SlotWith(Waiting(RpWaitCase.Warband));
+        RpWarbandMember released = Member(Released(), 30_000, slot: SecondSlot);
+        RpWarbandMember killed = Member(slot.Current, 300_000, deathCount: 4);
+
+        RpWarbandMember[] members = { killed, released };
+        RpWarbandGate gate = Gate(members);
+        Assert.That(gate, Is.EqualTo(new RpWarbandGate(false, true, March, 30_000)));
+        AssertKept(Marks(gate, members)[0], killed.Marker);
+
+        RpWaitChange died = slot.Apply(marker => RpTimerWait.Died(marker, 4));
+        Assert.That(died.Reason, Is.EqualTo(RpWaitReason.Died));
+        RpWarbandMember latched = killed with { Marker = slot.Current };
+        members = new[] { latched, released };
+        gate = Gate(members);
+        Assert.That(gate, Is.EqualTo(new RpWarbandGate(false, true, March, 30_000)));
+        AssertKept(Marks(gate, members)[0], slot.Current);
+
+        members = new[] { latched, released with { TimeLeft = 240_000 } };
+        gate = Gate(members);
+        Assert.That(gate, Is.EqualTo(new RpWarbandGate(true, true, March, 240_000)));
+        AssertKept(Marks(gate, members)[0], slot.Current);
+    }
 }

@@ -511,4 +511,99 @@ public static class RpTimerWait
         return new RpWaitDecision(RpWaitVerdict.Hold, RpWaitReason.None, marker, marker, RpWaitAction.None,
             Distance2D(look.Position, marker.Spot) > WalkBackBeyond);
     }
+
+    // 3.4: a member released for its current death: its marker Released or Waiting for its own DeathCount. Only such
+    // a member holds the warband gate, and only its marker is the gate's to write; a member resurrected in the field
+    // (no marker, or an older death's) and a Left marker are neither.
+    private static bool ReleasedForItsDeath(RpWarbandMember member) =>
+        member.Marker is { Phase: RpWaitPhase.Released or RpWaitPhase.Waiting } marker &&
+        marker.DeathCount == member.DeathCount;
+
+    // 3.4: the warband gate. The rules, in order:
+    // 1. !enabled, kind != RvR, or forceCommitted: (Waits false, Writes false, 0, 0).
+    // 2. relicCarrier: (false, true, 0, 0).
+    // 3. The holder: the member whose marker is Released or Waiting for its own DeathCount, with the largest TimeLeft
+    //    above 0. None (all worth, or only resurrected members): (false, true, 0, 0).
+    // 4. The holder's Death is null, for another DeathCount, or in another region than rendezvousRegion:
+    //    (false, true, 0, 0).
+    // 5. march = TripMilliseconds(Distance2D(rendezvous, holder.Death.Position), the largest BestSpeed of all members);
+    //    (holder.TimeLeft > march, true, march, holder.TimeLeft).
+    public static RpWarbandGate WarbandWaits(bool enabled, eAutonomousObjectiveKind kind, bool forceCommitted,
+        bool relicCarrier, ushort rendezvousRegion, Vector3 rendezvous, IReadOnlyList<RpWarbandMember> members)
+    {
+        if (!enabled || kind != eAutonomousObjectiveKind.RvR || forceCommitted)
+            return new RpWarbandGate(false, false, 0, 0);
+        var opens = new RpWarbandGate(false, true, 0, 0);
+        if (relicCarrier)
+            return opens;
+
+        // The holder starts as no member (no marker, time left 0), so it is one only with time left above 0; the
+        // first of equals holds.
+        RpWarbandMember holder = default;
+        double fastest = 0;
+        foreach (RpWarbandMember member in members)
+        {
+            fastest = Math.Max(fastest, member.BestSpeed);
+            if (ReleasedForItsDeath(member) && member.TimeLeft > holder.TimeLeft)
+                holder = member;
+        }
+
+        RpDeathRecord death = holder.Death;
+        if (holder.Marker == null || death == null || death.DeathCount != holder.DeathCount ||
+            death.Region != rendezvousRegion)
+            return opens;
+
+        long march = TripMilliseconds(Distance2D(rendezvous, death.Position), fastest);
+        return new RpWarbandGate(holder.TimeLeft > march, true, march, holder.TimeLeft);
+    }
+
+    // 3.4: one member's change (WarbandMarks). Holding turns a member's Released marker Waiting at its slot; opening
+    // latches its Released or Waiting marker Left; anything else (no writes, no marker for its death, a Left marker) is
+    // kept.
+    private static RpWaitChange WarbandMark(RpWarbandGate gate, ushort rendezvousRegion, RpWarbandMember member,
+        string sessionId, long now)
+    {
+        RpWaitMarker marker = member.Marker;
+        if (!gate.Writes || !ReleasedForItsDeath(member))
+            return RpWaitChange.Keep(marker);
+
+        if (gate.Waits)
+        {
+            if (marker.Phase != RpWaitPhase.Released || member.Region != rendezvousRegion || member.TimeLeft <= 0)
+                return RpWaitChange.Keep(marker);
+            RpWaitMarker waiting = marker with
+            {
+                Phase = RpWaitPhase.Waiting,
+                Case = RpWaitCase.Warband,
+                Region = rendezvousRegion,
+                Spot = member.Slot,
+                AssignmentId = member.AssignmentId,
+                SessionId = sessionId,
+                EventKeepId = null,
+                Started = now,
+            };
+            return new RpWaitChange(marker, waiting, RpWaitAction.Start, RpWaitReason.None);
+        }
+
+        if (marker.Phase == RpWaitPhase.Waiting)
+            return Latch(marker, RpWaitAction.Leave, RpWaitReason.Due);
+        return member.TimeLeft > 0
+            ? Latch(marker, RpWaitAction.Skip, RpWaitReason.Trip)
+            : Latch(marker, RpWaitAction.None, RpWaitReason.None);
+    }
+
+    // 3.4: each member's change, in member order. !gate.Writes: every member Keep. Holding (gate.Waits): a member whose
+    // marker is Released for its DeathCount, with Region == rendezvousRegion and TimeLeft > 0, becomes marker with
+    // { Phase = Waiting, Case = Warband, Region = rendezvousRegion, Spot = Slot, AssignmentId = member's, SessionId =
+    // sessionId, EventKeepId = null, Started = now }, action Start; every other member Keep. Opening (!gate.Waits): a
+    // marker Waiting for its DeathCount: Left, Leave(Due); Released for its DeathCount: Left, Skip(Trip) when TimeLeft
+    // > 0, else action None; every other member (no marker, Left, an older death) Keep.
+    public static RpWaitChange[] WarbandMarks(RpWarbandGate gate, ushort rendezvousRegion,
+        IReadOnlyList<RpWarbandMember> members, string sessionId, long now)
+    {
+        var changes = new RpWaitChange[members.Count];
+        for (int i = 0; i < changes.Length; i++)
+            changes[i] = WarbandMark(gate, rendezvousRegion, members[i], sessionId, now);
+        return changes;
+    }
 }
