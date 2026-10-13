@@ -203,6 +203,17 @@ file's): Frund (Mob 3ce2...)`). If it fails (for example, a column the file name
 log says `Mob fixes: not applied (...)`, the monsters keep the values they have, and it tries again at the next
 start.
 
+**Route fixes.** A stable horse rides in a straight line from one point of its route to the next, and most routes
+crossed the Magical Bridge north of Camelot, the Prydwen Keep bridge (PKB) and seven other bridges on one
+bank-to-bank stretch, up to 456 under the walkway, so the horse swam in the river below. The start adds points along
+each bridge's walkway, 15 over it, to 78 crossings of 39 horse routes in Albion, Midgard and Hibernia
+(`deploy/bin/route_fixes.json`; the heights were measured on a client, and only the numbers ship). The first start
+shows `Route fixes: 78 bridge crossings of 39 horse routes given points on the deck: ...`, and later starts nothing.
+There is no marker: a crossing gets its points only while its two route points still follow each other at
+upstream's values, so a route you changed yourself is kept and named at every start (`N left as they are (the route
+no longer has that segment): ...`). If it fails, the start log says `Route fixes: not applied (...)` and the routes
+keep their points. Bots ride the same routes, so their horses stay on the bridges too.
+
 ## Rollback
 
 `./hdc down` stops and removes the container; the world stays in the `hearthdaoc-data` volume.

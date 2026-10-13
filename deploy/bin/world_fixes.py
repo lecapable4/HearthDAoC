@@ -40,7 +40,12 @@
    givers, monsters and item icons): mob_fixes.py, from mob_fixes.json, after the camps (it moves rows of
    them), under its own savepoint like the steps before it. No marker: at every start it changes a row only while it
    still holds the values upstream shipped, and names the rows that hold neither those nor the file's.
-10. The leveling spawns an earlier `hdc spawns restore` brought back next to a quest's kill target named like them but
+10. Points along the bridge decks of the horse routes (owner 2026-10-13: horses swam under the Magical Bridge arches
+   north of Camelot and under PKB, where a route crosses on one bank-to-bank segment): route_fixes.py, from
+   route_fixes.json, under its own savepoint like the steps before it. No marker: at every start it adds a crossing's
+   points only while its two points still follow each other at upstream's values, and names the crossings whose route
+   changed.
+11. The leveling spawns an earlier `hdc spawns restore` brought back next to a quest's kill target named like them but
    for case (level 20's "arawnite messenger" beside the "Arawnite Messenger"): spawns.remove_quest_twins, last, under
    its own savepoint. Only rows listed in fork_restored_mobs; they stay in upstream's archive, as `hdc spawns undo`
    leaves them, and the restore now leaves them out.
@@ -58,6 +63,7 @@ import epic_chains
 import mob_fixes
 import quest_camps
 import quest_dialogue
+import route_fixes
 import spawns
 
 DISCIPLE, SARACEN, INCONNU = 20, 4, 13
@@ -186,6 +192,7 @@ def apply(db):
             changes.extend(quest_dialogue.apply(conn, _now()))
             changes.extend(quest_camps.apply(conn, _now()))
             changes.extend(mob_fixes.apply(conn, _now()))
+            changes.extend(route_fixes.apply(conn, _now()))
             changes.extend(spawns.remove_quest_twins(conn))
     finally:
         conn.close()
