@@ -278,4 +278,110 @@ public sealed class UT_RpTimerWaitScript
             Is.EqualTo("HEARTHDAOC_RP_WAIT action=leave bot=Eadric id=108 realm=Albion case=frontier waited=95 " +
                        "worthIn=175 trip=- reason=off"));
     }
+
+    // The entry points the hooks call read the bot's marker first and leave at once without one (7.2): every
+    // gamebot passes hook 3 on every controller turn and hooks 5 and 6 on every recruiting pass and threat scan, and
+    // most never wait. These gamebots have only their TempProperties and a PersistentRecord: a read of anything else
+    // that needs the constructor (their speed, for one) throws.
+
+    private const string WarbandSession = "albion-7f3a-007";
+    // The warband's rendezvous by the border keep, in Albion's frontier (region 1).
+    private static readonly Vector3 Rendezvous = new(29_500, 31_000, 4_310);
+
+    // A gamebot with an RvR goal at the given death count (PersistentRecord has a private setter).
+    private static GameBot Member(int deathCount)
+    {
+        GameBot bot = Bot();
+        typeof(GameBot).GetProperty(nameof(GameBot.PersistentRecord))!.SetValue(bot, new OfflineWorldBotRecord
+        {
+            DeathCount = deathCount,
+            ObjectiveKind = "RvR",
+            ObjectiveAssignmentId = "albion-40-12-RvR",
+        });
+        return bot;
+    }
+
+    // The bot's slot, holding the marker, as hook 3 makes it at a first release.
+    private static RpWaitSlot SlotHolding(GameBot bot, RpWaitMarker marker)
+    {
+        var slot = new RpWaitSlot();
+        Assert.That(slot.TrySwap(null, marker), Is.True);
+        bot.TempProperties.SetProperty("hearthdaoc.rp.wait", slot);
+        return slot;
+    }
+
+    // Released in Camelot for the given death: a warband member before its first pass of the gate.
+    private static RpWaitMarker ReleasedInCamelot(int deathCount) =>
+        new(deathCount, RpWaitPhase.Released, RpWaitCase.None, 10, Camelot, 10, Camelot, "albion-40-12-RvR", null, null,
+            0);
+
+    [Test]
+    public void ABotWithNoMarkerIsNotWaiting()
+    {
+        // Hooks 5 and 6 with the switch on: no slot, so the bot is recruited and charges as upstream.
+        RpTimerWaitScript.BOT_RP_TIMER_WAIT = true;
+        Assert.That(RpTimerWaitScript.IsWaiting(Bot()), Is.False);
+        Assert.That(RpTimerWaitScript.IsWaiting(Member(3)), Is.False);
+    }
+
+    [Test]
+    public void NoteReleaseLeavesABotWithNoMarkerThatIsNotReturningAlone()
+    {
+        // Hook 3 with the switch on, for a bot with an RvR goal that was not released (alive in the field, or
+        // resurrected where it fell): no marker to write, so no slot either. A slot is made only for a first marker.
+        RpTimerWaitScript.BOT_RP_TIMER_WAIT = true;
+        GameBot bot = Member(3);
+        Assert.That(bot.IsReturningAfterRelease, Is.False);
+        RpTimerWaitScript.NoteRelease(bot);
+        Assert.That(RpTimerWaitScript.SlotOf(bot), Is.Null);
+    }
+
+    [Test]
+    public void TheWarbandGateWritesNothingWithoutMarkersForAPveSessionOrWithTheSwitchOff()
+    {
+        // Hook 4 on a regroup pass, the switch on: no member has a marker, so the warband goes at once and the gate
+        // makes no slot.
+        RpTimerWaitScript.BOT_RP_TIMER_WAIT = true;
+        GameBot first = Member(3), second = Member(5);
+        Assert.That(RpTimerWaitScript.WarbandWaits(WarbandSession, eAutonomousObjectiveKind.RvR, 1, Rendezvous,
+            [first, second]), Is.False);
+        Assert.That(RpTimerWaitScript.SlotOf(first), Is.Null);
+        Assert.That(RpTimerWaitScript.SlotOf(second), Is.Null);
+
+        // A member released for its death now: a Group PvE party goes at once (a monster kill restarts the timer too),
+        // and so does an RvR warband with the switch off. The marker stays as it was (spec 3.4, section 6).
+        RpWaitSlot slot = SlotHolding(first, ReleasedInCamelot(3));
+        RpWaitMarker released = slot.Current;
+        Assert.That(RpTimerWaitScript.WarbandWaits(WarbandSession, eAutonomousObjectiveKind.GroupPve, 1, Rendezvous,
+            [first, second]), Is.False);
+        Assert.That(slot.Current, Is.SameAs(released));
+        RpTimerWaitScript.BOT_RP_TIMER_WAIT = false;
+        Assert.That(RpTimerWaitScript.WarbandWaits(WarbandSession, eAutonomousObjectiveKind.RvR, 1, Rendezvous,
+            [first, second]), Is.False);
+        Assert.That(slot.Current, Is.SameAs(released));
+        Assert.That(RpTimerWaitScript.SlotOf(second), Is.Null);
+    }
+
+    [Test]
+    public void TheWarbandGateGoesAtOnceWhenEveryMarkerIsLeft()
+    {
+        // The switch on, an RvR warband, and no member released for its death now: the first member's warband wait is
+        // over, the second's release was latched when the gate opened, and the third still has its last death's
+        // Released marker, which the Dying handler is about to latch. A slot lasts the whole run, so this is the
+        // gate's commonest pass: it goes at once and writes nothing.
+        RpTimerWaitScript.BOT_RP_TIMER_WAIT = true;
+        GameBot first = Member(3), second = Member(5), third = Member(4);
+        RpWaitSlot[] slots =
+        [
+            SlotHolding(first, new RpWaitMarker(3, RpWaitPhase.Left, RpWaitCase.Warband, 10, Camelot, 1,
+                new Vector3(29_640, 31_220, 4_310), "albion-40-12-RvR", WarbandSession, null, 1_030_000)),
+            SlotHolding(second, ReleasedInCamelot(5) with { Phase = RpWaitPhase.Left }),
+            SlotHolding(third, ReleasedInCamelot(3)),
+        ];
+        RpWaitMarker[] before = Array.ConvertAll(slots, slot => slot.Current);
+        Assert.That(RpTimerWaitScript.WarbandWaits(WarbandSession, eAutonomousObjectiveKind.RvR, 1, Rendezvous,
+            [first, second, third]), Is.False);
+        for (int i = 0; i < slots.Length; i++)
+            Assert.That(slots[i].Current, Is.SameAs(before[i]), $"member {i}");
+    }
 }

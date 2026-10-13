@@ -170,6 +170,21 @@ class ScriptWiringTests(unittest.TestCase):
         # The fork reads ARPR's internal const (same assembly); the unit tests use the literal key.
         self.assertIn("AutonomousBotRealmPointRewards.LastRealmPointDeathTickProperty", source(SCRIPT_CS))
 
+    def test_the_script_registers_the_death_and_group_handlers(self):
+        text = source(SCRIPT_CS)
+        loaded = between(text, "public static void OnScriptLoaded(", "\n    }\n")
+        self.assertIn("GameEventMgr.AddHandler(GameLivingEvent.Dying, OnDying);", loaded)
+        self.assertIn("GameEventMgr.AddHandler(GroupEvent.MemberJoined, OnMemberJoined);", loaded)
+        unloaded = between(text, "public static void OnScriptUnloaded(", "\n    }\n")
+        self.assertIn("GameEventMgr.RemoveHandler(GameLivingEvent.Dying, OnDying);", unloaded)
+        self.assertIn("GameEventMgr.RemoveHandler(GroupEvent.MemberJoined, OnMemberJoined);", unloaded)
+        self.assertIn("[ScriptLoadedEvent]", text)
+
+    def test_no_wait_code_calls_is_safe_area(self):
+        for path in (DECISIONS_CS, SCRIPT_CS, CONTROLLER_CS):
+            if os.path.exists(path):
+                self.assertNotIn("IsSafeArea(", source(path), path)
+
 
 if __name__ == "__main__":
     unittest.main()
