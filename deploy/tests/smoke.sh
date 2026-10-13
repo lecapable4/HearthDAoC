@@ -73,7 +73,8 @@ docker exec "$NAME" cat /data/logs/world-fixes.log > "$T/fixes.log" || fail "no 
 [[ "$(grep -c '^=== Start ' "$T/fixes.log")" == 1 ]] || fail "world-fixes.log should hold one start: $(cat "$T/fixes.log")"
 grep -qE '^=== Start [0-9]{4}-[0-9]{2}-[0-9]{2} [0-9:]{8} UTC, release unknown, upstream [^ ]+ ===$' "$T/fixes.log" \
     || fail "world-fixes.log has no start header: $(head -1 "$T/fixes.log")"
-for line in "Epic chains: Guild of Shadows 60 links" "Quest dialogue: 145 quests rewritten" "Quest camps: copied back from upstream's archive: " "Mob fixes: 75 corrected: "; do
+for line in "Epic chains: Guild of Shadows 60 links" "Quest dialogue: 145 quests rewritten" "Quest camps: copied back from upstream's archive: " "Mob fixes: 75 corrected: " \
+            "Route fixes: 138 bridge crossings of 59 horse routes given points on the deck: "; do
     grep -q "^$line" "$T/fixes.log" || fail "world-fixes.log lacks this start's line: $line"
 done
 echo "ok - world-fixes.log holds this start's world fixes"
@@ -93,7 +94,7 @@ docker exec "$NAME" cat /data/logs/world-fixes.log > "$T/fixes.log"
 [[ "$(grep -c '^=== Start ' "$T/fixes.log")" == 2 ]] || fail "the restart did not append its start to world-fixes.log"
 # The last section is the restart's: the one-time changes of the first start are not in it again.
 awk '/^=== Start / { last = "" } { last = last $0 "\n" } END { printf "%s", last }' "$T/fixes.log" > "$T/last.log"
-if grep -qE '^(Quest dialogue: [0-9]+ quests rewritten|Mob fixes: [0-9]+ corrected)' "$T/last.log"; then
+if grep -qE '^(Quest dialogue: [0-9]+ quests rewritten|Mob fixes: [0-9]+ corrected|Route fixes: [0-9]+ bridge crossing)' "$T/last.log"; then
     fail "the restart's section repeats the first start's changes: $(cat "$T/last.log")"
 fi
 echo "ok - the restart appended its own start to world-fixes.log"

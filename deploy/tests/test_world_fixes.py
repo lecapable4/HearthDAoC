@@ -337,6 +337,12 @@ class FixesTests(unittest.TestCase):
             "Cloudy Green Stone (ItemTemplate cq_cloudy_green_stone), Flint Knife (ItemTemplate cq_flint_knife), "
             "Flinthead Club (ItemTemplate cq_flinthead_club), Flint Dirk (ItemTemplate cq_flint_dirk), "
             "Lady Leana (DataQuest 20022) and 65 more",
+            "Route fixes: 138 bridge crossings of 59 horse routes given points on the deck: 12 on the Magical "
+            "Bridge's north arch (Black Mtns. South), 12 on the Magical Bridge's south arch (Black Mtns. South), 26 "
+            "on PKB (the Prydwen Keep bridge in Camelot Hills), 4 on the Cotswold bridgehouse (Camelot Hills), 4 on "
+            "the MarshBridge (Avalon Marsh), 23 on East Svealand's bridge 506, 15 on East Svealand's bridge 736, 11 "
+            "on Bridge Wood (East Svealand), 14 on the Big Bridge (Gotar), 11 on the Celtic bridge (Caillte Garran), "
+            "6 on the stone bridge (Shannon Estuary)",
         ])
         self.assertEqual(self.q("SELECT Mob_ID FROM fork_removed_mobs WHERE FixId='duplicate-townspeople' ORDER BY Mob_ID"),
                          [(GRAENT_GOES,), ("231313cf-eb6a-408f-9811-f697c705ffb7",), (COMMANDER_GOES,),
