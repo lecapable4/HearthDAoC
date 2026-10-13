@@ -1,10 +1,12 @@
 # Gamebots come back worth realm points (design)
 
-Status: draft for the owner's review (design approved in conversation 2026-10-13; revised after the spec review and
-its recheck the same day).
+Status: approved by the owner, 2026-10-13, as stage 1. The design was approved in conversation; this written spec was
+revised after its review and recheck, then the owner answered its open choices (section 9: 1, 2 and 18) and chose to
+stage the work: this stage makes released bots wait until they are worth realm points; battleground waves come in a
+later stage (Appendix B).
 Date: 2026-10-13. Fork: `lometur/HearthDAoC`. Branch: `rp-timer-waits`. Release: merging the PR publishes the next
 release; the server picks it up with `./hdc update`, which adds `HEARTHDAOC_BOT_RP_TIMER_WAIT=on` to `.env`. No world
-data changes. Part 1 of the RvR bot roadmap. Effort: about 3-4 working days with the in-game check (est.).
+data changes. Part 1 of the RvR bot roadmap, stage 1. Effort: about 3 working days with the in-game check (est.).
 
 References are to HearthDAoC `main` at 5521c75 (v0.35b-hearth.18), `source/server/GameServer/`
 unless a path says otherwise. Shorthand: `WBC` = `bots/autonomous/AutonomousWorldBotController.cs`, `BG` =
@@ -16,7 +18,8 @@ unless a path says otherwise. Shorthand: `WBC` = `bots/autonomous/AutonomousWorl
 = `bots/GameBot.cs`, `BB` = `bots/BotBrain.cs`. Research: `~/Games/DAoC/research/rvr-bots-2026-10-13/` on the owner's
 machine (`README.md` sections 1, 3, 4.1 and 8; `wave-code-map.json`, read at 91ddcf2, where each section's skeptic
 "check" wins over its "map"; `source/` is the same at 91ddcf2 and 5521c75). Times marked (est.) are straight lines at
-191 units/s, not measurements.
+191 units/s, not measurements. The deferred waves' research: `~/Games/DAoC/research/rp-wave-sim-2026-10-13/`
+(Appendix B).
 
 ## Read this first
 
@@ -24,7 +27,7 @@ machine (`README.md` sections 1, 3, 4.1 and 8; `wave-code-map.json`, read at 91d
 
 - The realm point timer is unchanged: a bot is worth points again 300 s after its last death.
 - A released bot waits at a safe spot and leaves so it arrives just as its timer ends. One wait per death.
-- Battleground bots leave in waves; a frontier warband leaves together.
+- A frontier warband leaves together.
 - A bot resurrected where it fell fights on, with no wait.
 - Waiting bots rest, rebuff, join no new warband, and don't charge enemies they only see, but fight back (except as
   listed below).
@@ -33,9 +36,10 @@ machine (`README.md` sections 1, 3, 4.1 and 8; `wave-code-map.json`, read at 91d
 
 **Where this spec departs from the design** (details in section 1)
 
-- Battleground bots meet enemies again about 300-330 s after death and reach the central keep at 360-410 s
-  (est.), not a round "5 minutes".
-- Waves use fixed 30 s clock marks: two bots due 5 s apart across a mark leave 30 s apart.
+- Battleground bots leave one by one, each at its own moment: waves are deferred to a later stage (owner,
+  2026-10-13; Appendix B).
+- Battleground bots meet enemies again about 300 s after death and reach the central keep at 360-380 s (est.), not a
+  round "5 minutes".
 - Eight pet classes keep only their main pet up while waiting, no optional buffs, unless a seventh hook is added.
 - Invaders, and any bot released in another region than its fight, don't wait.
 - Warbands: only members released for their current death hold the warband. Resurrected members don't hold it, but
@@ -50,13 +54,15 @@ machine (`README.md` sections 1, 3, 4.1 and 8; `wave-code-map.json`, read at 91d
 - A siege party can still take a waiting siege member; it keeps waiting.
 - A warband can arrive a little early: its leader may pick a nearer target.
 - A waiting healer makes its dead group mates lie 90 s, not 20 s, before release.
+- A warband member already worth points while its warband waits for a mate charges what it sees.
 - One RvR hook, not two; the code is a fork part of the bot controller.
 
-**Choices that most need your eye** (section 9)
+**The owner's answers, 2026-10-13** (section 9)
 
-- The switch: `bot_rp_timer_wait`, set from `HEARTHDAOC_BOT_RP_TIMER_WAIT=on` (choice 1).
-- The wave: fixed 30 s marks, or a sliding window (choice 2).
-- Resurrected warband members don't hold the warband ("A, fights on"); the alternative counts them (choice 18).
+- The switch: `bot_rp_timer_wait`, set from `HEARTHDAOC_BOT_RP_TIMER_WAIT=on`: approved (choice 1).
+- The wave: "which ever is more likely to have bots go in a group", a sliding wave. Then the owner chose to stage the
+  work: waves come later, "like during the commander phase and what not" (choice 2, Appendix B).
+- Resurrected warband members don't hold the warband ("A, fights on"): approved (choice 18).
 
 **Upstream:** six one-line hooks, as planned. No seventh hook.
 
@@ -104,6 +110,11 @@ stays exactly as it is.
 - "A, fights on": bots resurrected in the field fight on, with no wait.
 - "A is fine here too": waiting bots rest, rebuff and wait for their wave.
 - On the design of sections 2-6 (2026-10-13): "yes that sounds good. proceed".
+- On the written spec's choices (2026-10-13): "1. yes approved on the name switch, 2. which ever is more likely to have
+  bots go in a group, 3. yes don't hold the warband back." (choices 1, 2 and 18).
+- On staging (2026-10-13): "if it makes more sense to do this in stages, and focus more on the bots waiting so they are
+  worth rps and then sprinkle in the wave stuff later, like during the commander phase and what not, that will be
+  fine." So this spec is stage 1: the waits. Battleground waves are deferred (Appendix B).
 
 ### Where this spec departs from the design as presented
 
@@ -128,6 +139,10 @@ The code showed these; each is settled below and can be changed.
   A resurrected member walks back with the others and stands at its slot until they leave, but has no wait of its own:
   it charges on sight and fights on, as "A, fights on" says. The existing regroup never reads the timer (GRS:45-56),
   so counting them would be a new wait. The alternative counts them.
+- **A warband member worth points while the gate holds charges what it sees.** The gate holds for the released member
+  with the most time left (3.4). A member whose own time left runs out while the gate holds for a mate with more time
+  left is worth points, so `IsWaiting` is false for it (2.4). It charges on sight as today, and the regroup walks it
+  back to its slot (section 4).
 - **A warband that disbands mid-wait ends its wait.** Its task clock runs on through the regroup
   (`bots/autonomous/AutonomousGroupTaskClock.cs:5`), so it can expire mid-wait (GC:1684-1690); an unreachable member
   also ends the task (GC:1955-1958). `FinishGroupTask` disbands the group (GC:2351) and gives each member a new
@@ -145,12 +160,12 @@ The code showed these; each is settled below and can be changed.
   or player of its realm within 1,000 of it: the threat scan's own test (FT:113-115). Not at a bind: the scan is off
   inside a bind area (FT:138; WBC:4885-4892). There a frontier solo or siege member answers only enemies attacking it
   (BB:405-433), and a siege-party member also its group mates' attackers (BB:481-520).
-- **Battleground sit-out.** A dead bot reaches the first contact point about 300-330 s after its death and the central
-  keep about 360-410 s after (est.), against 100-155 s today: a little more than the "about 5 minutes instead of about
-  2" presented, because of the wave (up to 30 s) and the walk past the contact point.
-- **Waves are fixed 30 s windows, not "bots within ~30 s of each other".** Battleground bots due in the same 30 s
-  window of the game clock leave together. Two bots due a few seconds apart on either side of a mark leave 30 s apart:
-  due at 10 min 58 s and 11 min 03 s, they leave at 11 min 00 s and 11 min 30 s (2.3, choice 2).
+- **Battleground sit-out.** A dead bot reaches the first contact point about 300 s after its death and the central
+  keep about 360-380 s after (est.), against 100-155 s today: a little more than the "about 5 minutes instead of about
+  2" presented, because of the walk past the contact point.
+- **No battleground waves in this stage** (owner, 2026-10-13). Each battleground bot leaves at its own moment, as a
+  frontier solo does; nothing groups them yet. A later stage adds waves (Appendix B: the owner's choice of a sliding
+  wave, the design so far, and what its two reviews found).
 - **Every bot chasing a relic never waits, not only escorts.** The design named relic carriers and their escorts. The
   spec also skips interceptors and bots heading for a dropped relic: any bot whose destination is a relic
   (`rvr-relic-carrier-`, WBC:1793-1824; any realm's relic is a target, WBC:2202-2226; "Intercepting relic", :1801). It
@@ -199,13 +214,28 @@ calls into it). ARPR is not changed.
 ### 2.3 Wait or go
 
 - Wait while time left > trip. Leave on the first turn where time left ≤ trip.
-- Battlegrounds only: leave at the first 30-second mark of the server's game clock at or after that moment (the
-  wave, 3.1). Example: bots due at 10 min 41 s and 10 min 58 s leave together at 11 min 00 s; one due at 11 min 03 s
-  leaves at 11 min 30 s. So two bots due 5 s apart across a mark leave 30 s apart (choice 2).
+- Battlegrounds too, in this stage: each bot leaves at its own moment; nothing groups them (waves: Appendix B).
 - Recomputed every turn from the timer, the spot and the target; nothing is cached across deaths.
-- A standing bot thinks only every few seconds (up to 12 s plus an eighth, `AutonomousFidelityPolicy.cs:58-75`). So
-  the wait sets its next think to its leave moment when that is sooner (at least 250 ms), as
-  `AutonomousWorldBotController.KeepTravel.cs:86` does. It leaves on time, and a wave leaves together.
+- **A standing bot thinks only every few seconds.** Its Planning interval is 2.5 s
+  (`bots/autonomous/AutonomousAiBudget.cs:29`), ×1 with a player within 6,000, ×1.6 when none is that near but a player
+  was sent an update of it in the last 60 s, and ×2.6 when none was (BB:2626-2640, rechecked every 5-6.5 s;
+  `gameobjects/GameNPC.cs:36`, :692), then × up to 1.6 at 1,500 bots or more
+  (`bots/autonomous/AutonomousFidelityPolicy.cs:51-58`), plus a stagger under an eighth (:69-76): at most about 7.3 s at
+  300 bots or fewer, and about 11.7 s at 1,500 or more.
+- **So the wait wakes the bot at its leave moment.** It sets the next think to the leave moment when that is sooner than
+  the standard one (at least 250 ms), as `bots/autonomous/AutonomousWorldBotController.KeepTravel.cs:86` does; the next
+  think is then due at now + that interval (`ECS-Services/NpcService.cs:84`). It adds half a game tick, rounded up (17
+  ms at 30 ticks/s), because a brain may think up to half a tick early (`ECS-Services/GameServiceUtils.cs:22`), and a
+  think just before the moment would hold and come back only 250 ms later.
+- **The wake covers one think.** A think that reaches the controller has first set the standard interval again
+  (BB:1335-1338, before Tick at BB:1482), so each hook turn sets its wake afresh. The woken think reaches the hook only
+  if nothing earlier takes the turn: a fight the threat scan starts (BB:1254-1259) or one already running (WBC:368-393),
+  a cast still running (WBC:442-443), a rebuff (BB:1414-1416), pet upkeep (BB:1455-1458) or a self bladeturn
+  (BB:1315-1316; it returns before BB:1335, so that think keeps the wake interval). Songs never take it: every classic
+  song is cast on the move, so BB:2255 gives the turn back. A bot whose woken think is taken leaves at its next hook
+  turn: its next think comes up to one standard interval later, and each further taken turn adds up to one more; a fight
+  holds it until 10 s after the last blow (WBC:368-393; `gameobjects/GameLiving.cs:31`). Late, the safe side. At a quiet
+  spot this is rare.
 
 ### 2.4 The marker, the one-wait latch, and what counts as waiting
 
@@ -224,8 +254,8 @@ calls into it). ARPR is not changed.
   stores the case, the region and spot, the assignment id at that moment, and for a siege the event keep id.
 - **Left (the latch):** set when the wait ends, or when the first look finds no wait needed or a reason not to wait,
   or at the bot's next death (3.7).
-  While the marker is Left for the current death count, no hook stops the bot again, whatever its speed, destination
-  or wave does next.
+  While the marker is Left for the current death count, no hook stops the bot again, whatever its speed or
+  destination does next.
 - **What ends a wait.** Each latches Left by one successful swap and logs one `leave` with its reason (10.5, 7.2):
   - its time: hooks 1-2 (`due`), or the warband gate opening (`due`, 3.4);
   - its assignment id changes, or it is in another region than its wait (`changed`, hook 3). A new goal, a task that
@@ -270,8 +300,8 @@ Death at t = 0; straight lines at 191 units/s.
 
 | Case | Bot | At its spot | Time left there | Trip | Leaves at | At the fight |
 |---|---|---|---|---|---|---|
-| Battleground | Albion, Thidranki, killed near the central keep | arrival point at ~30 s (release ~21 s, teleporter 6 s) | ~270 s | 2,147 → 11 s | 289 s, rounded up to a 30 s mark: 289-319 s | first contact 300-330 s; central keep about 60 s later |
-| Battleground | Midgard (Hibernia alike) | ~30 s | ~270 s | 8,181 → 43 s | 257-287 s | first contact 300-330 s; central keep 80 s later |
+| Battleground | Albion, Thidranki, killed near the central keep | arrival point at ~30 s (release ~21 s, teleporter 6 s) | ~270 s | 2,147 → 11 s | 289 s | first contact 300 s; central keep about 60 s later |
+| Battleground | Midgard (Hibernia alike) | ~30 s | ~270 s | 8,181 → 43 s | 257 s | first contact 300 s; central keep 80 s later |
 | Frontier, alone | Midgard defender bound for Fensalir Faste | home bind at ~21 s | ~279 s | 145 s | 155 s | 300 s |
 | Siege member | Hibernian defender of Dun Ailinne, solo | home bind at ~21 s | ~279 s | 229 s | 71 s | 300 s |
 | Siege member | the same, with a living group healer in the region | home bind at 90 s | 210 s | 229 s | at once (no wait) | 319 s |
@@ -308,9 +338,8 @@ Death at t = 0; straight lines at 191 units/s.
 
   Measured to the central keep instead (70, 123 and 122 s), a bot could meet enemies with up to about 54-75 s still on
   its timer (battlegrounds check, missed[0]).
-- **Leaves:** with its wave (2.3). Bots due in the same 30-second window of the clock leave together; none waits 30 s
-  or more past its own moment; none leaves before it. Two bots due a few seconds apart on either side of a mark leave
-  30 s apart (choice 2).
+- **Leaves:** when time left ≤ trip, at its own moment (2.3). In this stage nothing groups battleground bots; waves
+  come later (choice 2, Appendix B).
 - **Hook:** BG:67-72 today:
 
   ```csharp
@@ -435,14 +464,14 @@ Death at t = 0; straight lines at 191 units/s.
   (GRS:17-19). It gets no Waiting marker, so it charges on sight as today: it fights on.
 - **Spot:** each member's slot, `RendezvousFormationPoint` (GC:1148-1160), where it already stands "Formed up at
   rendezvous" (WBC:1461-1477).
-- **Markers while the gate holds:** on each pass where it holds, the gate turns the Released marker of each member
-  that stands in the rendezvous region, for its current death, into Waiting: case warband, spot = its slot, region =
-  the rendezvous region, its current assignment id, and the session id. A marker already Waiting is not written again.
-  A member still in another region (released to its capital) stays Released and still holds the gate; it turns
-  Waiting on the first pass after it enters the region. The gate only changes Released to Waiting while it holds, and
-  Waiting or Released to Left when it opens. It never writes over a Left marker (7.2). So `IsWaiting` is true for the
-  Waiting members, and hooks 5 and 6 apply (section 4). The gate does no controller work: the regroup itself stops
-  members at their slots, rests them and walks them back after a fight (WBC:1436-1477).
+- **Markers while the gate holds:** on each pass where it holds, the gate turns the Released marker of each member that
+  stands in the rendezvous region, for its current death, into Waiting: case warband, spot = its slot, region = the
+  rendezvous region, its current assignment id, and the session id. A marker already Waiting is not written again. A
+  member still in another region (released to its capital) stays Released and still holds the gate; it turns Waiting on
+  the first pass after it enters the region. The gate only changes Released to Waiting while it holds, and Waiting or
+  Released to Left when it opens. It never writes over a Left marker (7.2). So `IsWaiting` is true for the Waiting
+  members while their own time left > 0, and hooks 5 and 6 apply (section 4). The gate does no controller work: the
+  regroup itself stops members at their slots, rests them and walks them back after a fight (WBC:1436-1477).
 - **Leaves:** together, once the released member with the most time left can make the march: the gate holds while
   that time left > the march. Then `TryComplete` adds its 5 s settle (GRS:12, :45-56).
 - **March:** a straight line from the rendezvous to where that member died (3.7), at the fastest member's best speed.
@@ -633,6 +662,14 @@ Death at t = 0; straight lines at 191 units/s.
 - **Holds through fights.** `IsWaiting` has no clock (2.4). The turns a bot spends fighting (WBC:368-393, and 10 s
   after the last blow, `GameLiving.cs:31`), casting (WBC:442-443) or rebuffing (BB:1414-1416) never reach the hooks,
   yet the no-charge and no-recruiting rules hold through them.
+- **Worth points but still held:** a warband member whose own time left runs out while the gate holds for a mate with
+  more time left is worth points. `IsWaiting` is then false (2.4), so it charges what it sees, as today, and the
+  regroup walks it back to its slot. Battleground, frontier and siege bots are never held for a mate: each leaves at its
+  own moment, when time left ≤ trip, so normally while time left > 0. One is worth points before it leaves only if it
+  leaves late: a fight runs past its moment (a fight never ends a wait), or its woken think is taken and its next hook
+  turn comes more than its trip later (2.3). That needs a short trip: an Albion battleground bot (about 11 s, 3.1) or a
+  siege defender whose bind is near its keep (3.3). `IsWaiting` is then false for it too, so it charges what it sees, as
+  today, and it leaves on its next hook turn.
 - **Where hook 6 matters:** at battleground arrival points and warband slots (border keeps are not safe areas, 3.2).
   At a bind the scan returns before this filter (FT:138). There a waiting frontier solo or siege member answers only
   enemies attacking it (BB:405-433), and a siege-party member its group mates' attackers too (BB:481-520). It does not
@@ -709,11 +746,11 @@ Death at t = 0; straight lines at 191 units/s.
 | `BestSpeed` | live `MaxSpeed`, `MaxSpeedBase`, best own speed value (%) | units/s |
 | `TripMilliseconds` | distance, units/s | ms, rounded down; `long.MaxValue` with no speed |
 | `FirstContactPoint` | arrival, central keep, 0.6, 900, 5,000 | a 2D point |
-| `LeaveTick` | last death tick, `rp_worth_seconds`, trip, wave (30,000 or 0) | game tick |
+| `LeaveTick` | last death tick, `rp_worth_seconds`, trip | game tick: the moment time left = trip (2.3); the controller's think wake (2.3, 7.3) and the `leaveIn` log field (10.5) read it, Decide does not (it compares time left with trip) |
 | `Note` (hook 3) | switch, marker, death count, alive, returning, goal, region, position, assignment id, in a group, force committed, muster order | the new marker and its log action (Released; Left with `off`, `changed` or `called`), or the old one |
-| `Decide` (hooks 1-2) | marker and current death count, the hook's case, region, assignment id, stored and current event keep id, exclusion, target known and its region, inside the first-look gate (bind 750, arrival 2,500, slot 200), time left, trip, leave tick, now | `Ignore`, `Skip(reason)`, `Start`, `Convert` (warband to siege, 3.4), `Hold`, `Leave(reason)`; its reasons include `called` (a siege marker whose stored keep is not the current one, 3.3) |
+| `Decide` (hooks 1-2) | marker and current death count, the hook's case, region, assignment id, stored and current event keep id, exclusion, target known and its region, inside the first-look gate (bind 750, arrival 2,500, slot 200), time left, trip, now (the `started` of the marker that Start or Convert writes) | `Ignore`, `Skip(reason)`, `Start`, `Convert` (warband to siege, 3.4), `Hold`, `Leave(reason)`; its reasons include `called` (a siege marker whose stored keep is not the current one, 3.3) |
 | `WarbandWaits` | switch, objective kind, force committed, each member's marker, death count and time left, march, relic carrier | wait or not: wait while the largest time left among members released for this death > march; go with the switch off, a non-RvR kind or a committed force, and then `WarbandMarks` is not called (3.4, section 6) |
-| `WarbandMarks` | gate result, the rendezvous region, and for each member its marker, death count, time left, region, slot, assignment id; session id | each member's new marker and its log action (`start`, `leave`, `skip`, or none): Released to Waiting only in the rendezvous region while holding; Released or Waiting to Left when opening; a Left marker never changes |
+| `WarbandMarks` | gate result, the rendezvous region, and for each member its marker, death count, time left, region, slot, assignment id; session id; now (a Waiting marker's `started`) | each member's new marker and its log action (`start`, `leave`, `skip`, or none): Released to Waiting only in the rendezvous region while holding; Released or Waiting to Left when opening; a Left marker never changes |
 | `Died` (3.7) | marker, death count now | Left with `died` for a Waiting marker of an older death count; Left with no line for a Released one; otherwise the old marker |
 | `JoinedGroup` (3.8) | marker, death count, leader is a player | Left with `player-group`, or the old marker |
 | `IsWaiting` | switch, marker, death count, time left, region, assignment id, player-led, in a group, in a battleground region and distance to its `BotArrival`, distance to the release point | the "counts as waiting" rule of 2.4 |
@@ -722,7 +759,7 @@ Types: `RpWaitPhase` (Released, Waiting, Left); `RpWaitCase` (Battleground, Fron
 immutable (death count, phase, case, release region, release point, region, spot, assignment id, session id, event
 keep id, started); `RpWaitSlot`, the per-bot holder of the current marker, with `TrySwap(expected, next)` by
 `Interlocked.CompareExchange` and `Apply(decide)`, the handlers' retry loop (7.2); `RpDeathRecord` (death count,
-region, position, tick, timer value). Constants: wave 30,000 ms; first-look gates 750 (bind), 2,500 (battleground)
+region, position, tick, timer value). Constants: first-look gates 750 (bind), 2,500 (battleground)
 and 200 (warband slot, 3.4); walk back beyond 200; contact point 0.6, 900 and 5,000; frontier regions 1, 100 and 200.
 
 ### 7.2 `scripts/hearthdaoc/RpTimerWaitScript.cs`: the game wiring
@@ -788,7 +825,7 @@ latch (3.8) and the death record (3.7) are event handlers, and the "called away"
   switch's declaration.
 - Not: the controller part (it needs a controller, a world and the navmesh), the hook lines (source checks, 10.2), the
   event handlers' wiring (they need a real death or group; their decisions, `Died` and `JoinedGroup`, are tested), the
-  event-layer reads in `NoteRelease` and `WarbandWaits`, the threat scan and the waves themselves (in game, 10.4).
+  event-layer reads in `NoteRelease` and `WarbandWaits`, and the threat scan (in game, 10.4).
 
 ## 8. Hazards from the code checks
 
@@ -796,13 +833,12 @@ The table is in Appendix A, at the end.
 
 ## 9. Choices this spec makes (owner may change)
 
-1. **Name and default:** `bot_rp_timer_wait` and `HEARTHDAOC_BOT_RP_TIMER_WAIT`, category `server`, off in code, on in
-   HearthDAoC (the `si_start_choice` pattern).
-2. **Wave window:** fixed 30-second marks of the game clock; a battleground bot leaves at the first mark at or after
-   its own moment. The same for every bot and stateless, so a mark never moves when another bot arrives. At most 30 s
-   extra. Battlegrounds only. It is not "bots due within ~30 s of each other": two bots due 5 s apart across a mark
-   leave 30 s apart. Alternative: a sliding window (a bot waits for others due within 30 s after it). That keeps close
-   bots together, but needs shared state per battleground and realm, and a wave can slide as bots arrive.
+1. **Name and default** (owner, 2026-10-13: approved)**:** `bot_rp_timer_wait` and `HEARTHDAOC_BOT_RP_TIMER_WAIT`,
+   category `server`, off in code, on in HearthDAoC (the `si_start_choice` pattern).
+2. **Battleground waves: deferred** (owner, 2026-10-13). The owner chose a sliding wave ("which ever is more likely to
+   have bots go in a group"), then chose to stage the work. In this stage each battleground bot leaves at its own
+   moment. Waves come in a later stage: the owner named the commander phase (roadmap part 7); the RvR groups (part 4)
+   would also fit. Appendix B keeps the design so far and what its two reviews found.
 3. **Best speed:** the largest of live speed, base speed, and base speed times its own best speed song (2.2).
 4. **First contact point:** `0.6 × |AC| − 900 − 5,000` from the arrival toward the central keep, from the roam anchors
    and the scan radius (3.1).
@@ -816,7 +852,8 @@ The table is in Appendix A, at the end.
    also after a draft into a battle (3.4). A bot more than 200 from its spot walks back, from any distance.
 8. **First-look gates:** within 750 of the release point; within 2,500 of `BotArrival`; a drafted warband member
    within 200 of its slot. Outside them, no wait (latched).
-9. **Leave timing:** the next think is set to the leave moment (at least 250 ms).
+9. **Leave timing:** the next think is set to the leave moment plus half a game tick (at least 250 ms); a woken
+   think that something else takes leaves at the next hook turn (2.3).
 10. **Frontier re-pick:** held until the bot is worth points again.
 11. **Fighting back:** it answers enemies attacking it or a realm-mate within 1,000; it charges nothing it only sees.
     At a bind (frontier solo, siege), only its own attackers and, in a siege party, its group mates' (the scan is off
@@ -832,11 +869,12 @@ The table is in Appendix A, at the end.
 16. **Logging:** the four `HEARTHDAOC_RP_WAIT` actions (10.5); `died` also with the switch off; one `leave` for every
     `start`.
 17. **Warband status:** unchanged ("Formed up at rendezvous"): no new watchdog exemption, no extra hook.
-18. **Resurrected warband members' timers:** not counted. Only members released for their current death hold the
-    gate; a resurrected member gets no wait and fights on, as "A, fights on" says. It still walks back with the
-    warband and stands at its slot until the warband leaves (the existing regroup, GRS:17-19, :45-56). Alternative:
-    count their timers too. A warband whose only casualty was resurrected in the field would then wait at its border
-    keep until that member can make the march, up to about 4-5 minutes after the walk back (est.).
+18. **Resurrected warband members' timers** (owner, 2026-10-13: "yes don't hold the warband back")**:** not counted.
+    Only members released for their current death hold the gate; a resurrected member gets no wait and fights on, as "A,
+    fights on" says. It still walks back with the warband and stands at its slot until the warband leaves (the existing
+    regroup, GRS:17-19, :45-56). Alternative: count their timers too. A warband whose only casualty was resurrected in
+    the field would then wait at its border keep until that member can make the march, up to about 4-5 minutes after the
+    walk back (est.).
 19. **Never waits, beyond the design's relic carriers and escorts** (section 5):
     - relic interceptors and bots heading for a dropped relic (their target moves);
     - every force of a relic carrier event: attackers, defenders and third realm;
@@ -846,13 +884,13 @@ The table is in Appendix A, at the end.
       battle has not started (the gate says go, 3.4);
     - gamebots in a player's group.
     Each could wait instead; each needs its own trip rule.
-20. **Called away ends the wait:** a frontier solo whose force joins an event (a muster, a battle draft, a relic
-    event), or a siege or warband member called to a muster, stops waiting and goes; a player's invite ends it too. A
-    held warband drafted into a battle with no muster keeps waiting, at its slots (3.4). Alternative: let a drafted
-    frontier solo wait on at its bind as a siege member (3.3). A waiting siege member whose force the draft moves to
-    another defence stops waiting too (`called`, hook 2 sees another keep, 3.3); a drafted warband member at its slot
-    likewise. Alternative: wait on at its spot (its bind, or a drafted warband member's slot), measured to the new keep. A bot called to a muster can't wait on: it
-    would be missing from the muster, which marches on attendance (EL:706, :714).
+20. **Called away ends the wait:** a frontier solo whose force joins an event (a muster, a battle draft, a relic event),
+    or a siege or warband member called to a muster, stops waiting and goes; a player's invite ends it too. A held
+    warband drafted into a battle with no muster keeps waiting, at its slots (3.4). Alternative: let a drafted frontier
+    solo wait on at its bind as a siege member (3.3). A waiting siege member whose force the draft moves to another
+    defence stops waiting too (`called`, hook 2 sees another keep, 3.3); a drafted warband member at its slot likewise.
+    Alternative: wait on at its spot (its bind, or a drafted warband member's slot), measured to the new keep. A bot
+    called to a muster can't wait on: it would be missing from the muster, which marches on attendance (EL:706, :714).
 
 ## 10. Testing
 
@@ -869,9 +907,8 @@ One row per rule:
 - **Trip:** 8,181 at 191 gives 42,832 ms; no speed means it never waits.
 - **First contact:** the three arrival points and the central keep give 2,147, 8,181 and 8,133 from the arrival (±1);
   a short field gives the arrival itself.
-- **Leave tick:** never before the bot's own moment, never 30 s or more after it; two bots due 5 s apart inside one
-  window share a tick; two due 5 s apart across a mark leave 30 s apart; a moment exactly on a mark stays; with no
-  wave it is the moment itself.
+- **Leave tick:** `LeaveTick` is the last death tick + `rp_worth_seconds` × 1000 − the trip; at that tick time left
+  equals the trip.
 - **Note (hook 3):**
   - alive, returning, goal RvR or Battleground: Released for this death, with region, point and assignment id;
   - a PvE goal: no marker;
@@ -897,12 +934,12 @@ One row per rule:
     then released instead: Note writes Released for the new death.
 - **Decide (hooks 1-2):**
   - no marker, or a marker for an older death: Ignore;
-  - Left: Ignore after any later change of speed, destination or wave (the latch);
+  - Left: Ignore after any later change of speed or destination (the latch);
   - Released first look: each exclusion gives Skip with its reason; the bot in another region than its release point
     or its target (hook 2), Skip(other-region); no target, Skip(no-target); outside the first-look gate,
     Skip(moved-away); time left ≤ trip, Skip(trip); otherwise Start (a siege stores the event keep id);
   - Released with the warband-outside-battle case: Ignore (the gate decides);
-  - Waiting, same case: Hold until the leave tick, then Leave(due);
+  - Waiting, same case: Hold at time left = trip + 1 ms; Leave(due) at time left = trip, a battleground bot too;
   - Waiting more than 200 from its spot: Hold with a walk back; 3,000 from it after a fight: still Hold;
   - Waiting with another assignment id or region: Leave(changed);
   - Waiting frontier, the hook sees a siege, or Waiting siege, the hook sees frontier: Leave(changed) (hook 3 has
@@ -1013,8 +1050,8 @@ In the same file, copying `deploy/tests/test_si_start_choice.py:35-106`:
 3. Go to that realm's arrival point outside its portal keep (Albion 36428,51260; Midgard 53150,26093; Hibernia
    19714,19085; the same in all four). Its bots stand there, apart, and don't run at you, even one just arriving
    through the teleporter. Hit one: it, and its realm-mates within 1,000, fight back, then walk back to their spots.
-4. At its `leave` it walks out with the others due in the same 30 s window. Kill it in the field: realm points are
-   paid, with no "has been killed recently and is worth no realm points!" message; the log shows `died … worth=yes`.
+4. At its `leave` it walks out on its own (no waves in this stage). Kill it in the field: realm points are paid, with no
+   "has been killed recently and is worth no realm points!" message; the log shows `died … worth=yes`.
 5. Kill one while it waits: the "worth no realm points" message, as expected, `died … worth=no` and, at the same
    death, `leave reason=died`; after its next release, a new `start`. A warband member resurrected at its slot
    instead gets no new `start`.
@@ -1051,8 +1088,8 @@ What to read:
 - **Before this release:** the same share from `RVR_BOT_KILLED` (ARPR:70-73): a bot `id=` killed again within 300 s of
   its previous line paid nothing. A lower bound: deaths to monsters and neutral guards restart the timer but are not in
   that line.
-- **The cost:** `waited=` on `leave` (battlegrounds about 230-290 s, est.); `start` lines minus `leave` lines up to a
-  moment is how many bots sit out then.
+- **The cost:** `waited=` on `leave` (battlegrounds about 230-260 s, est.: Albion about 259 s, Midgard and Hibernia
+  about 227 s, 2.5); `start` lines minus `leave` lines up to a moment is how many bots sit out then.
 - **What remains:** `worth=no` from bots killed again at their spot (players camping an arrival point), resurrected
   bots, waits ended early (`leave` reasons other than `due`), and the `skip` reasons.
 
@@ -1067,6 +1104,8 @@ What to read:
 - The later roadmap parts (section 1): base class and promotion at 5; battleground regulars and recycling (#110);
   RvR groups and keep choice; epic armour; ordinary quests; the realm commander; the optional AI bundle, chat and war
   council.
+- Battleground waves: deferred to a later stage, with the realm commander or the RvR groups (choice 2, Appendix B). In
+  this stage each battleground bot leaves at its own moment (2.3, 3.1).
 - Changing the timer or its value; `lord_rp_worth_seconds`, which counts from the lord's last spawn
   (`keeps/Gameobjects/Guards/Lord.cs:54-59`).
 - The longer corpse wait (README 4.1, variant 1).
@@ -1078,8 +1117,8 @@ What to read:
 
 ## 13. Risks
 
-- **Thinner fights:** a dead battleground bot is back at the first contact point about 5-5.5 minutes after its death
-  and at the central keep about 6-7 minutes after, instead of about 2. If the battlegrounds feel empty, raise their
+- **Thinner fights:** a dead battleground bot is back at the first contact point about 5 minutes after its death
+  and at the central keep about 6-6.5 minutes after, instead of about 2. If the battlegrounds feel empty, raise their
   share with `./hdc bot-goals set` (`deploy/HANDOFF.md:95-110`).
 - **Camped arrival points:** players camping an arrival point can keep killing waiting bots (worth nothing), and each
   death restarts that bot's wait. They fight back; guard cover at the spot is unverified (they stand 1,400-1,700 from
@@ -1095,6 +1134,8 @@ What to read:
   (`AutonomousGroupTaskClock.cs:18`), a wait about 5. The `leave` reasons count them (10.5).
 - **Goal clocks:** battleground tours and warband tasks keep running during waits; a battleground bot that dies often
   without fighting nears the 45-minute goal watchdog (`AutonomousStuckWatchdog.cs:38`, :368-374).
+- **One by one:** until waves come (Appendix B), battleground bots go back alone as each becomes worth points, and
+  a lone bot can meet an enemy group.
 - **Upstream churn:** six marked lines in four upstream files and a partial of the controller. A sync that moves them
   fails the source checks or the build.
 
@@ -1105,7 +1146,7 @@ design meets it. Rows marked "spec review" came from the review of this spec (20
 
 | Hazard (source) | Handling |
 |---|---|
-| A wait can switch back on after leaving: a speed song starts, or a wave's time moves (battlegrounds missed[1]; frontier missed[1]) | latch per death count (2.4); best speed counts the bot's own song (2.2); 30 s marks never move (2.3) |
+| A wait can switch back on after leaving: a speed song starts, or a wave's time moves (battlegrounds missed[1]; frontier missed[1]) | latch per death count (2.4); best speed counts the bot's own song (2.2); no waves in this stage (Appendix B) |
 | Portal keeps can't be pathed by bots (battlegrounds missed[2]) | spot on the field mesh at `BotArrival` (3.1) |
 | The trip to the central keep overstates first contact (battlegrounds missed[0]) | first contact point (3.1) |
 | The threat scan charges on sight (battlegrounds missed[3]) | hook 6 (section 4); a Released marker counts before the first look (2.4) |
@@ -1115,12 +1156,12 @@ design meets it. Rows marked "spec review" came from the review of this spec (20
 | Guards may not cover the arrival point (battlegrounds missed[7]) | waiting bots fight back; risk in 13 |
 | Siege leases outlive the death (battlegrounds hooks[1], missed[9]; sieges hazard 0, missed[6]) | `ReleaseSiegeJob` once, at wait start; back by ExecuteRvr's travel, a fresh job near the keep (3.3) |
 | `EstimateTravelMinutes` has no speed floor and returns 9999 into battlegrounds (battlegrounds corrections[2], [8]) | not used |
-| Leave lag up to ~12 s, more at 1,500 bots (battlegrounds corrections[5]; frontier corrections[6]) | next think set to the leave moment (2.3) |
+| Leave lag up to ~7.3 s, ~11.7 s at 1,500 bots or more (battlegrounds corrections[5]; frontier corrections[6], whose 13.5 s applies a 12 s cap that never binds) | next think set to the leave moment plus half a tick; a taken woken think leaves at the next hook turn: up to about 11.7 s later per taken turn, or after a fight ends (2.3) |
 | Bots resurrected in the field would be frozen in combat (battlegrounds corrections[6]; sieges hazard 19) | marker only from a release (2.4) |
 | CI runs only listed tests; the workflow test pins the list (battlegrounds corrections[10]) | 10.1 |
 | Tests can't see the internal key (battlegrounds corrections[9]; sieges corrections[6]) | literal key in the test (10.1) |
 | Some spots outside the 400 exit radius (battlegrounds corrections[11]) | slots 1-12; a bot farther out walks to the exit first, harmless |
-| 45-minute goal clock covers the battleground goal (battlegrounds hazard 1) | a wait adds at most ~290 s with no outcome; fights mark progress; the wait marks nothing |
+| 45-minute goal clock covers the battleground goal (battlegrounds hazard 1) | a wait adds at most ~260 s with no outcome; fights mark progress; the wait marks nothing |
 | The tour clock runs during a wait (battlegrounds hazard 2) | accepted; a tour that ends mid-wait gives a new assignment, which ends the wait; the bot is already near its exit (BG:202-229) |
 | Border keeps are not safe areas (frontier corrections[0]) | solo spot is the bind (3.2) |
 | Rest set by the hook is woken every turn (frontier corrections[1]) | no rest call (section 4) |
@@ -1133,8 +1174,8 @@ design meets it. Rows marked "spec review" came from the review of this spec (20
 | Speed drops below 33% health; followers' catch-up (frontier missed[3]) | best speed (2.2) |
 | Relic escorts measure to a stale carrier (frontier missed[4]) | no relic chaser waits (section 1, departures; section 5) |
 | Invading warbands have no route home to regroup (frontier missed[5]) | existing; their waits are cross-region, so none |
-| A task that expires mid-wave leaves members at border-keep slots (frontier missed[6]) | accepted: the wait ends with the task; members may go out worth nothing (3.4; risk in 13) |
-| 15-minute stuck watchdog (frontier hazard 0) | waits are under ~290 s; the release teleport counts as movement; warbands exempt |
+| A warband task that expires mid-wait leaves members at border-keep slots (frontier missed[6]) | accepted: the wait ends with the task; members may go out worth nothing (3.4; risk in 13) |
+| 15-minute stuck watchdog (frontier hazard 0) | waits are under ~280 s; the release teleport counts as movement; warbands exempt |
 | Recruiting takes waiting bots (frontier hazard 2) | hook 5 (3.6); siege parties excepted (section 4) |
 | The coordinator lock (frontier hazard 13) | timer reads, one `IsForceCommitted` read, arithmetic and marker swaps only (3.4) |
 | Home-frontier attackers wait, enemy defenders don't (sieges corrections[0]) | the rule (3.3) |
@@ -1165,3 +1206,32 @@ design meets it. Rows marked "spec review" came from the review of this spec (20
 | A waiting bot killed and then resurrected never logged a `leave` (spec review) | the `Dying` handler ends the wait at the death (`died`, 3.7) |
 | The gate writes other members' markers from another thread, so updates could be lost (spec review) | compare-and-set on an immutable marker; lines only after a successful swap; handlers retry (7.2) |
 | The gate marked members Waiting in a muster, or in another region, and hook 3 ended them at once (spec review) | the gate says go for a committed force and marks only members in the rendezvous region (3.4) |
+
+## Appendix B. Deferred: battleground waves (a later stage)
+
+The owner, 2026-10-13: "focus more on the bots waiting so they are worth rps and then sprinkle in the wave stuff
+later, like during the commander phase". This appendix keeps what was worked out, for that stage. Nothing here is
+built in stage 1.
+
+- **The owner's choice:** a sliding wave, on "which ever is more likely to have bots go in a group". A realm's
+  battleground bots due less than 30 s after the first of them leave together, when the last of them is due; a bot
+  alone leaves at its own moment, and none waits 30 s or more past it. Fixed 30 s marks of the clock were the other
+  option (two bots due 5 s apart across a mark leave 30 s apart).
+- **The simulation** (research `rp-wave-sim-2026-10-13`: `README.md`, `sim.py`, `results.txt`): over three made-up
+  mixes of fights, the sliding wave left 1.7-10.8% of bots to go alone against 4.9-18.2% for fixed marks, kept 56-97%
+  of pairs killed in one fight together against 46-87%, and added 4.7-11.3 s of wait on average against 15 s. The
+  model leaves out bots that drop out of a wave.
+- **A first design, per bot.** Each bot recomputed the whole partition from its realm-mates' markers on its turns. The
+  first review (`review1-findings.txt`, 17 findings confirmed) showed that waves then re-form whenever an earlier bot
+  drops out (killed after leaving, a straggler still fighting, uneven memory of who left), splitting later waves.
+- **A second design, per bot with stored anchors.** Each bot took a wave's anchor once and stored it in its marker;
+  played out turn by turn (`online.py`) it matched the simulation when nothing drops out, once recently-left anchors
+  stayed joinable. The second review, stopped when the owner deferred waves (`review2-partial.md`), still found
+  splits: brains think in parallel, so two bots can take anchors from the same stale view in one tick; anchors follow
+  the order of first turns, not of dues, when a turn is taken; an anchor can vanish when its holders drop out.
+- **What the later stage should try first:** one coordinator per battleground and realm that forms each wave under a
+  lock, as the warband gate does under the coordinator lock (3.4), instead of each bot deciding alone. The realm
+  commander (roadmap part 7) may want to time pushes anyway.
+- **What stage 1 leaves in place for it:** a marker per bot swapped by compare-and-set (2.4, 7.2); `LeaveTick`, each
+  bot's own moment (7.1); hook 1 at the battleground arrival point (3.1), where a wave would hold its bots; the
+  `leave` log line, to which a wave size can be added (10.5).
