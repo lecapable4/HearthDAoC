@@ -77,10 +77,33 @@ class QuestCampTests(unittest.TestCase):
                          [("Mob",)])
 
     def test_a_failure_rolls_the_step_back_and_says_so(self):
+        # A good camp first, so rows and a marker are written before the bad entry fails: all of it is undone.
         conn = world()
-        bad = {"camps": [{"key": "fire", "name": "Delfina's camp", "names": ["Tylwyth Teg ranger"], "ids": ["r1"]}]}
+        bad = {"camps": [DATA["camps"][0], {"key": "bad", "name": "No source", "names": ["x"], "ids": ["g1"]}]}
         line, = quest_camps.apply(conn, NOW, bad)
-        self.assertTrue(line.startswith("Quest camps: not applied ("), line)
+        self.assertTrue(line.startswith("Quest camps: not applied (camp bad: no why)"), line)
+        self.assertIsNone(conn.execute("SELECT 1 FROM Mob").fetchone())
+        self.assertEqual(conn.execute("SELECT name FROM sqlite_master WHERE name=?", (quest_camps.MARKER_TABLE,)).fetchall(), [])
+        self.assertEqual(quest_camps.apply(conn, NOW, DATA)[0],
+                         "Quest camps: copied back from upstream's archive: Delfina's camp (2), Lieutenant Grimarth (1)")
+
+    def test_rows_hdc_spawns_restored_become_the_camps(self):
+        # `hdc spawns restore` at a high level can bring back some of a camp's (lowercase-named) rows and track them in
+        # fork_restored_mobs, which a later restore, `hdc spawns undo` and the quest-twin removal delete. Once the camp
+        # is copied, its rows are the camp's: they leave that list.
+        conn = world()
+        conn.execute("CREATE TABLE fork_restored_mobs (Mob_ID TEXT PRIMARY KEY, PatchId TEXT, MaxLevel INT, RestoredUtc TEXT)")
+        conn.execute("INSERT INTO Mob VALUES ('r1', 'Tylwyth Teg ranger', 1, 1, 0, 0)")
+        conn.executemany("INSERT INTO fork_restored_mobs VALUES (?, 'restore-leveling-spawns-v1', 50, ?)", [("r1", NOW), ("other", NOW)])
+        quest_camps.apply(conn, NOW, DATA)
+        self.assertEqual(conn.execute("SELECT Mob_ID FROM fork_restored_mobs").fetchall(), [("other",)])
+
+    def test_a_camp_archived_under_other_names_is_named_in_the_log(self):
+        conn = world()
+        conn.execute(f"UPDATE {quest_camps.ARCHIVE} SET Name='Renamed ranger' WHERE Mob_ID IN ('r1', 'r2')")
+        data = {"camps": DATA["camps"][:1]}
+        self.assertEqual(quest_camps.apply(conn, NOW, data),
+                         ["Quest camps: not in the archive as named: Delfina's camp (r1, r2)"])
         self.assertIsNone(conn.execute("SELECT 1 FROM Mob").fetchone())
 
     def test_the_shipped_file_is_well_formed(self):

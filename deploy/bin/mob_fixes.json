@@ -191,7 +191,7 @@
   {"name": "Delfina", "table": "Mob", "id": "b09ebff4-6f36-5f47-bb41-48161840d41c",
    "expect": {"Model": 34, "Gender": 0, "Size": 52, "Level": 43, "FactionID": 241},
    "set": {"Model": 348, "Gender": 2, "Size": 60, "Level": 45, "FactionID": 62},
-   "why": "Level 43 \"Lord of Deceit\": \"a camp of Tylwyth Teg elves. There is one among them named Delfina. She carries the reports\" (Allakhazam cquest 363, 2002-09-18), \"une chasseresse Tylwyth Teg\" (bdodaoc, 2004); \"Minimum Level : 45 Maximum Level :45\", \"Lowers Faction with : Tylwyth Teg\" (Allakhazam cmob 3480, 2002-10-16 on). Upstream's row was a \"Briton Male\" (model 34) of the forest poachers (241), level 43; now model 348 \"Elf Female 7\" at the size of the world's Tylwyth Teg huntresses, level 45, faction 62 Tylwyth Teg (owner 2026-10-12: \"Delfina looks to be a man\")."
+   "why": "Level 43 \"Lord of Deceit\": \"a camp of Tylwyth Teg elves. There is one among them named Delfina. She carries the reports\" (Allakhazam cquest 363, 2002-09-18), \"une chasseresse Tylwyth Teg\" (bdodaoc, 2004); \"Minimum Level : 45 Maximum Level :45\" (Allakhazam cmob 3480, entry 2002-10-16 on), \"Lowers Faction with : Tylwyth Teg\" (entry 2004-07-26). Upstream's row was a \"Briton Male\" (model 34) of the forest poachers (241), level 43; now model 348 \"Elf Female 7\" at the size of the world's Tylwyth Teg huntresses, level 45, faction 62 Tylwyth Teg (owner 2026-10-12: \"Delfina looks to be a man\")."
   },
   {"name": "Tylwyth Teg ranger, by Delfina's fire", "table": "Mob", "id": "a95e6d6f-0f45-4cbd-a527-97467780ea80",
    "expect": {"X": 572817, "Y": 410457, "Z": 3673, "RoamingRange": 200},

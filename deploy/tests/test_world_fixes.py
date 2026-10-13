@@ -330,8 +330,9 @@ class FixesTests(unittest.TestCase):
 
     @unittest.skipUnless(TEST_WORLD, "needs HDC_TEST_WORLD (a clean classic world database)")
     def test_shipped_world_started_before_the_classic_quests_texts(self):
-        # A world hearth.9 to hearth.11 started has the Guild of Shadows chain's dialogue (the file's step entries): its
-        # next start rewrites only the classic quests' texts (the ids entries, 80 quest rows), and the next nothing.
+        # A world with this file's Guild of Shadows dialogue (its step entries) but not the classic quests' texts, as
+        # hearth.9 to hearth.11 left it apart from later revisions of the chain's own text: its next start rewrites only
+        # the classic quests' texts (the ids entries, 80 quest rows), and the next nothing.
         shutil.copyfile(TEST_WORLD, self.db)
         data = qd.load_data()
         with mock.patch.object(qd, "load_data", return_value=dict(data, quests=[e for e in data["quests"] if "step" in e])):

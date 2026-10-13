@@ -149,8 +149,10 @@ Allakhazam in two kill tasks' journals, are gone. After each start, `./hdc fixes
 shows `Quest dialogue: N quests rewritten` when the texts of
 the chain's quests (every class's version) or of those classic quests (`deploy/bin/quest_dialogue.json`) were
 changed, and nothing when they are up to date: `Quest dialogue: 145 quests rewritten` on a new world, and
-`Quest dialogue: 80 quests rewritten` (the classic quests) at the first start after an update from hearth.9,
-hearth.10 or hearth.11 (a world an older release started also gets the chain's quests rewritten). Besides the texts (accept keyword, description, journal steps and
+`Quest dialogue: 86 quests rewritten` (the classic quests, and the six Guild of Shadows quests whose texts changed
+after hearth.13) at the first start after an update from hearth.9, hearth.10 or hearth.11, and `Quest dialogue: 6
+quests rewritten` after one from hearth.12 or hearth.13 (a world an older release started also gets the chain's quests
+rewritten). Besides the texts (accept keyword, description, journal steps and
 what the NPCs say), the file can set a quest's step items, step types and turn-in items, but never its number of
 stages: a quest whose stages differ from the file's is kept. It can also set a quest's giver (`StartName`) and the
 quests it needs (`QuestDependency`): the Shrouded Isles 7 and 11 ("Strange Beings", "Shades and Shadows") are given

@@ -70,6 +70,33 @@ public sealed class UT_ClassicQuestsChoice
                 Is.EqualTo((ClassicQuests.RewardWhisper.None, (string)null)), words ?? "null");
     }
 
+    // #95: with /xp off the finish step refuses (DataQuest.FinishQuest: "Your XP is turned off"), and the reward used to
+    // come before the step was known to complete, so the same step gave a weapon again and again.
+    [Test]
+    public void TheRewardComesOnlyOnceItsStepIsDone()
+    {
+        var calls = new List<string>();
+        Assert.That(ClassicQuests.TakeReward(true, () => { calls.Add("step"); return true; }, () => calls.Add("give")),
+            Is.EqualTo(ClassicQuests.RewardTake.Given));
+        Assert.That(calls, Is.EqualTo(new[] { "step", "give" }));
+    }
+
+    [Test]
+    public void AStepThatRefusesGivesNothing()
+    {
+        bool given = false;
+        Assert.That(ClassicQuests.TakeReward(true, () => false, () => given = true), Is.EqualTo(ClassicQuests.RewardTake.StepRefused));
+        Assert.That(given, Is.False);
+    }
+
+    [Test]
+    public void AFullBackpackStopsBeforeTheStep()
+    {
+        bool stepped = false, given = false;
+        Assert.That(ClassicQuests.TakeReward(false, () => stepped = true, () => given = true), Is.EqualTo(ClassicQuests.RewardTake.BackpackFull));
+        Assert.That((stepped, given), Is.EqualTo((false, false)));
+    }
+
     private static readonly Dictionary<string, string> Edric = new(System.StringComparer.OrdinalIgnoreCase)
     {
         ["interested"] = "There is trouble in Snowdonia again.",

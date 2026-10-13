@@ -5,8 +5,8 @@ Upstream's classic setup moved every generic spawn last edited in 2021 or later 
 offline_classic165_removed_mobs ("Post-legacy generic neutral spawn excluded from the server 1.65 authority"). With them
 went camps the period's quest walkthroughs describe: the Tylwyth Teg rangers around Delfina ("by the fire, linked to 2
 rangers", 2002), the isolationist camp of the level-45 courier, the Ellyll village around the level-48 seer, and
-Lieutenant Grimarth at Sir Dillus's tower. `hdc spawns restore` cannot bring them back: it leaves named rows and the
-levels above its maximum archived. quest_camps.json, beside this file, lists each camp's rows by Mob_ID, with the
+Lieutenant Grimarth at Sir Dillus's tower. `hdc spawns restore` brings back none of them at the owner's level 20, and
+never all: it leaves capitalised names and the levels above its maximum archived. quest_camps.json, beside this file, lists each camp's rows by Mob_ID, with the
 names they must carry and why.
 
 world_fixes.py calls apply() inside its transaction, before mob_fixes.py (which then moves rows of these camps), under
@@ -15,7 +15,10 @@ fixes and the start go on. A camp is copied once per world: it records the marke
 fork_world_fixes, so rows the owner removes later stay removed, and a camp added to the file later is copied on a world
 that has the others. The rows keep their Mob_IDs and stay in the archive (as epic_chains.py copies Lord Elidyn's camp);
 a row already in Mob is left as it is. Rows missing from both, or archived under another name, are named in the
-start log; a camp none of whose rows the world has is skipped without a word (and tried again at the next start).
+start log; a camp none of whose rows the world has (in Mob or the archive, under any name) is skipped without a word
+(and tried again at the next start). `hdc spawns restore` at a high --max-level can bring back some of a camp's
+lowercase-named rows and list them in fork_restored_mobs, which a later restore, `hdc spawns undo` and the quest-twin
+removal delete; once the camp is copied, its rows leave that list and stay.
 """
 import datetime
 import json
@@ -24,6 +27,7 @@ import os
 SAVEPOINT = "quest_camps"
 ARCHIVE = "offline_classic165_removed_mobs"
 MARKER_TABLE = "fork_world_fixes"
+RESTORED = "fork_restored_mobs"  # spawns.py's list of the rows `hdc spawns restore` brought back
 MARKER = "quest-camp:{}"
 NOT_APPLIED = "Quest camps: not applied ({}); the camps stay in upstream's archive"
 DATA_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "quest_camps.json")
@@ -71,7 +75,8 @@ def apply(conn, now=None, data=None):
                 f"SELECT Mob_ID FROM {ARCHIVE} WHERE Mob_ID IN ({marks}) "
                 f"AND lower(Name) IN ({', '.join('?' * len(names))})", (*camp["ids"], *names))}
             live = {mob_id for (mob_id,) in conn.execute(f"SELECT Mob_ID FROM Mob WHERE Mob_ID IN ({marks})", camp["ids"])}
-            if not archived and not live:
+            known = {mob_id for (mob_id,) in conn.execute(f"SELECT Mob_ID FROM {ARCHIVE} WHERE Mob_ID IN ({marks})", camp["ids"])}
+            if not known and not live:
                 continue  # none of the camp is in this world (another world, or a test's): not this world's camp
             gone = [mob_id for mob_id in camp["ids"] if mob_id not in archived and mob_id not in live]
             n = 0
@@ -80,6 +85,8 @@ def apply(conn, now=None, data=None):
                     n += conn.execute(f"INSERT INTO Mob ({columns}) SELECT {columns} FROM {ARCHIVE} WHERE Mob_ID=? "
                                       "AND Mob_ID NOT IN (SELECT Mob_ID FROM Mob)", (mob_id,)).rowcount
             conn.execute(f"INSERT INTO {MARKER_TABLE} (FixId, AppliedUtc) VALUES (?, ?)", (marker, now))
+            if RESTORED.lower() in tables:  # rows `hdc spawns restore` brought back are the camp's now
+                conn.execute(f"DELETE FROM {RESTORED} WHERE Mob_ID IN ({marks})", camp["ids"])
             if n:
                 copied.append(f"{camp['name']} ({n})")
             if gone:

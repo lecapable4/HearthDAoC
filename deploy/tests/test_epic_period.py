@@ -39,6 +39,8 @@ BRODIC = "77d83187-b069-57fc-849c-5a6c20dd2732"
 REGAL_25 = [21304, 21305, 21306, 21307, 21308, 21309]
 REGAL_30 = [21489, 21490, 21491, 21492, 21493, 21494]
 STRANGE_BEINGS = [20476, 20477, 20478, 20479, 20480, 20481]
+DECEIT_45 = [21295, 21296, 21297, 21298, 21299]
+EADIG = "3da67908-4a4c-47d9-90b7-d9cd9c76d5ed"
 ICONS = {  # Id_nb: (Model, Color or None)
     "cq_book_of_lore": (500, None), "cq_renegade_diary": (500, None),
     "cq_crediac_stone": (514, None), "cq_cythraul_skull": (540, None),
@@ -147,6 +149,15 @@ class EpicPeriodTests(unittest.TestCase):
         names = ["isolationist " + kind for kind in
                  ("armsman", "cleric", "mercenary", "paladin", "scout", "sorcerer", "wizardess")]
         self.assertGreaterEqual(len(self.near(COURIER, 6500, names)), 39)
+
+    def test_the_couriers_marker_follows_him_into_his_camp(self):
+        courier = self.mob(COURIER, "Region", "X", "Y", "Z")
+        for qid in DECEIT_45:
+            with self.subTest(qid):
+                self.assertEqual(self.marker(qid, 2), courier)
+
+    def test_the_infiltrators_45_ends_at_master_eadigs_marker(self):
+        self.assertEqual(self.marker(21297, 7), self.mob(EADIG, "Region", "X", "Y", "Z"))
 
     # Level 48: the Ellyll Seer in his village.
     def test_the_ellyll_seer_has_his_village(self):

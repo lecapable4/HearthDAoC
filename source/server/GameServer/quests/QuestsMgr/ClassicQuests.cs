@@ -190,7 +190,8 @@ namespace DOL.GS.Quests
                 string key = (whisper.Text ?? string.Empty).Trim().TrimEnd('.', '!', '?');
                 if (TryChooseReward(player, npc, key)) return;
                 if (!_config.Chat.TryGetValue(npc.Name, out var lines)) return;
-                // The quests this NPC gives that the player may take now, or is on: their own replies come first.
+                // HearthDAoC: the quests this NPC gives that the player may take now, or is on: their own replies
+                // ("keyword@<quest ID>") come first.
                 int[] quests = npc.DataQuestList
                     .Where(q => q.CheckQuestQualification(player) || player.QuestList.Keys.OfType<DataQuest>().Any(a => a.ID == q.ID))
                     .Select(q => q.ID).ToArray();
@@ -260,8 +261,22 @@ namespace DOL.GS.Quests
             return last == null ? (RewardWhisper.NothingShown, null) : (RewardWhisper.Take, last);
         }
 
-        /// <summary>The reward each player last looked at, by (player, quest, step). <see cref="Refresh"/> drops the entries
-        /// of steps a player is no longer on.</summary>
+        /// <summary>HearthDAoC: how taking a chosen reward ended.</summary>
+        public enum RewardTake { BackpackFull, StepRefused, Given }
+
+        /// <summary>HearthDAoC: the chosen reward is given only after its step completes. Upstream gave it first and
+        /// ignored the step's answer, so a finish step that refused (with /xp off, "Your XP is turned off") gave the
+        /// reward again at every try (#95).</summary>
+        public static RewardTake TakeReward(bool room, Func<bool> completeStep, Action give)
+        {
+            if (!room) return RewardTake.BackpackFull;
+            if (!completeStep()) return RewardTake.StepRefused;
+            give();
+            return RewardTake.Given;
+        }
+
+        /// <summary>HearthDAoC: the reward each player last looked at, by (player, quest, step). <see cref="Refresh"/>
+        /// drops the entries of steps a player is no longer on.</summary>
         private static readonly ConcurrentDictionary<(GamePlayer, int, int), string> Looked = new();
 
         private static bool TryChooseReward(GamePlayer player, GameNPC npc, string key)
@@ -271,6 +286,7 @@ namespace DOL.GS.Quests
                 if (!_config.Quests.TryGetValue(quest.ID, out QuestInfo info) || quest.Step <= 0 || quest.Step >= info.Steps.Count) continue;
                 CustomStep custom = info.Steps[quest.Step]?.Custom;
                 if (custom?.Kind != "choose" || custom.Choices == null || !string.Equals(custom.Target, npc.Name, StringComparison.OrdinalIgnoreCase)) continue;
+                // HearthDAoC: a named reward is shown first; "I'll take it" takes the last one shown (owner 2026-10-12).
                 var look = (player, quest.ID, quest.Step);
                 (RewardWhisper action, string chosen) = ReadRewardWhisper(custom.Choices, Looked.TryGetValue(look, out string last) ? last : null, key);
                 if (action == RewardWhisper.None) continue;
@@ -292,16 +308,18 @@ namespace DOL.GS.Quests
                         $"That is {template.GetName(1, false)}. If it is the one you want, say [I'll take it], or name another.");
                     return true;
                 }
-                if (!player.Inventory.IsSlotsFree(1, eInventorySlot.FirstBackpack, eInventorySlot.LastBackpack))
+                // HearthDAoC: room for the reward and the step's own final rewards, then the step, then the reward (#95).
+                bool room = player.Inventory.IsSlotsFree(1 + quest.FinalRewards.Count, eInventorySlot.FirstBackpack, eInventorySlot.LastBackpack);
+                RewardTake taken = TakeReward(room, () => quest.AdvanceByScript(npc), () =>
                 {
+                    if (player.Inventory.AddTemplate(GameInventoryItem.Create(template), 1, eInventorySlot.FirstBackpack, eInventorySlot.LastBackpack))
+                        player.Out.SendMessage($"{npc.GetName(0, true)} gives you {template.GetName(1, false)}.", PacketHandler.eChatType.CT_System, PacketHandler.eChatLoc.CL_SystemWindow);
+                });
+                if (taken == RewardTake.BackpackFull)
                     player.Out.SendMessage("Your backpack is full.", PacketHandler.eChatType.CT_System, PacketHandler.eChatLoc.CL_SystemWindow);
-                    return true;
-                }
-                if (player.Inventory.AddTemplate(GameInventoryItem.Create(template), 1, eInventorySlot.FirstBackpack, eInventorySlot.LastBackpack))
-                    player.Out.SendMessage($"{npc.GetName(0, true)} gives you {template.GetName(1, false)}.", PacketHandler.eChatType.CT_System, PacketHandler.eChatLoc.CL_SystemWindow);
-                Looked.TryRemove(look, out _);
-                quest.AdvanceByScript(npc);
-                return true;
+                else if (taken == RewardTake.Given)
+                    Looked.TryRemove(look, out _);
+                return true; // StepRefused: DataQuest said why (such as "Your XP is turned off"); the look stays
             }
             return false;
         }
@@ -679,6 +697,7 @@ namespace DOL.GS.Quests
                             foreach (GameNPC npc in gone) if (npc?.ObjectState == GameObject.eObjectState.Active) npc.Delete();
                     foreach (var key in EventCooldown.Keys.Where(k => k.Item1 == player && active.All(q => q.ID != k.Item2)).ToArray())
                         EventCooldown.TryRemove(key, out _);
+                    // HearthDAoC: the rewards looked at on steps the player is no longer on are forgotten.
                     foreach (var key in Looked.Keys.Where(k => k.Item1 == player && !active.Any(q => q.ID == k.Item2 && q.Step == k.Item3)).ToArray())
                         Looked.TryRemove(key, out _);
                     // Every active classic quest shows its current step on the map, each with its own marker
@@ -706,6 +725,7 @@ namespace DOL.GS.Quests
                 }
                 foreach (GamePlayer gone in Shown.Keys.Where(p => p.ObjectState != GameObject.eObjectState.Active).ToArray())
                     Shown.TryRemove(gone, out _);
+                // HearthDAoC: and those of players who left.
                 foreach (var gone in Looked.Keys.Where(k => k.Item1.ObjectState != GameObject.eObjectState.Active).ToArray())
                     Looked.TryRemove(gone, out _);
             }
