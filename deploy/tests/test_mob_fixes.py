@@ -336,6 +336,18 @@ class RealFileTests(unittest.TestCase):
         self.assertEqual(self.conn.execute("SELECT Realm, Weight, Level, Model FROM ItemTemplate "
                                            "WHERE Id_nb='cq_cloudy_green_stone'").fetchone(), (1, 0, 4, 113))
 
+    def test_gridash_takes_the_bronze_short_sword_gyda_sells(self):
+        # #100: "Buy a bronze short sword from Gyda ... and give it to Gridash." DataQuest takes an item whose Id_nb
+        # contains the step's turn-in id; upstream's was cq_bronze_short_sword, which nothing sells or hands out.
+        step_items, collect = self.conn.execute(
+            "SELECT StepItemTemplates, CollectItemTemplate FROM DataQuest WHERE ID=20098").fetchone()
+        turn_in = collect.split("|")[0]
+        self.assertEqual((step_items.split("|")[0], turn_in), ("bronze_short_sword", "bronze_short_sword"))
+        sold = [i for (i,) in self.conn.execute(
+            "SELECT m.ItemTemplateID FROM MerchantItem m JOIN Mob g ON g.ItemsListTemplateID = m.ItemListID "
+            "WHERE g.Name = 'Gyda'")]
+        self.assertTrue([i for i in sold if turn_in in i.lower()], sold)
+
     def test_frund_stands_at_the_red_dwarf_camp_beside_agisthil(self):
         frund = self.conn.execute("SELECT Region, X, Y, Z, RoamingRange FROM Mob WHERE Mob_ID=?", (FRUND,)).fetchone()
         agisthil = self.conn.execute("SELECT Region, X, Y, Z FROM Mob WHERE Mob_ID=?", (AGISTHIL,)).fetchone()

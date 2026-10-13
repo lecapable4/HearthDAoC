@@ -26,8 +26,14 @@ namespace DOL.GS.PacketHandler.Client.v168
                 {
                     if (data2 == 0x01)
                     {
-                        CustomDialogResponse callback = player.CustomDialogCallback;
-                        player.CustomDialogCallback = null;
+                        // HearthDAoC: take the callback under the lock SendCustomDialog sets it under, so a new dialog
+                        // sent in the same tick can't run this callback a second time as superseded (#92).
+                        CustomDialogResponse callback;
+                        lock (player)
+                        {
+                            callback = player.CustomDialogCallback;
+                            player.CustomDialogCallback = null;
+                        }
 
                         if (callback == null)
                             return;

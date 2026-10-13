@@ -119,5 +119,33 @@ def read_any(path):
         return f.read()
 
 
+DIALOG = os.path.join(GAME_SERVER, "packets", "Client", "168", "DialogResponseHandler.cs")
+
+
+class DialogAnswerTests(unittest.TestCase):
+    """#92: an answer to a custom dialog takes the player's callback under the lock SendCustomDialog sets it under, so a
+    new dialog sent in the same tick can't run the same callback twice (once with the answer, once as superseded).
+    Clients are handled in parallel; a unit test would need two live clients, so this checks the source."""
+
+    def test_the_answer_reads_and_clears_the_callback_under_the_players_lock(self):
+        text = read(DIALOG)
+        block = re.search(r"lock \(player\)\s*\{\s*callback = player\.CustomDialogCallback;\s*"
+                          r"player\.CustomDialogCallback = null;\s*\}", text)
+        self.assertIsNotNone(block, "the read and clear are not under lock (player)")
+        self.assertIn("// HearthDAoC:", text[:block.start()])
+        self.assertLess(block.end(), text.index("callback(player, response);"))  # the callback runs outside the lock
+
+    def test_send_custom_dialog_still_takes_that_lock(self):
+        # What the fix pairs with; if upstream changes it, review the fix.
+        lib = read(os.path.join(GAME_SERVER, "packets", "Server", "PacketLib168.cs"))
+        send = lib[lib.index("public virtual void SendCustomDialog(string msg, CustomDialogResponse callback)"):]
+        self.assertIn("lock (m_gameClient.Player)", send[:400])
+
+    def test_the_file_keeps_its_crlf_endings(self):
+        with open(DIALOG, "rb") as f:
+            raw = f.read()
+        self.assertEqual(raw.count(b"\r\n"), raw.count(b"\n"))
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -25,8 +25,9 @@ epic_chains_data.json, beside this file.
 8. The five level-50 quests ("Lord of Deceit", given by Captain Rhodri after the class's 48), and Lord Elidyn's camp
    copied back from upstream's archive (offline_classic165_removed_mobs), Mob_IDs kept.
 9. Old Shadows_50 progress: a finished one becomes the character's finished level-50 step (no second armour set),
-   any other is removed; epic vests in inventories with no charges get their template's charges (where the
-   template has the vest spell).
+   any other is removed; the epic vests of those characters (and of their account vault) that have no charges get
+   their template's charges (where the template has the vest spell). Only theirs: an empty vest is also one its owner used up, and on a world
+   `hdc upgrade-world` made the fix runs again with the old quest rows already carried (#94).
 """
 import datetime
 import json
@@ -41,6 +42,7 @@ NEEDED_TABLES = ("DataQuest", "ItemTemplate", "Mob", "offline_classic165_removed
                  "CharacterXDataQuest", "DOLCharacters", "Inventory")
 NOT_APPLIED = "Epic chains: not applied ({}); the quests stay as upstream ships them"
 CLASSIC = "DOL.GS.Quests.ClassicQuestStep"
+REALM_NAMES = {1: "Albion", 2: "Midgard", 3: "Hibernia"}  # eRealm's names, as AccountVaultKeeper.GetOwner writes them
 ARCHIVE = "offline_classic165_removed_mobs"
 DATA_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "epic_chains_data.json")
 TEXT_COLUMNS = ("StepText", "SourceText", "TargetText", "Description", "FinishText")
@@ -287,8 +289,9 @@ def _camp(conn, camp):
 def _old_shadows_50(conn, now, data):
     by_class = dict(zip(data["classes"].values(), data["steps"]["50"]["ids"]))
     carried = removed = 0
-    for quest_id, character, step, class_id in conn.execute(
-            "SELECT q.Quest_ID, q.Character_ID, q.Step, c.Class FROM Quest q "
+    owners = set()  # the characters who had the old quest: only their empty vests are the ones it left without charges
+    for quest_id, character, step, class_id, account, realm in conn.execute(
+            "SELECT q.Quest_ID, q.Character_ID, q.Step, c.Class, c.AccountName, c.Realm FROM Quest q "
             "LEFT JOIN DOLCharacters c ON c.DOLCharacters_ID = q.Character_ID WHERE q.Name=?",
             (data["old_quest"],)).fetchall():
         target = by_class.get(class_id)
@@ -300,14 +303,18 @@ def _old_shadows_50(conn, now, data):
             carried += 1
         else:
             removed += 1
+        owners.add(character)
+        if account and realm in REALM_NAMES:  # their account vault's items belong to "<account>_<realm>"
+            owners.add(f"{account}_{REALM_NAMES[realm]}")
         conn.execute("DELETE FROM Quest WHERE Quest_ID=?", (quest_id,))
     vests = data["vests"]
     template = "(SELECT t.{} FROM ItemTemplate t WHERE t.Id_nb = Inventory.ITemplate_Id)"
     recharged = conn.execute(
         f"UPDATE Inventory SET Charges={template.format('MaxCharges')}, LastTimeRowUpdated=? "
         f"WHERE ITemplate_Id IN ({', '.join('?' * len(vests['ids']))}) AND Charges=0 "
+        f"AND OwnerID IN ({', '.join('?' * len(owners))}) "
         f"AND {template.format('SpellID')}=? AND {template.format('MaxCharges')} > 0",
-        (now, *vests["ids"], vests["SpellID"])).rowcount
+        (now, *vests["ids"], *sorted(owners), vests["SpellID"])).rowcount if owners else 0
     return {"carried": carried, "removed": removed, "vests": recharged}
 
 

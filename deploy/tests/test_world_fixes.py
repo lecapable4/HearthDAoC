@@ -291,12 +291,12 @@ class FixesTests(unittest.TestCase):
             "Quest dialogue: 145 quests rewritten",
             "Quest camps: copied back from upstream's archive: Delfina's camp (22), the isolationist camp (39), "
             "the Ellyll Seer's village (30), Lieutenant Grimarth (1)",
-            "Mob fixes: 65 corrected: Agisthil (Mob fe76247d-ab9e-5a21-b66a-f629e577c87b), Agisthil (NpcTemplate 12070), "
+            "Mob fixes: 66 corrected: Agisthil (Mob fe76247d-ab9e-5a21-b66a-f629e577c87b), Agisthil (NpcTemplate 12070), "
             "Frund (NpcTemplate 12165), Frund (Mob 3ce2271f-b9f6-4504-b55a-250da35504ba), "
             "Cloudy Green Stone (ItemTemplate cq_alb_cloudy_green_stone), "
             "Cloudy Green Stone (ItemTemplate cq_cloudy_green_stone), Flint Knife (ItemTemplate cq_flint_knife), "
             "Flinthead Club (ItemTemplate cq_flinthead_club), Flint Dirk (ItemTemplate cq_flint_dirk), "
-            "Lady Leana (DataQuest 20022) and 55 more",
+            "Lady Leana (DataQuest 20022) and 56 more",
         ])
         self.assertEqual(self.q("SELECT Mob_ID FROM fork_removed_mobs WHERE FixId='duplicate-townspeople' ORDER BY Mob_ID"),
                          [(GRAENT_GOES,), ("231313cf-eb6a-408f-9811-f697c705ffb7",),
