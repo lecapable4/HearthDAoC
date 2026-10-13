@@ -45,13 +45,15 @@ class SpawnsErrorTests(unittest.TestCase):
 # Upstream's columns the restore reads; Mob.Name compares without case, as upstream's does.
 MOB_COLUMNS = ("Mob_ID VARCHAR(255) PRIMARY KEY, Name VARCHAR(255) NOT NULL DEFAULT '' COLLATE NOCASE, "
                "ClassType TEXT, Region INT, X INT, Y INT, Z INT, Realm INT DEFAULT 0, Level INT, "
-               "NPCTemplateID INT DEFAULT 0, EquipmentTemplateID TEXT, PackageID TEXT")
+               "NPCTemplateID INT DEFAULT 0, EquipmentTemplateID TEXT, PackageID TEXT, "
+               # and the columns mob_fixes.json's entries name
+               "Heading INT, Model INT, Size INT, Gender INT, RoamingRange INT, FactionID INT")
 TWIN_SCHEMA = WORLD_FIXES_SCHEMA + [
     f"CREATE TABLE Mob ({MOB_COLUMNS})",
     f"CREATE TABLE {spawns.ARCHIVE} ({MOB_COLUMNS.replace(' COLLATE NOCASE', '').replace(' PRIMARY KEY', '')})",
-    "CREATE TABLE NpcTemplate (TemplateId INT, Level TEXT, ReplaceMobValues INT)",
+    "CREATE TABLE NpcTemplate (TemplateId INT, Level TEXT, ReplaceMobValues INT, AggroLevel INT, AggroRange INT)",
     "CREATE TABLE NPCEquipment (TemplateID TEXT)",
-    DATAQUEST.replace("StepType TEXT,", "StepType TEXT, TargetName TEXT COLLATE NOCASE,"),
+    DATAQUEST,
 ]
 # Level 20's "Path of the Renegade": kill a renegade guard, talk to Rhodri, kill the Arawnite Messenger; and a
 # KillFinish stage, which counts too.

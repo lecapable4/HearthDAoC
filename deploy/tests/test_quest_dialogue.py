@@ -28,7 +28,7 @@ import world_fixes as wf  # noqa: E402
 TEST_WORLD = os.environ.get("HDC_TEST_WORLD")
 SCHEMA = ("CREATE TABLE DataQuest (ID INTEGER PRIMARY KEY, StepType TEXT, AcceptText TEXT, Description TEXT, "
           "SourceText TEXT, StepText TEXT, TargetText TEXT, AdvanceText TEXT, FinishText TEXT, StepItemTemplates TEXT, "
-          "CollectItemTemplate TEXT, FinalRewardItemTemplates TEXT, StartName TEXT, QuestDependency TEXT, "
+          "CollectItemTemplate TEXT, FinalRewardItemTemplates TEXT, StartName TEXT, TargetName TEXT COLLATE NOCASE, QuestDependency TEXT, "
           "LastTimeRowUpdated DATETIME NOT NULL DEFAULT '2000-01-01 00:00:00')")
 CHAINS = {"classes": {"Alpha": 1, "Beta": 2}, "steps": {"7": {"ids": [100, 200]}, "9": {"ids": [None, 300]}}}
 OLD = "2000-01-01 00:00:00"
@@ -478,8 +478,9 @@ class RealDialogueTests(unittest.TestCase):
 
     def test_every_quest_can_be_accepted_from_what_its_giver_says(self):
         # The giver's Description offers [keywords]; one is the AcceptText, or leads to it through our Chat replies
-        # (level 25: [matter] -> [dispatch] -> [supporting]; level 43: [interested] -> [profitable]). The classic
-        # quests go on through upstream's Chat too: test_quest_reachability.py.
+        # (level 25: [matter] -> [dispatch] -> [supporting]; level 43: [interested] -> [profitable], the trainers' reply
+        # for it keyed "interested@<quest ID>", which ClassicQuests.ChatReply prefers while the player may take it). The
+        # classic quests go on through upstream's Chat too: test_quest_reachability.py.
         with open(os.path.join(HERE, "..", "hearthdaoc-quests.json"), encoding="utf-8") as f:
             chat = json.load(f).get("Chat", {})
         for qid in chain_ids(self.data, self.chains):
@@ -491,7 +492,8 @@ class RealDialogueTests(unittest.TestCase):
                 keyword = todo.pop()
                 if keyword not in offered:
                     offered.add(keyword)
-                    todo.extend(re.findall(r"\[([^\]]+)\]", replies.get(keyword.lower(), "")))
+                    reply = replies.get(f"{keyword.lower()}@{qid}", replies.get(keyword.lower(), ""))
+                    todo.extend(re.findall(r"\[([^\]]+)\]", reply))
             with self.subTest(quest=qid, giver=giver):
                 self.assertIn(accept, offered)
 

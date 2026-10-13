@@ -1,0 +1,57 @@
+{
+ "_about": "The quest camps upstream archived as post-legacy spawns that the period's walkthroughs describe, copied back once per world by deploy/bin/quest_camps.py (owner's choice 2026-10-12; research dillus-guards-2026-10-12 on the owner's machine). Each camp: key (its marker quest-camp:<key> in fork_world_fixes), name (for the start log), names (the rows' names, compared without case), ids (Mob_IDs in offline_classic165_removed_mobs), why (the period source).",
+ "camps": [
+  {"key": "delfina", "name": "Delfina's camp",
+   "names": ["Tylwyth Teg ranger"],
+   "why": "Level 43 \"Lord of Deceit\": Rhodri sends the player to \"infiltrate a camp of Tylwyth Teg elves. There is one among them named Delfina\" (Allakhazam cquest 363, 2002-09-18); \"there is a small campfire, with some Teg Rangers...she is by the fire, linked to 2 rangers\" (Allakhazam Pennine bestiary forum, posted 2002-08-08). Upstream archived the 22 rangers within 1250 units of her as post-legacy and left her alone. mob_fixes.json moves the two nearest beside her.",
+   "ids": [
+    "04a3b2c4-6209-4f39-a35b-e48ade978aa1", "0926781e-ae37-40e5-9296-1a735e500589", "098a1cd8-30f3-46a7-9eab-aa8515d62fa8",
+    "1d42262a-be15-4987-afa8-3339d95b1d17", "269fe109-c80e-46cd-9326-22fd2868c94e", "3b582725-38ea-4c09-a8a2-6bd9d4bf507d",
+    "4849023a-8686-49de-9572-2200be3e0ef3", "60690855-e7ce-486b-8536-794461adffa0", "6289aad1-4b5b-4e7c-ae19-5532bceb084b",
+    "7f2599cd-4919-424d-825f-5f8ac0bcf134", "8f452335-43cd-4f68-80b0-c3c7f4f6f603", "99755b89-b83f-4f2e-bf3b-84767b709ad6",
+    "9cd78ade-61dc-4c71-81e8-074b873c95e2", "a95e6d6f-0f45-4cbd-a527-97467780ea80", "ab97b341-3b4f-4238-aaad-22b61d3ec83a",
+    "b059d1c6-b7cc-4bb0-bcb1-b27071ea8808", "c8a7efee-b6a3-4b4e-8317-a36f7f8f8451", "dfc1a645-b50b-4ac5-a2da-37e8b8cd4e70",
+    "efe8f403-38ec-459f-abce-e22ddd635db7", "f26d3f60-3002-47af-bbf3-b6f4a5f94466", "f5fd5946-142e-4fb3-b6a5-593d862ee566",
+    "fa8cc9ef-ee2d-40bb-8e01-2963b7c01f12"
+   ]},
+  {"key": "isolationists", "name": "the isolationist camp",
+   "names": ["isolationist armsman", "isolationist cleric", "isolationist mercenary", "isolationist paladin", "isolationist scout", "isolationist sorcerer", "isolationist wizardess"],
+   "why": "Level 45 \"Lord of Deceit\": \"The courier is next to the tent and he is linked to the two by the fire. When I did this it was a female wizard and a male armsman.\" (WarCry 645, capture 2002-06-03); the camp \"at about loc [38k, 53k]\" (2004-04-09) and \"I found the Isolationist tent at roughly 35K, 56K\" (Allakhazam q376, 2004-03-30), south-east of Caer Berkstead. These are the 39 archived rows of that camp (Pennine loc 35313-39883, 53015-58065). mob_fixes.json moves the courier beside the armsman by the tent.",
+   "ids": [
+    "06498f33-ea0a-4132-bd33-4986fac2df41", "0c375bf9-3444-42e1-8a0d-59a24b6ca399", "31e71b1c-7474-4bab-b626-c94825db58ab",
+    "3bbd91f2-861a-4db9-8c51-58c611379fa3", "41484b2c-8175-4bf2-82de-bb0329e54ebb", "47d43adf-ad5a-418d-b369-32bead98c89f",
+    "494c50dc-53b9-4470-ae44-546bb43f4962", "5482aea0-eac8-4dbb-b58b-108d6d73e81f", "571e62ff-f222-477c-9c15-5e3509d0876a",
+    "59cb551c-4aad-4ab0-a239-a60842325024", "5ea79d61-bc34-47cf-a257-0ba4b180cee0", "63a5090b-9c97-4fa4-aa6f-f1651504407d",
+    "66cac259-5ecc-4a40-a580-20bd011e11f9", "6a8f7809-0de1-4173-b086-a1c968307c12", "6e96c835-09d6-4025-928c-5d1bd31e4ec4",
+    "7228c635-339c-44e8-81fb-abdd2f1e06d4", "73cb3e98-2a35-41be-9a4d-c857d67784d5", "77439a7a-e407-4f82-9a1b-1f2d73db807d",
+    "7bdbc5c3-3a9e-4ec0-a098-40ce72298d99", "80e60247-caa8-465d-bbba-dcbb22f6cfc1", "81598b03-f363-4aac-9875-36faca0748d4",
+    "8384291f-5086-4719-9c9a-aaebbe005833", "9391ed5c-96f4-4969-b636-ff5d47bbd69a", "9552d62f-e6b2-4dc9-8657-5d5e5f1b8adb",
+    "95f54d3c-9c00-4701-b675-22c18a2644b1", "9c3a2c58-7777-4ad0-b66c-f6f6d73eecda", "a37eb73a-00f9-438f-86a8-fcac618f9ffa",
+    "afada2e4-dbc6-45c2-9c3e-35fc8c6af3c3", "b65ccbb0-88d3-476b-8f3f-47830d6a5fb8", "b6bcf80e-baab-4858-9071-f333bb138372",
+    "bd5269d9-c5ed-4d5d-8fb6-a3924a37cc9e", "c7177d26-25df-465a-84a3-75c5742bcd2f", "c9252e85-fe6b-43b3-a21b-2d95732461a9",
+    "ddfe9b8f-e359-4e7a-bb08-6558e1190128", "e21227d6-85cf-4b8b-b4ea-8766e5f87d3e", "e8c9e24f-4315-4518-b4ad-5728bb236cf0",
+    "e9de20a2-2e75-41a2-8676-c56438478d0c", "f2f2610b-4fa4-4663-ba0a-90cbc5777ff9", "f58249e2-a847-4f67-bd74-66c6c026bcd8"
+   ]},
+  {"key": "ellyll-seer", "name": "the Ellyll Seer's village",
+   "names": ["Ellyll guard", "Ellyll villager"],
+   "why": "Level 48 \"Lord of Deceit\": the seer in his hut in an Ellyll village of the Pennine Mountains, \"Seers BAF, be prepared\" (2002); Prima's Pennine key gives the Ellyll villages \"Quantity 20-30\". Upstream archived the 30 guards and villagers within 1500 units of the seer, leaving one villager and five guards.",
+   "ids": [
+    "0d4526b4-81fe-45cb-b45f-f92644a0bf56", "0ebabe3c-fad2-4df3-ba85-de5797e2eef1", "17e8afb0-c814-4dd6-bac2-9aae1c7f5b5a",
+    "24dfb3ba-faa4-4937-b498-fa847c40d558", "290f6f4a-8f9f-451e-b408-55910a77752a", "2b966a56-f74d-4121-926a-4fb04c963b6d",
+    "2cca11a7-634f-4025-9dad-c75f6dc0c0c5", "335efff7-1f9d-434e-a5a1-3bb5ab99623d", "365bb026-97d9-4055-967e-10fd8cbcd5a2",
+    "36a640e5-e13f-4836-bc7f-8da5e244137d", "3cad2d9d-42a5-4f75-9b23-cea798e96c85", "3fc620ee-d8e5-4881-8258-20bc46f1146a",
+    "411b5032-d510-47c9-94e4-293ffb01fd31", "4c7ac7d9-4010-4d01-8fe5-802e033cb450", "5033b26e-48d6-454c-939d-4d7a54ccc74a",
+    "6503dba5-dacf-49db-9da3-9ea720bc4d60", "6b670cd4-3d39-49eb-b0b9-e2d86ef25b4c", "724cc994-5ab1-451a-b5cf-cb401774e4b4",
+    "8806b474-4510-4325-972d-3f88ba1ea4cd", "8cd64d46-ad73-4d2b-9dde-57bfd26eb97e", "8df01e37-f239-4799-9481-d59ac69dea56",
+    "926a4448-1265-4cca-9c48-545a633d1a65", "b30bf48d-418a-401c-adb5-f42d73baed1e", "c91caf3a-cf9b-4150-b361-6035a31d5c86",
+    "d049dd7e-35dc-49e9-98ce-3dc713c8c6b3", "d2b5343e-420b-47dd-898b-b4040b481397", "d9c212d2-65f0-4de5-b148-752da9d2dcf2",
+    "dcf5b6d4-d35a-463d-9afb-864cc2d299c3", "f7d56528-61cb-47ba-9391-c22709c0a542", "f942d7d7-edb8-4ca4-8443-f42e6590996c"
+   ]},
+  {"key": "grimarth", "name": "Lieutenant Grimarth",
+   "names": ["Lieutenant Grimarth"],
+   "why": "Level 20/25: the renegades' officer at Sir Dillus's tower in Llyn Barfog, \"Lieutenant Grimarth ... Minimum Level : 21 Maximum Level : 21\" (Allakhazam cmob 6396, entry 2003-04-02); \"Lt. grimarth and two guards will make the rounds coming down into the valley\" (2003-01-02). He stands where upstream's row had him: no period route for his patrol survives.",
+   "ids": [
+    "1e9635f8-d760-4bb3-adfe-7360ef400bd0"
+   ]}
+ ]
+}

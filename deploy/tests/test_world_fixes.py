@@ -39,11 +39,14 @@ class EnableClassesTests(unittest.TestCase):
         self.assertEqual(wf.without_classes("33,20", {20}), "33")
 
 
-# Upstream's Mob columns these fixes read, and Level, which mob_fixes.json's entries name (a column they name that the
+# Upstream's Mob columns these fixes read, and Level, Heading, Model, Size, Gender, RoamingRange and FactionID, which
+# mob_fixes.json's entries name (a column they name that the
 # table lacks stops the mob fixes).
 MOB = ("CREATE TABLE Mob (Mob_ID VARCHAR(255) PRIMARY KEY, ClassType TEXT NOT NULL DEFAULT '', Name TEXT NOT NULL DEFAULT '', "
        "Guild TEXT NOT NULL DEFAULT '', ItemsListTemplateID TEXT, Region INT NOT NULL DEFAULT 0, X INT NOT NULL DEFAULT 0, "
-       "Y INT NOT NULL DEFAULT 0, Z INT NOT NULL DEFAULT 0, Level INT NOT NULL DEFAULT 0, "
+       "Y INT NOT NULL DEFAULT 0, Z INT NOT NULL DEFAULT 0, Level INT NOT NULL DEFAULT 0, Heading INT NOT NULL DEFAULT 0, "
+       "Model INT NOT NULL DEFAULT 0, Size INT NOT NULL DEFAULT 0, Gender INT NOT NULL DEFAULT 0, "
+       "RoamingRange INT NOT NULL DEFAULT 0, FactionID INT NOT NULL DEFAULT 0, "
        "LastTimeRowUpdated DATETIME NOT NULL DEFAULT '2000-01-01 00:00:00')")
 
 
@@ -286,12 +289,14 @@ class FixesTests(unittest.TestCase):
             "fixed; 87 other links; 41 items added, 36 item fixes; 5 level-50 quests, Lord Elidyn's camp 17 restored; "
             "Shadows_50: 0 finished carried, 0 removed, 0 epic vests recharged",
             "Quest dialogue: 145 quests rewritten",
-            "Mob fixes: 19 corrected: Agisthil (Mob fe76247d-ab9e-5a21-b66a-f629e577c87b), Agisthil (NpcTemplate 12070), "
+            "Quest camps: copied back from upstream's archive: Delfina's camp (22), the isolationist camp (39), "
+            "the Ellyll Seer's village (30), Lieutenant Grimarth (1)",
+            "Mob fixes: 65 corrected: Agisthil (Mob fe76247d-ab9e-5a21-b66a-f629e577c87b), Agisthil (NpcTemplate 12070), "
             "Frund (NpcTemplate 12165), Frund (Mob 3ce2271f-b9f6-4504-b55a-250da35504ba), "
             "Cloudy Green Stone (ItemTemplate cq_alb_cloudy_green_stone), "
             "Cloudy Green Stone (ItemTemplate cq_cloudy_green_stone), Flint Knife (ItemTemplate cq_flint_knife), "
             "Flinthead Club (ItemTemplate cq_flinthead_club), Flint Dirk (ItemTemplate cq_flint_dirk), "
-            "Lady Leana (DataQuest 20022) and 9 more",
+            "Lady Leana (DataQuest 20022) and 55 more",
         ])
         self.assertEqual(self.q("SELECT Mob_ID FROM fork_removed_mobs WHERE FixId='duplicate-townspeople' ORDER BY Mob_ID"),
                          [(GRAENT_GOES,), ("231313cf-eb6a-408f-9811-f697c705ffb7",),
@@ -300,8 +305,9 @@ class FixesTests(unittest.TestCase):
                          [("2b478cbe-cb3f-44e3-bc86-c5f05ad4714d",), ("a4de3772-723f-452f-9c1a-a00a64e50922",)])
         self.assertEqual(self.q("SELECT Mob_ID, Region, X, Y, Z FROM Mob WHERE Name='Master Graent'"),
                          [(GRAENT_STAYS, 1, 574197, 530518, 2933)])
-        self.assertEqual(self.q("SELECT FixId FROM fork_world_fixes"),
-                         [("classic-battlegrounds-v2",), ("epic-chains-v1",)])
+        self.assertEqual(self.q("SELECT FixId FROM fork_world_fixes ORDER BY FixId"),
+                         [("classic-battlegrounds-v2",), ("epic-chains-v1",), ("quest-camp:delfina",),
+                          ("quest-camp:ellyll-seer",), ("quest-camp:grimarth",), ("quest-camp:isolationists",)])
         self.assertEqual(self.q("SELECT Value FROM ServerProperty WHERE `Key`='disabled_classes'"), [("33;34;39;58-62",)])
         self.assertEqual(self.q("SELECT RaceID FROM StartupLocation WHERE ClassID=20 ORDER BY RaceID"), [(1,), (4,), (13,)])
         self.assertEqual(dict(self.q("SELECT `Key`, Value FROM ServerProperty WHERE `Key` IN ('motd', 'starting_msg')")),
@@ -324,8 +330,9 @@ class FixesTests(unittest.TestCase):
 
     @unittest.skipUnless(TEST_WORLD, "needs HDC_TEST_WORLD (a clean classic world database)")
     def test_shipped_world_started_before_the_classic_quests_texts(self):
-        # A world hearth.9 to hearth.11 started has the Guild of Shadows chain's dialogue (the file's step entries): its
-        # next start rewrites only the classic quests' texts (the ids entries, 80 quest rows), and the next nothing.
+        # A world with this file's Guild of Shadows dialogue (its step entries) but not the classic quests' texts, as
+        # hearth.9 to hearth.11 left it apart from later revisions of the chain's own text: its next start rewrites only
+        # the classic quests' texts (the ids entries, 80 quest rows), and the next nothing.
         shutil.copyfile(TEST_WORLD, self.db)
         data = qd.load_data()
         with mock.patch.object(qd, "load_data", return_value=dict(data, quests=[e for e in data["quests"] if "step" in e])):

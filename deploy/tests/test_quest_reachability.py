@@ -97,10 +97,11 @@ def said_by(conn):
     return said
 
 
-def offered(texts, replies):
+def offered(texts, replies, quest=None):
     """Every keyword a player can click from `texts`, following the NPC's Chat `replies`, as /whisper sends it (its
     words joined with one space). A keyword that holds <Player> shows the player's own name (GetPersonalizedMessage),
-    which no key matches."""
+    which no key matches. With `quest`, a reply keyed "keyword@<quest>" answers before the plain keyword's, as
+    ClassicQuests.ChatReply answers a player who may take that quest."""
     seen, todo = set(), [keyword for text in texts for keyword in BRACKETS.findall(text)]
     while todo:
         keyword = todo.pop()
@@ -109,7 +110,9 @@ def offered(texts, replies):
         seen.add(keyword)
         if "<player>" in keyword.lower():
             continue
-        reply = replies.get(whisper_key(keyword))
+        key = whisper_key(keyword)
+        reply = replies.get(f"{key}@{quest}") if quest is not None else None
+        reply = replies.get(key) if reply is None else reply
         if reply and reply.strip():
             todo.extend(BRACKETS.findall(reply))
     return {" ".join(keyword.split()) for keyword in seen}
@@ -356,7 +359,7 @@ class ReachabilityTests(unittest.TestCase):
         for qid, name, giver, accept in self.conn.execute(
                 "SELECT ID, Name, StartName, AcceptText FROM DataQuest WHERE StartType=0 ORDER BY ID"):
             npc = (giver or "").lower()
-            if accept not in offered(self.said[npc], self.chat.get(npc, {})):
+            if accept not in offered(self.said[npc], self.chat.get(npc, {}), qid):
                 unreachable.append(f"{qid} {name} ({giver}: [{accept}])")
         self.assertEqual(unreachable, [], f"{len(unreachable)} quest rows can't be started")
 

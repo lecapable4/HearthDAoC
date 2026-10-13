@@ -20,13 +20,16 @@ Use a character of one of the five classes: Infiltrator, Mercenary, Cabalist, Ne
 ## 1. One class through the whole chain
 
 1. `/player level 7`, then `/epic`: 7 and 7 SI say "can take", Lady Aelawen's Supply Run "offered to no one".
-2. Take the classic 7 from your Camelot trainer (Master Edric, Master Arenis, Magus Isen, Yulia or Peze). `/epic`:
+2. Take the classic 7 from your Camelot trainer (Master Eadig, Master Arenis, Magus Isen, Yulia or Peze). `/epic`:
    7 SI is now "closed by …". Play it through, or `/epic goto` from stage to stage. At the end you get your
    reward, 5,500 XP and 7 silver.
 3. For each later step: `/player level <step>`, `/epic goto` to the giver, take it, play it (or skip ahead with
    `/epic done <next step>`), and check the reward, the XP and the coin. Spot checks:
    - 15 is offered only after 11; 30 only after 25; 40 only after 30.
-   - At 40, Rhodri's list has only weapons that exist; each one you whisper is given.
+   - At 40 (the Cabalist's from Magus Agyfen), Rhodri's list has only weapons that exist. Whispering a name opens
+     the item's examine window; "I'll take it" then gives the last one shown (said first, Rhodri asks for a name).
+     With `/xp off` he gives nothing and says your XP is off; turn it on and take it again (#95).
+   - 43 comes from your trainer (the Cabalist's from Magus Agyfen): "[interested]", then "[profitable]".
    - 45 only after 43, and 48 only after 45.
 4. At 50: Captain Rhodri offers "Lord of Deceit". Lord Elidyn stands in the Ellyll ruins on the hill in the Pennine
    Mountains with his guards (the map marks the spot). Kill him (a group fight), go back to Rhodri with six free

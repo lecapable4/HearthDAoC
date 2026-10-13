@@ -99,8 +99,8 @@ namespace DOL.GS.Quests
             public int Count { get; set; }
             public bool Give { get; set; }
             public Dictionary<string, string> Trades { get; set; }
-            /// <summary>choose: reward name (the keyword the NPC offers) -> item Id_nb; whispering one to Target gives
-            /// it and completes the step (classic "choose your reward" endings).</summary>
+            /// <summary>choose: reward name (the keyword the NPC offers) -> item Id_nb (classic "choose your reward"
+            /// endings). HearthDAoC: whispering one to Target shows it; "I'll take it" then gives it and completes the step.</summary>
             public Dictionary<string, string> Choices { get; set; }
             public List<StepDrop> Drops { get; set; }
             /// <summary>say: the words of power spoken aloud (/say) on the step's point; NightOnly when the walkthrough
@@ -190,7 +190,13 @@ namespace DOL.GS.Quests
                 string key = (whisper.Text ?? string.Empty).Trim().TrimEnd('.', '!', '?');
                 if (TryChooseReward(player, npc, key)) return;
                 if (!_config.Chat.TryGetValue(npc.Name, out var lines)) return;
-                if (lines.TryGetValue(key, out string reply) && !string.IsNullOrWhiteSpace(reply))
+                // HearthDAoC: the quests this NPC gives that the player may take now, or is on: their own replies
+                // ("keyword@<quest ID>") come first.
+                int[] quests = npc.DataQuestList
+                    .Where(q => q.CheckQuestQualification(player) || player.QuestList.Keys.OfType<DataQuest>().Any(a => a.ID == q.ID))
+                    .Select(q => q.ID).ToArray();
+                string reply = ChatReply(lines, key, quests);
+                if (!string.IsNullOrWhiteSpace(reply))
                     npc.SayTo(player, PacketHandler.eChatLoc.CL_PopupWindow, DOL.GS.Behaviour.BehaviourUtils.GetPersonalizedMessage(reply, player));
             }
             catch (Exception ex)
@@ -236,6 +242,43 @@ namespace DOL.GS.Quests
         public static string WordsOnly(string text) =>
             string.Join(' ', System.Text.RegularExpressions.Regex.Matches((text ?? string.Empty).ToLowerInvariant(), "[a-z0-9']+").Select(m => m.Value));
 
+        /// <summary>HearthDAoC: what a whisper to a "choose" step's NPC asks for (owner 2026-10-12: the rewards were chosen
+        /// blind). Naming a reward shows it; "I'll take it" takes the reward the player last looked at.</summary>
+        public enum RewardWhisper { None, Show, Take, NothingShown }
+
+        private static readonly HashSet<string> TakeWords = new(StringComparer.Ordinal) { "i'll take it", "ill take it", "i will take it" };
+
+        /// <summary>The reward a whisper names (Show, in the step's own spelling), the one last shown when the player says
+        /// "I'll take it" (Take; NothingShown when none of this step's rewards was shown), or None.</summary>
+        public static (RewardWhisper Action, string Choice) ReadRewardWhisper(IReadOnlyDictionary<string, string> choices, string shown, string whispered)
+        {
+            string key = (whispered ?? string.Empty).Trim().TrimEnd('.', '!', '?');
+            if (key.Length == 0 || choices == null) return (RewardWhisper.None, null);
+            string named = choices.Keys.FirstOrDefault(k => string.Equals(k, key, StringComparison.OrdinalIgnoreCase));
+            if (named != null) return (RewardWhisper.Show, named);
+            if (!TakeWords.Contains(WordsOnly(key.Replace('’', '\'')))) return (RewardWhisper.None, null);
+            string last = shown == null ? null : choices.Keys.FirstOrDefault(k => string.Equals(k, shown, StringComparison.OrdinalIgnoreCase));
+            return last == null ? (RewardWhisper.NothingShown, null) : (RewardWhisper.Take, last);
+        }
+
+        /// <summary>HearthDAoC: how taking a chosen reward ended.</summary>
+        public enum RewardTake { BackpackFull, StepRefused, Given }
+
+        /// <summary>HearthDAoC: the chosen reward is given only after its step completes. Upstream gave it first and
+        /// ignored the step's answer, so a finish step that refused (with /xp off, "Your XP is turned off") gave the
+        /// reward again at every try (#95).</summary>
+        public static RewardTake TakeReward(bool room, Func<bool> completeStep, Action give)
+        {
+            if (!room) return RewardTake.BackpackFull;
+            if (!completeStep()) return RewardTake.StepRefused;
+            give();
+            return RewardTake.Given;
+        }
+
+        /// <summary>HearthDAoC: the reward each player last looked at, by (player, quest, step). <see cref="Refresh"/>
+        /// drops the entries of steps a player is no longer on.</summary>
+        private static readonly ConcurrentDictionary<(GamePlayer, int, int), string> Looked = new();
+
         private static bool TryChooseReward(GamePlayer player, GameNPC npc, string key)
         {
             foreach (DataQuest quest in player.QuestList.Keys.OfType<DataQuest>().ToArray())
@@ -243,19 +286,40 @@ namespace DOL.GS.Quests
                 if (!_config.Quests.TryGetValue(quest.ID, out QuestInfo info) || quest.Step <= 0 || quest.Step >= info.Steps.Count) continue;
                 CustomStep custom = info.Steps[quest.Step]?.Custom;
                 if (custom?.Kind != "choose" || custom.Choices == null || !string.Equals(custom.Target, npc.Name, StringComparison.OrdinalIgnoreCase)) continue;
-                string chosen = custom.Choices.Keys.FirstOrDefault(k => string.Equals(k, key, StringComparison.OrdinalIgnoreCase));
-                if (chosen == null) continue;
-                DbItemTemplate template = GameServer.Database.FindObjectByKey<DbItemTemplate>(custom.Choices[chosen]);
-                if (template == null) continue;
-                if (!player.Inventory.IsSlotsFree(1, eInventorySlot.FirstBackpack, eInventorySlot.LastBackpack))
+                // HearthDAoC: a named reward is shown first; "I'll take it" takes the last one shown (owner 2026-10-12).
+                var look = (player, quest.ID, quest.Step);
+                (RewardWhisper action, string chosen) = ReadRewardWhisper(custom.Choices, Looked.TryGetValue(look, out string last) ? last : null, key);
+                if (action == RewardWhisper.None) continue;
+                if (action == RewardWhisper.NothingShown)
                 {
-                    player.Out.SendMessage("Your backpack is full.", PacketHandler.eChatType.CT_System, PacketHandler.eChatLoc.CL_SystemWindow);
+                    npc.SayTo(player, PacketHandler.eChatLoc.CL_PopupWindow, "Which one? Name it first, and I will show it to you.");
                     return true;
                 }
-                if (player.Inventory.AddTemplate(GameInventoryItem.Create(template), 1, eInventorySlot.FirstBackpack, eInventorySlot.LastBackpack))
-                    player.Out.SendMessage($"{npc.GetName(0, true)} gives you {template.GetName(1, false)}.", PacketHandler.eChatType.CT_System, PacketHandler.eChatLoc.CL_SystemWindow);
-                quest.AdvanceByScript(npc);
-                return true;
+                DbItemTemplate template = GameServer.Database.FindObjectByKey<DbItemTemplate>(custom.Choices[chosen]);
+                if (template == null) continue;
+                if (action == RewardWhisper.Show)
+                {
+                    // The window a player gets on examining an item in the backpack, made from the template.
+                    var delve = new List<string>();
+                    player.DelveItem(template, delve);
+                    player.Out.SendCustomTextWindow(template.Name, delve);
+                    Looked[look] = chosen;
+                    npc.SayTo(player, PacketHandler.eChatLoc.CL_PopupWindow,
+                        $"That is {template.GetName(1, false)}. If it is the one you want, say [I'll take it], or name another.");
+                    return true;
+                }
+                // HearthDAoC: room for the reward and the step's own final rewards, then the step, then the reward (#95).
+                bool room = player.Inventory.IsSlotsFree(1 + quest.FinalRewards.Count, eInventorySlot.FirstBackpack, eInventorySlot.LastBackpack);
+                RewardTake taken = TakeReward(room, () => quest.AdvanceByScript(npc), () =>
+                {
+                    if (player.Inventory.AddTemplate(GameInventoryItem.Create(template), 1, eInventorySlot.FirstBackpack, eInventorySlot.LastBackpack))
+                        player.Out.SendMessage($"{npc.GetName(0, true)} gives you {template.GetName(1, false)}.", PacketHandler.eChatType.CT_System, PacketHandler.eChatLoc.CL_SystemWindow);
+                });
+                if (taken == RewardTake.BackpackFull)
+                    player.Out.SendMessage("Your backpack is full.", PacketHandler.eChatType.CT_System, PacketHandler.eChatLoc.CL_SystemWindow);
+                else if (taken == RewardTake.Given)
+                    Looked.TryRemove(look, out _);
+                return true; // StepRefused: DataQuest said why (such as "Your XP is turned off"); the look stays
             }
             return false;
         }
@@ -597,6 +661,19 @@ namespace DOL.GS.Quests
             upstream.Chat = merged;
         }
 
+        /// <summary>HearthDAoC: an NPC's reply to a keyword. A reply keyed "keyword@questId" belongs to that quest and wins
+        /// while it is one of <paramref name="quests"/> (the quests of this NPC the player may take or is on): a trainer
+        /// offers level 40 and level 43 with the same period keyword, "[interested]" (owner 2026-10-12). Otherwise the
+        /// plain keyword's reply, or null.</summary>
+        public static string ChatReply(IReadOnlyDictionary<string, string> lines, string key, IEnumerable<int> quests)
+        {
+            if (lines == null || string.IsNullOrEmpty(key)) return null;
+            foreach (int quest in quests ?? Enumerable.Empty<int>())
+                if (lines.TryGetValue($"{key}@{quest}", out string own))
+                    return own;
+            return lines.TryGetValue(key, out string reply) ? reply : null;
+        }
+
         /// <summary>HearthDAoC: the map marker of a quest's stage (either file), or null. The GM's /epic goto uses it.</summary>
         public static Point MarkerFor(int questId, int step) =>
             _config.Quests.TryGetValue(questId, out QuestInfo info) && info.Steps != null && step > 0 && step < info.Steps.Count
@@ -620,6 +697,9 @@ namespace DOL.GS.Quests
                             foreach (GameNPC npc in gone) if (npc?.ObjectState == GameObject.eObjectState.Active) npc.Delete();
                     foreach (var key in EventCooldown.Keys.Where(k => k.Item1 == player && active.All(q => q.ID != k.Item2)).ToArray())
                         EventCooldown.TryRemove(key, out _);
+                    // HearthDAoC: the rewards looked at on steps the player is no longer on are forgotten.
+                    foreach (var key in Looked.Keys.Where(k => k.Item1 == player && !active.Any(q => q.ID == k.Item2 && q.Step == k.Item3)).ToArray())
+                        Looked.TryRemove(key, out _);
                     // Every active classic quest shows its current step on the map, each with its own marker
                     // (owner 2026-10-07: one shared marker hid every quest behind the first one), and every active
                     // quest's step can spawn its monster.
@@ -645,6 +725,9 @@ namespace DOL.GS.Quests
                 }
                 foreach (GamePlayer gone in Shown.Keys.Where(p => p.ObjectState != GameObject.eObjectState.Active).ToArray())
                     Shown.TryRemove(gone, out _);
+                // HearthDAoC: and those of players who left.
+                foreach (var gone in Looked.Keys.Where(k => k.Item1.ObjectState != GameObject.eObjectState.Active).ToArray())
+                    Looked.TryRemove(gone, out _);
             }
             catch (Exception ex)
             {
