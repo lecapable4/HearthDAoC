@@ -20,6 +20,12 @@ emulates. The owner asked for "the starting place selection as it was in SI".
 | Who is affected | Only new characters, as defined in section 2. Existing characters keep where they are. Bots keep upstream's spread of starting places. |
 | Default | On for HearthDAoC, with a setting to turn it off. |
 
+> Note, 2026-10-13: the period start towns (`deploy/bin/start_towns.py`) start the Briton Disciple, the Troll Mystic
+> and the Celt and Firbolg Forester in their realm's Shrouded Isles town, as before patch 1.72. Like Saracen
+> Disciples (section 2), they are not asked, so not every character of a classic race chooses. The same fix moves
+> four final-class rows that bots start from (Highlander Scout, Elf Blademaster and Champion, Norseman Healer), so
+> bots no longer keep all of upstream's starting places.
+
 ### Non-goals
 
 - A free choice among all of a realm's towns.

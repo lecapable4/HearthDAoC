@@ -215,6 +215,22 @@ yourself is kept and named at every start (`N left as they are (the route
 no longer has that segment): ...`). If it fails, the start log says `Route fixes: not applied (...)` and the routes
 keep their points. Bots ride the same routes, so their horses stay on the bridges too.
 
+**Start towns.** In the period a new character's race and base class fixed its starting town, beside its base-class
+trainer. Upstream gets 9 of the 56 starts wrong, and the start moves them: a Briton Mage starts at Adribard's Retreat
+(Avalon Marsh, not Cotswold), a Dwarf Seer in Vasudheim, a Kobold Seer in Haggerfel, a Norseman Seer at Fort Atla and an
+Elf Stalker in Mag Mell; and the Shrouded Isles base classes of the classic races start only in their Shrouded Isles
+city, as before patch 1.72: the Briton Disciple in Caer Gothwaite, and the Celt and Firbolg Forester in the Grove of
+Domnann. So does the Troll Mystic, which can only become a Bonedancer, in Aegirhamn (on one source, Allakhazam 2004).
+Those four are not asked the first-login Shrouded Isles question, which skips anyone already there. Four final-class
+rows follow (Highlander Scout to Ludlow, Elf Blademaster and Champion to Howth, Norseman Healer to Fort Atla): the bots
+start from them, and the server sends a promoted character there if it has to repair a broken bind point. Each spot is copied from an upstream row that already
+stands in that town (`deploy/bin/start_towns.json`, with each move's dated sources). Only new characters and bots are
+affected: existing characters keep their location and bind point. The first start shows `Start towns: 13 starting
+locations moved to the period's towns: ...`, and later starts nothing. There is no marker: a row moves only while it is
+still at upstream's spot (region, X, Y, Z and heading), so a start you moved or turned yourself is kept and named at
+every start (`N left as they are (at neither upstream's spot nor the period's): Briton Mage (StartupLocation 523)`). If
+it fails, the start log says `Start towns: not applied (...)` and the starting locations stay where they are.
+
 ## Rollback
 
 `./hdc down` stops and removes the container; the world stays in the `hearthdaoc-data` volume.
