@@ -301,4 +301,76 @@ public static class RpTimerWait
         long wake = Math.Max(WakeFloorMilliseconds, leaveTick - now + (long)Math.Ceiling(tickDurationMilliseconds / 2));
         return wake < standardInterval ? (int)wake : standardInterval;
     }
+
+    // 2.4: the latch. The marker read, Left (every other value kept, in a new marker), with the change's log action
+    // and reason.
+    private static RpWaitChange Latch(RpWaitMarker marker, RpWaitAction action, RpWaitReason reason) =>
+        new(marker, marker with { Phase = RpWaitPhase.Left }, action, reason);
+
+    // 3.5, hook 3. The rules, in order:
+    // 1. A release (alive && returning): unchanged with the switch off, a goal other than RvR or Battleground, or a
+    //    marker already for this death (Released or Left; a Waiting one goes to rule 2, the release flag up or not);
+    //    else a new Released marker (DeathCount, Released, None, ReleaseRegion = Region = region, ReleasePoint = Spot
+    //    = position, assignmentId, null, null, 0), action None.
+    // 2. A Waiting marker for this death, in order: switch off: Left, Leave(Off); another assignment id or region than
+    //    stored: Left, Leave(Changed); a Warband marker with !inGroup: Left, Leave(Changed); a Frontier marker with
+    //    forceCommitted: Left, Leave(Called); a Siege or Warband marker with musterOrder: Left, Leave(Called).
+    // 3. Anything else: unchanged.
+    // Left = marker with { Phase = Left }. forceCommitted and musterOrder are read by the wiring only for a Waiting
+    // marker for this death (Frontier: IsForceCommitted; Siege, Warband: GetRallyOrder != null); else false.
+    public static RpWaitChange Note(bool enabled, RpWaitMarker marker, int deathCount, bool alive, bool returning,
+        eAutonomousObjectiveKind goal, ushort region, Vector3 position, string assignmentId, bool inGroup,
+        bool forceCommitted, bool musterOrder)
+    {
+        bool forThisDeath = marker != null && marker.DeathCount == deathCount;
+        if (forThisDeath && marker.Phase == RpWaitPhase.Waiting)
+        {
+            if (!enabled)
+                return Latch(marker, RpWaitAction.Leave, RpWaitReason.Off);
+            if (assignmentId != marker.AssignmentId || region != marker.Region)
+                return Latch(marker, RpWaitAction.Leave, RpWaitReason.Changed);
+            if (marker.Case == RpWaitCase.Warband && !inGroup)
+                return Latch(marker, RpWaitAction.Leave, RpWaitReason.Changed);
+            if (marker.Case == RpWaitCase.Frontier && forceCommitted)
+                return Latch(marker, RpWaitAction.Leave, RpWaitReason.Called);
+            if ((marker.Case is RpWaitCase.Siege or RpWaitCase.Warband) && musterOrder)
+                return Latch(marker, RpWaitAction.Leave, RpWaitReason.Called);
+            return RpWaitChange.Keep(marker);
+        }
+
+        if (!alive || !returning || !enabled || forThisDeath ||
+            goal is not (eAutonomousObjectiveKind.RvR or eAutonomousObjectiveKind.Battleground))
+            return RpWaitChange.Keep(marker);
+        var released = new RpWaitMarker(deathCount, RpWaitPhase.Released, RpWaitCase.None, region, position, region,
+            position, assignmentId, null, null, 0);
+        return new RpWaitChange(marker, released, RpWaitAction.None, RpWaitReason.None);
+    }
+
+    // 3.7: a marker for an older death than deathCount: Waiting: Left, Leave(Died); Released: Left, action None.
+    // Anything else: Keep.
+    public static RpWaitChange Died(RpWaitMarker marker, int deathCount)
+    {
+        if (marker == null || marker.DeathCount >= deathCount)
+            return RpWaitChange.Keep(marker);
+        return marker.Phase switch
+        {
+            RpWaitPhase.Waiting => Latch(marker, RpWaitAction.Leave, RpWaitReason.Died),
+            RpWaitPhase.Released => Latch(marker, RpWaitAction.None, RpWaitReason.None),
+            _ => RpWaitChange.Keep(marker),
+        };
+    }
+
+    // 3.8: with leaderIsPlayer, a marker for this death: Waiting: Left, Leave(PlayerGroup); Released: Left, action None.
+    // Anything else: Keep.
+    public static RpWaitChange JoinedGroup(RpWaitMarker marker, int deathCount, bool leaderIsPlayer)
+    {
+        if (!leaderIsPlayer || marker == null || marker.DeathCount != deathCount)
+            return RpWaitChange.Keep(marker);
+        return marker.Phase switch
+        {
+            RpWaitPhase.Waiting => Latch(marker, RpWaitAction.Leave, RpWaitReason.PlayerGroup),
+            RpWaitPhase.Released => Latch(marker, RpWaitAction.None, RpWaitReason.None),
+            _ => RpWaitChange.Keep(marker),
+        };
+    }
 }
