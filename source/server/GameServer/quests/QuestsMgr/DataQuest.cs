@@ -2066,6 +2066,8 @@ namespace DOL.GS.Quests
 				{
 					if ((quest.ID + DATAQUEST_CLIENTOFFSET) == qargs.QuestID)
 					{
+						if (RefuseWhenJournalFull(player)) // HearthDAoC: before any record exists (#112)
+							return;
 						DbCharacterXDataQuest charQuest = GetCharacterQuest(player, quest.ID, true);
 						DataQuest dq = new DataQuest(player, giver, quest, charQuest);
 						dq.Step = 1;
@@ -2194,6 +2196,8 @@ namespace DOL.GS.Quests
 
 				if (StartType == eStartType.AutoStart)
 				{
+					if (RefuseWhenJournalFull(player)) // HearthDAoC: before any record exists (#112)
+						return;
 					DbCharacterXDataQuest charQuest = GetCharacterQuest(player, ID, true);
 					DataQuest dq = new DataQuest(player, obj, DBDataQuest, charQuest);
 					dq.Step = 1;
@@ -2220,6 +2224,8 @@ namespace DOL.GS.Quests
 
                 if (StartType == eStartType.SearchStart)
                 {
+                    if (RefuseWhenJournalFull(player)) // HearthDAoC: before the start item or any record exists (#112)
+                        return;
                     if (m_searchStartItemTemplate != string.Empty)
                     {
                         lock (player.Inventory.Lock)
@@ -2487,8 +2493,7 @@ namespace DOL.GS.Quests
 		/// </summary>
 		private static bool RefuseWhenJournalFull(GamePlayer player)
 		{
-			bool doingAnyDataQuest = player.QuestList.Keys.Any(q => q is DataQuest && q.IsDoingQuest());
-			if (!DataQuestOffers.JournalIsFull(player.QuestList.Count, doingAnyDataQuest))
+			if (!DataQuestOffers.JournalIsFull(player.QuestList.Count))
 				return false;
 
 			player.Out.SendMessage(DataQuestOffers.JournalFullText, eChatType.CT_System, eChatLoc.CL_SystemWindow);

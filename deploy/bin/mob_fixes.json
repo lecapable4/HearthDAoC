@@ -382,6 +382,11 @@
    "expect": {"Model": 57, "Color": 0},
    "set": {"Model": 96, "Color": 43},
    "why": "Icon (owner 2026-10-12, research dillus-guards-2026-10-12/icons.md): the level-45 Reaver cloak was hooded and black (Allakhazam 8076): the hooded cloak (96) in Cloth_Black (43); the backpack icon is the same."
+  },
+  {"name": "Sveabone Hilt Sword", "table": "DataQuest", "id": 20098,
+   "expect": {"StepItemTemplates": "cq_bronze_short_sword|cq_sveawolf_tooth|", "CollectItemTemplate": "cq_bronze_short_sword||cq_sveawolf_tooth"},
+   "set": {"StepItemTemplates": "bronze_short_sword|cq_sveawolf_tooth|", "CollectItemTemplate": "bronze_short_sword||cq_sveawolf_tooth"},
+   "why": "Midgard's \"Sveabone Hilt Sword\" (Gridash, Vasudheim): \"Buy a bronze short sword from Gyda, southwest of the Jordheim bridge, and give it to Gridash.\" DataQuest takes an item whose Id_nb contains the step's turn-in id, and upstream's id was cq_bronze_short_sword, which nothing sells, drops or hands out, so the quest could not be finished (#100, found 2026-10-10 by a scan of every turn-in of the 1,302 classic quests; the only one with no source). Gyda's sword list (MidBlades) sells bronze_short_sword2, which the plain id matches."
   }
  ]
 }

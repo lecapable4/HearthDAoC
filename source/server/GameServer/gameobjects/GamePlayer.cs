@@ -11396,9 +11396,12 @@ namespace DOL.GS
         /// <returns>true if added, false if player is already doing the quest!</returns>
         public bool AddQuest(AbstractQuest quest)
         {
-            if (QuestList.Count > 25)
+            // HearthDAoC: upstream's "if (QuestList.Count > 25)" had no body, so it guarded the duplicate check: the
+            // journal had no limit, and that check (by C# type, which every data quest shares) ran only above 25 (#112).
+            if (QuestJournal.IsFull(QuestList.Count))
+                return false;
 
-            if (IsDoingQuest(quest) != null)
+            if (QuestList.Keys.Any(q => q.IsDoingQuest() && QuestJournal.Same(q, quest)))
                 return false;
 
             if (!AvailableQuestIndexes.TryDequeue(out byte index))

@@ -73,8 +73,10 @@ EOF
 }
 
 RELEASES="${HEARTHDAOC_RELEASES_URL:-https://github.com/lometur/HearthDAoC/releases}"
-latest_release() {  # GitHub redirects .../releases/latest to .../releases/tag/<tag>
-    curl -fsSI "$RELEASES/latest" | tr -d '\r' | sed -n 's|^[Ll]ocation: .*/tag/\([^/]*\)$|\1|p' | tail -1
+# GitHub redirects .../releases/latest to .../releases/tag/<tag>. Prints nothing when GitHub can't be reached, so
+# the callers say so (under pipefail, curl's own failure would end hdc silently, #81), as play.sh does.
+latest_release() {
+    { curl -fsSI --max-time 30 "$RELEASES/latest" || true; } | tr -d '\r' | sed -n 's|^[Ll]ocation: .*/tag/\([^/]*\)$|\1|p' | tail -1
 }
 lock_version() { sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' "$1" | head -1; }
 # The upstream version of the world in the volume; empty when there is no world yet.

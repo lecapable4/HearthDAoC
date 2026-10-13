@@ -52,15 +52,12 @@ public sealed class UT_DataQuestOffers
         Assert.That(DataQuestOffers.IsExpired(Offered, Offered.AddMinutes(6)), Is.True);
     }
 
+    // #112: the journal holds 25 quests, whatever they are (QuestJournal; upstream's limit never applied).
     [Test]
-    public void JournalWithTwentyFiveQuestsIsNotFull()
-        => Assert.That(DataQuestOffers.JournalIsFull(25, true), Is.False);
+    public void JournalWithTwentyFourQuestsIsNotFull()
+        => Assert.That(DataQuestOffers.JournalIsFull(24), Is.False);
 
     [Test]
-    public void JournalWithTwentySixQuestsAndADataQuestIsFull()
-        => Assert.That(DataQuestOffers.JournalIsFull(26, true), Is.True);
-
-    [Test]
-    public void JournalWithTwentySixQuestsAndNoDataQuestIsNotFull()
-        => Assert.That(DataQuestOffers.JournalIsFull(26, false), Is.False);
+    public void JournalWithTwentyFiveQuestsIsFull()
+        => Assert.That(DataQuestOffers.JournalIsFull(25), Is.True);
 }

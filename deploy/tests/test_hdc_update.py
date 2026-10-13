@@ -118,6 +118,24 @@ class HdcUpdateTests(unittest.TestCase):
         return subprocess.run(["bash", os.path.join(self.here, "hdc"), "update", "--bundle", bundle],
                               capture_output=True, text=True, env=env, timeout=60)
 
+    def unreachable(self, *args):
+        # Port 9 on loopback refuses the connection at once: GitHub "can't be reached" (#81).
+        env = dict(os.environ, PATH=self.bin + os.pathsep + os.environ["PATH"], FAKE_DIR=self.fake,
+                   HEARTHDAOC_RELEASES_URL="http://127.0.0.1:9/releases")
+        return subprocess.run(["bash", os.path.join(self.here, "hdc"), "update", *args],
+                              capture_output=True, text=True, env=env, timeout=60)
+
+    def test_check_says_so_when_github_cant_be_reached(self):
+        r = self.unreachable("--check")
+        self.assertEqual((r.returncode, r.stdout), (1, ""), r.stderr)
+        self.assertTrue(r.stderr.endswith("Could not reach http://127.0.0.1:9/releases.\n"), r.stderr)  # after curl's reason
+
+    def test_update_says_so_when_github_cant_be_reached(self):
+        r = self.unreachable()
+        self.assertEqual((r.returncode, r.stdout), (1, ""), r.stderr)
+        self.assertTrue(r.stderr.endswith("Could not find the latest release at http://127.0.0.1:9/releases.\n"), r.stderr)
+        self.assertEqual(self.calls(), [])
+
     def calls(self):
         path = os.path.join(self.fake, "calls.jsonl")
         if not os.path.exists(path):

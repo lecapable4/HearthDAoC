@@ -653,6 +653,27 @@ class EpicCharacterTests(unittest.TestCase):
         charges = dict(self.conn.execute("SELECT Inventory_ID, Charges FROM Inventory WHERE Inventory_ID IN ('i1','i2','i3')"))
         self.assertEqual(charges, {"i1": 3, "i2": 2, "i3": 0})
 
+    def test_only_vests_of_characters_who_had_the_old_quest_get_charges(self):
+        # #94: an empty vest is also one its owner used up; the recharge is for the old Shadows_50's vests only.
+        self.conn.execute("INSERT INTO DOLCharacters (DOLCharacters_ID, Name, Class, Realm, Level) VALUES ('char-new', 'Newo', 19, 1, 50)")
+        self.conn.execute("INSERT INTO Inventory (Inventory_ID, OwnerID, ITemplate_Id, SlotPosition, Charges) "
+                          "VALUES ('i4', 'char-new', 'ReaverEpicVest', 40, 0)")
+        self.conn.commit()
+        epic_chains.apply(self.conn, NOW)
+        charges = dict(self.conn.execute("SELECT Inventory_ID, Charges FROM Inventory WHERE Inventory_ID IN ('i1','i4')"))
+        self.assertEqual(charges, {"i1": 3, "i4": 0})
+
+    def test_an_upgraded_world_leaves_an_emptied_vest_empty(self):
+        # #94: hdc upgrade-world imports the characters into upstream's fresh world, which has no epic-chains-v1 marker,
+        # so the fix runs again; the old quest rows were carried over the first time, so nothing is recharged.
+        epic_chains.apply(self.conn, NOW)
+        self.conn.execute("UPDATE Inventory SET Charges=0 WHERE Inventory_ID='i1'")  # its owner used the charges
+        self.conn.execute(f"DELETE FROM {epic_chains.MARKER_TABLE}")
+        self.conn.commit()
+        result = epic_chains.apply(self.conn, NOW)
+        self.assertIn("0 epic vests recharged", result[0])
+        self.assertEqual(self.conn.execute("SELECT Charges FROM Inventory WHERE Inventory_ID='i1'").fetchone(), (0,))
+
     def test_a_vest_whose_template_the_owner_changed_keeps_its_charges(self):
         self.conn.execute("UPDATE ItemTemplate SET SpellID=999, Charges=1, MaxCharges=1 WHERE Id_nb='ReaverEpicVest'")
         self.conn.commit()
