@@ -165,5 +165,11 @@ class ServerDeclarationTests(unittest.TestCase):
         self.assertEqual(found, [("server", sp.RP_WAIT_DESCRIPTION, "false")])
 
 
+class ScriptWiringTests(unittest.TestCase):
+    def test_the_timer_is_read_through_the_upstream_key(self):
+        # The fork reads ARPR's internal const (same assembly); the unit tests use the literal key.
+        self.assertIn("AutonomousBotRealmPointRewards.LastRealmPointDeathTickProperty", source(SCRIPT_CS))
+
+
 if __name__ == "__main__":
     unittest.main()
