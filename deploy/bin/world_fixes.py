@@ -45,7 +45,13 @@
    route_fixes.json, under its own savepoint like the steps before it. No marker: at every start it adds a crossing's
    points only while its two points still follow each other at upstream's values, and names the crossings whose route
    changed.
-11. The leveling spawns an earlier `hdc spawns restore` brought back next to a quest's kill target named like them but
+11. The starting locations that were wrong for the period (owner's decisions 2026-10-13: race and base class fixed the
+   town, beside the base-class trainer; the Shrouded Isles base classes started only in their SI city before patch
+   1.72): the Briton Mage, three Seers, the Elf Stalker, the Briton Disciple, Troll Mystic and Celt and Firbolg
+   Foresters, and four final-class rows the bots use: start_towns.py, from start_towns.json, under its own savepoint
+   like the steps before it. No marker: at every start it moves a row only while it is at upstream's spot, and names
+   the rows at neither that spot nor the period's. New characters only; existing ones keep their location and bind.
+12. The leveling spawns an earlier `hdc spawns restore` brought back next to a quest's kill target named like them but
    for case (level 20's "arawnite messenger" beside the "Arawnite Messenger"): spawns.remove_quest_twins, last, under
    its own savepoint. Only rows listed in fork_restored_mobs; they stay in upstream's archive, as `hdc spawns undo`
    leaves them, and the restore now leaves them out.
@@ -65,6 +71,7 @@ import quest_camps
 import quest_dialogue
 import route_fixes
 import spawns
+import start_towns
 
 DISCIPLE, SARACEN, INCONNU = 20, 4, 13
 
@@ -193,6 +200,7 @@ def apply(db):
             changes.extend(quest_camps.apply(conn, _now()))
             changes.extend(mob_fixes.apply(conn, _now()))
             changes.extend(route_fixes.apply(conn, _now()))
+            changes.extend(start_towns.apply(conn, _now()))
             changes.extend(spawns.remove_quest_twins(conn))
     finally:
         conn.close()
