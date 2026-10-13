@@ -172,11 +172,21 @@ revision reaches a world that holds any earlier committed version. Only for a ne
 columns changes, is `python3 deploy/bin/quest_dialogue.py --digests <world.db> [--current]` still needed (it prints
 the digests of the text a world holds, which is upstream's only on a clean world).
 
+**Quest camps.** Upstream archived some quest camps with its post-legacy spawns; the fork copies four back, once per
+world (`deploy/bin/quest_camps.json`): Delfina's Tylwyth Teg rangers (level 43), the isolationist camp of the level-45
+courier, the Ellyll Seer's village (level 48) and Lieutenant Grimarth at Sir Dillus's tower. The first start after
+the update shows `Quest camps: copied back from upstream's archive: Delfina's camp (22), the isolationist camp (39),
+the Ellyll Seer's village (30), Lieutenant Grimarth (1)` in `./hdc fixes`; later starts say nothing, and rows you
+remove with `/mob remove` stay removed.
+
 **Mob fixes.** Period corrections to upstream's monsters, items and quests, from the quest archives: level 11's thieves
 Frund and Agisthil are level 10, Frund stands at the red dwarf camp beside Agisthil, "Zombie Problem"'s Cloudy Green
 Stones sell for 50 copper, and ten classic quests that handed their reward twice (two Belts of Animation from "Cleric
 Mulgrut", two stones per hog tail, four flint weapons per chert) hand it once, and the Guild of Shadows level 43 comes
-from each class's own trainer, not the Cabalist trainer Magus Agyfen (`deploy/bin/mob_fixes.json`; each
+from each class's own trainer, not the Cabalist trainer Magus Agyfen; the rest of the Guild of Shadows epic as the
+period had it: Sir Dillus in the renegade tower, Delfina a level-45 Tylwyth Teg huntress with two rangers by her fire,
+the isolationist courier in his camp, period levels, Master Eadig for the Infiltrator's chain, Magus Agyfen for the
+Cabalist's 40, and the item icons (`deploy/bin/mob_fixes.json`; each
 entry says why, with its source). After each start, `./hdc fixes` shows `Mob fixes: N corrected: ...` when rows were
 changed, and nothing when they are up to date. There is no marker: a row (a `Mob` row, the `NpcTemplate` rows of
 a template, an `ItemTemplate` row or a `DataQuest` row) changes only while it still holds every value upstream shipped, so a monster you changed yourself is

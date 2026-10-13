@@ -4,7 +4,9 @@ they are chosen (owner 2026-10-12).
 Level 43: Allakhazam's "Lord of Deceit (level 43)" (cquest 363, every capture from 2002-09-18) has "Start NPC:
 Trainer"; its walkthrough's "Talk to Magus Agyfen in Camelot" was a Cabalist's (Rhodri: "Not to worry Cabalist!").
 Upstream gave every class's 43 to Magus Agyfen, a Cabalist trainer. deploy/bin/mob_fixes.json gives it to the
-trainer who gives the class's 40, 45 and 48; Cabalists keep Agyfen, as their walkthrough has him. A trainer offers
+trainer who gives the class's 40 (and 45 and 48): Master Eadig for Infiltrators (owner's choice, 2026-10-12; the period
+Infiltrator account of 40 names him); Cabalists keep Agyfen, who also gives their 40, as every period Cabalist source
+has him. A trainer offers
 both 40 and 43 with the period keyword "[interested]", so deploy/hearthdaoc-quests.json's Chat holds Agyfen's reply
 for 43 as "interested@<quest ID>", which ClassicQuests.ChatReply prefers while the player may take that quest.
 
@@ -63,13 +65,17 @@ class EpicGiverTests(unittest.TestCase):
     def row(self, qid, *columns):
         return self.conn.execute(f"SELECT {', '.join(columns)} FROM DataQuest WHERE ID=?", (qid,)).fetchone()
 
-    def test_43_comes_from_the_trainer_of_the_classs_40_45_and_48(self):
+    def test_43_comes_from_the_trainer_who_gives_the_classs_40(self):
+        # Every class but the Cabalist has one trainer for 40, 45 and 48; the Cabalist's 40 and 43 are Magus Agyfen's
+        # (every period Cabalist source names him), 45 and 48 Magus Isen's.
         for n, cls in enumerate(self.classes):
             with self.subTest(cls):
-                trainers = {self.row(self.steps[step]["ids"][n], "StartName")[0] for step in ("40", "45", "48")}
-                self.assertEqual(len(trainers), 1, trainers)
-                expected = AGYFEN if cls == "Cabalist" else trainers.pop()
-                self.assertEqual(self.row(self.steps["43"]["ids"][n], "StartName"), (expected,))
+                giver = {step: self.row(self.steps[step]["ids"][n], "StartName")[0] for step in ("40", "43", "45", "48")}
+                self.assertEqual(giver["43"], giver["40"])
+                if cls == "Cabalist":
+                    self.assertEqual((giver["40"], giver["45"], giver["48"]), (AGYFEN, "Magus Isen", "Magus Isen"))
+                else:
+                    self.assertEqual(len({giver["40"], giver["45"], giver["48"]}), 1, giver)
 
     def test_each_43_trainer_says_agyfens_lines_for_43(self):
         lines = chat()

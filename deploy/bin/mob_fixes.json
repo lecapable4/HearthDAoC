@@ -155,7 +155,7 @@
   },
   {"name": "Lord of Deceit 43, Infiltrator", "table": "DataQuest", "id": 20435,
    "expect": {"StartName": "Magus Agyfen"},
-   "set": {"StartName": "Master Edric"},
+   "set": {"StartName": "Master Eadig"},
    "why": "Allakhazam's \"Lord of Deceit (level 43)\" (cquest 363, every capture from 2002-09-18) has \"Start NPC: Trainer\"; its walkthrough's \"Talk to Magus Agyfen in Camelot\" was a Cabalist's (Rhodri: \"Not to worry Cabalist!\"), and Agyfen is a Cabalist trainer. Upstream gave every class's 43 to him (owner 2026-10-12: the Infiltrator's 43 came from the Cabalist trainer). The class's own trainer gives it, as the class's 40, 45 and 48; deploy/hearthdaoc-quests.json gives the trainer Agyfen's reply to [interested] for this quest (\"interested@<ID>\"). Cabalists keep Agyfen."
   },
   {"name": "Lord of Deceit 43, Mercenary", "table": "DataQuest", "id": 20433,
@@ -172,6 +172,216 @@
    "expect": {"StartName": "Magus Agyfen"},
    "set": {"StartName": "Peze"},
    "why": "Allakhazam's \"Lord of Deceit (level 43)\" (cquest 363, every capture from 2002-09-18) has \"Start NPC: Trainer\"; its walkthrough's \"Talk to Magus Agyfen in Camelot\" was a Cabalist's (Rhodri: \"Not to worry Cabalist!\"), and Agyfen is a Cabalist trainer. Upstream gave every class's 43 to him (owner 2026-10-12: the Infiltrator's 43 came from the Cabalist trainer). The class's own trainer gives it, as the class's 40, 45 and 48; deploy/hearthdaoc-quests.json gives the trainer Agyfen's reply to [interested] for this quest (\"interested@<ID>\"). Cabalists keep Agyfen."
+  },
+  {"name": "Sir Dillus", "table": "Mob", "id": "76adce5b-d53f-5618-ada6-76537678ece5",
+   "expect": {"Region": 1, "X": 477792, "Y": 393640, "Z": 4782, "Heading": 808},
+   "set": {"X": 478515, "Y": 397085, "Z": 6118, "Heading": 877},
+   "why": "Level 25 \"Regal Nobility\": \"He's located inside the tower that is just at Llyn Barfog entrance. Loc 60600, 28400.\" (Allakhazam cmob 6397, posted 2005-02-15); \"Sir Dillus spawned inside the tower\" (WarCry 295, 2004). Upstream put the quest's Sir Dillus at loc 60000, 25000 (the 2002 walkthrough's rough \"(Llyn Barfog, loc: 60,000/25,000)\" for the tower), by the stable master; this is the spot of upstream's own archived Sir Dillus in the tower (d7820e21, loc 60723, 28445). deploy/hearthdaoc-quests.json moves step 1's map marker with him."
+  },
+  {"name": "Sir Dillus", "table": "NpcTemplate", "id": 13031,
+   "expect": {"AggroLevel": 0, "AggroRange": 0},
+   "set": {"AggroLevel": 51, "AggroRange": 500},
+   "why": "\"Dont get too close or Sir Dillus will come with a few guards\" (Allakhazam, Path of the Renegade, capture 2002-05-23); \"if you pull a guard from next to the tower sir dillius will come too\" (posted 2002-05-05); the tower's guards \"will kos\" (2002). Upstream's template never attacks (0/0); these are his renegade guards' values (template 13028)."
+  },
+  {"name": "Lieutenant Grimarth", "table": "NpcTemplate", "id": 13020,
+   "expect": {"AggroLevel": 0, "AggroRange": 0},
+   "set": {"AggroLevel": 51, "AggroRange": 500},
+   "why": "The renegades' officer at Sir Dillus's tower (deploy/bin/quest_camps.json copies him back); \"Lt. grimarth and two guards will make the rounds\" (2003-01-02). Upstream's template never attacks (0/0); these are his renegade guards' values (template 13028), as Sir Dillus's."
+  },
+  {"name": "Delfina", "table": "Mob", "id": "b09ebff4-6f36-5f47-bb41-48161840d41c",
+   "expect": {"Model": 34, "Gender": 0, "Size": 52, "Level": 43, "FactionID": 241},
+   "set": {"Model": 348, "Gender": 2, "Size": 60, "Level": 45, "FactionID": 62},
+   "why": "Level 43 \"Lord of Deceit\": \"a camp of Tylwyth Teg elves. There is one among them named Delfina. She carries the reports\" (Allakhazam cquest 363, 2002-09-18), \"une chasseresse Tylwyth Teg\" (bdodaoc, 2004); \"Minimum Level : 45 Maximum Level :45\", \"Lowers Faction with : Tylwyth Teg\" (Allakhazam cmob 3480, 2002-10-16 on). Upstream's row was a \"Briton Male\" (model 34) of the forest poachers (241), level 43; now model 348 \"Elf Female 7\" at the size of the world's Tylwyth Teg huntresses, level 45, faction 62 Tylwyth Teg (owner 2026-10-12: \"Delfina looks to be a man\")."
+  },
+  {"name": "Tylwyth Teg ranger, by Delfina's fire", "table": "Mob", "id": "a95e6d6f-0f45-4cbd-a527-97467780ea80",
+   "expect": {"X": 572817, "Y": 410457, "Z": 3673, "RoamingRange": 200},
+   "set": {"X": 572624, "Y": 410625, "Z": 3670, "RoamingRange": 0},
+   "why": "\"she is by the fire, linked to 2 rangers\" (Allakhazam Pennine forum, posted 2002-08-08); \"protected by two red/oranges at level 43\" (Allakhazam cquest 363, 2002-2003). One of the two rangers of her camp nearest her (deploy/bin/quest_camps.json copies the camp back) stands beside her, 150 units off, and stays."
+  },
+  {"name": "Tylwyth Teg ranger, by Delfina's fire", "table": "Mob", "id": "99755b89-b83f-4f2e-bf3b-84767b709ad6",
+   "expect": {"X": 572241, "Y": 410423, "Z": 3722, "RoamingRange": 200},
+   "set": {"X": 572411, "Y": 410612, "Z": 3689, "RoamingRange": 0},
+   "why": "The other of Delfina's two rangers by the fire: \"she is by the fire, linked to 2 rangers\" (2002-08-08); see the entry before."
+  },
+  {"name": "Isolationist Courier", "table": "Mob", "id": "29945a96-6a08-51f5-8df9-f63612026614",
+   "expect": {"Region": 1, "X": 578748, "Y": 381756, "Z": 6569, "Heading": 226},
+   "set": {"X": 603735, "Y": 405285, "Z": 5971, "Heading": 1577},
+   "why": "Level 45 \"Lord of Deceit\": \"The courier is next to the tent and he is linked to the two by the fire ... a female wizard and a male armsman.\" (WarCry 645, capture 2002-06-03); the camp \"at about loc [38k, 53k]\" (2004-04-09). Upstream's courier stood alone at loc 13500, 29500, north-west of Caer Berkstead (a post-New Frontiers spot, by capnbry's zone-177 sightings); now beside the armsman by the tent (3bbd91f2, loc 38337, 53029) in the isolationist camp deploy/bin/quest_camps.json copies back."
+  },
+  {"name": "Savant", "table": "NpcTemplate", "id": 12438,
+   "expect": {"Level": "31-34"},
+   "set": {"Level": "34"},
+   "why": "Level 40 \"Hidden Insurrection\": the Savant in Tepok's Mine is level 34 (Allakhazam cmob 4026, \"Minimum Level : 34 Maximum Level :34\", updated 2002-11-12), blue at 40; \"There the Savant wandered, accompanied by his pet\" (Allakhazam q497, 2002-10-29). Upstream's template spawns him at 31-34."
+  },
+  {"name": "Overseer Tepok", "table": "NpcTemplate", "id": 12435,
+   "expect": {"Level": "36-43"},
+   "set": {"Level": "39-43"},
+   "why": "Level 43 \"Lord of Deceit\": Overseer Tepok is 39-43 from 2003-02-13 (Allakhazam bestiary), \"Yellow at 43\" (2002 and 2003); upstream's 36-43 is a later (2011) range that cons blue at 43 on three spawns in eight."
+  },
+  {"name": "Twr ap Alsig", "table": "Mob", "id": "0acf83c7-1577-419d-9b18-fc03bce1f8b3",
+   "expect": {"Level": 1},
+   "set": {"Level": 18},
+   "why": "\"Twr ap Alsig 18 - 18\" (Allakhazam Llyn Barfog lists, 2003-10-23 to 2005-04-12): green at 25; upstream's row is level 1."
+  },
+  {"name": "Brodic", "table": "Mob", "id": "77d83187-b069-57fc-849c-5a6c20dd2732",
+   "expect": {"RoamingRange": 0},
+   "set": {"RoamingRange": 3000},
+   "why": "Level 11 \"Entry Into Tomorrow\": the ghost Brodic was \"walking back and forth on that path\" on the hill north of the twin towers (2002-04-20), \"He does roam about.\" (Allakhazam cmob 3523, 2003), \"very mobile\" (WarCry, 2003). Upstream's row never moves; his spot (capnbry's two radar fixes) and the quest's marker stay."
+  },
+  {"name": "Hidden Insurrection 40, Cabalist", "table": "DataQuest", "id": 20170,
+   "expect": {"StartName": "Magus Isen"},
+   "set": {"StartName": "Magus Agyfen"},
+   "why": "Every period Cabalist source names Magus Agyfen as the giver of level 40: WarCry 457 \"NPC: Magus Agyfen\" (capture 2002-03-28), Prima \"40 Hidden Insurrection / Camelot: Magus Agyfen\"; no period source names Magus Isen as a giver. Agyfen also gives the Cabalist's 43; deploy/hearthdaoc-quests.json gives him Isen's level-40 replies as \"interested@20170\" and \"doubts\"."
+  },
+  {"name": "Traveler's Way 7, Infiltrator", "table": "DataQuest", "id": 21500,
+   "expect": {"StartName": "Master Edric"},
+   "set": {"StartName": "Master Eadig"},
+   "why": "Owner's choice 2026-10-12: the Infiltrator's Guild of Shadows trainer is Master Eadig, the one the only period Infiltrator account of level 40 names (Allakhazam q497, capture 2002-10-29: \"Master Eadig greeted me\"); Eadig and Edric were both Camelot Infiltrator trainers (Prima: \"Camelot Masters Eadig, Edric\"). Upstream gave the Infiltrator's chain to Master Edric."
+  },
+  {"name": "Traveler's Way 7 (closed), Infiltrator", "table": "DataQuest", "id": 21324,
+   "expect": {"StartName": "Master Edric"},
+   "set": {"StartName": "Master Eadig"},
+   "why": "Owner's choice 2026-10-12: the Infiltrator's Guild of Shadows trainer is Master Eadig, the one the only period Infiltrator account of level 40 names (Allakhazam q497, capture 2002-10-29: \"Master Eadig greeted me\"); Eadig and Edric were both Camelot Infiltrator trainers (Prima: \"Camelot Masters Eadig, Edric\"). Upstream gave the Infiltrator's chain to Master Edric."
+  },
+  {"name": "Entry Into Tomorrow 11, Infiltrator", "table": "DataQuest", "id": 20157,
+   "expect": {"StartName": "Master Edric"},
+   "set": {"StartName": "Master Eadig"},
+   "why": "Owner's choice 2026-10-12: the Infiltrator's Guild of Shadows trainer is Master Eadig, the one the only period Infiltrator account of level 40 names (Allakhazam q497, capture 2002-10-29: \"Master Eadig greeted me\"); Eadig and Edric were both Camelot Infiltrator trainers (Prima: \"Camelot Masters Eadig, Edric\"). Upstream gave the Infiltrator's chain to Master Edric."
+  },
+  {"name": "Rebellion Accepted 15, Infiltrator", "table": "DataQuest", "id": 20188,
+   "expect": {"StartName": "Master Edric"},
+   "set": {"StartName": "Master Eadig"},
+   "why": "Owner's choice 2026-10-12: the Infiltrator's Guild of Shadows trainer is Master Eadig, the one the only period Infiltrator account of level 40 names (Allakhazam q497, capture 2002-10-29: \"Master Eadig greeted me\"); Eadig and Edric were both Camelot Infiltrator trainers (Prima: \"Camelot Masters Eadig, Edric\"). Upstream gave the Infiltrator's chain to Master Edric."
+  },
+  {"name": "Hidden Insurrection 40, Infiltrator", "table": "DataQuest", "id": 20171,
+   "expect": {"StartName": "Master Edric"},
+   "set": {"StartName": "Master Eadig"},
+   "why": "Owner's choice 2026-10-12: the Infiltrator's Guild of Shadows trainer is Master Eadig, the one the only period Infiltrator account of level 40 names (Allakhazam q497, capture 2002-10-29: \"Master Eadig greeted me\"); Eadig and Edric were both Camelot Infiltrator trainers (Prima: \"Camelot Masters Eadig, Edric\"). Upstream gave the Infiltrator's chain to Master Edric."
+  },
+  {"name": "Lord of Deceit 48, Infiltrator", "table": "DataQuest", "id": 21482,
+   "expect": {"StartName": "Master Edric"},
+   "set": {"StartName": "Master Eadig"},
+   "why": "Owner's choice 2026-10-12: the Infiltrator's Guild of Shadows trainer is Master Eadig, the one the only period Infiltrator account of level 40 names (Allakhazam q497, capture 2002-10-29: \"Master Eadig greeted me\"); Eadig and Edric were both Camelot Infiltrator trainers (Prima: \"Camelot Masters Eadig, Edric\"). Upstream gave the Infiltrator's chain to Master Edric."
+  },
+  {"name": "Lord of Deceit 45, Infiltrator", "table": "DataQuest", "id": 21297,
+   "expect": {"StartName": "Master Edric", "TargetName": "Captain Rhodri;1|Isolationist Courier;1|Captain Rhodri;1|Lieutenant Kuebler;1|Belgrik;1|Captain Rhodri;1|Master Edric;10"},
+   "set": {"StartName": "Master Eadig", "TargetName": "Captain Rhodri;1|Isolationist Courier;1|Captain Rhodri;1|Lieutenant Kuebler;1|Belgrik;1|Captain Rhodri;1|Master Eadig;10"},
+   "why": "Owner's choice 2026-10-12: the Infiltrator's Guild of Shadows trainer is Master Eadig, the one the only period Infiltrator account of level 40 names (Allakhazam q497, capture 2002-10-29: \"Master Eadig greeted me\"); Eadig and Edric were both Camelot Infiltrator trainers (Prima: \"Camelot Masters Eadig, Edric\"). Upstream gave the Infiltrator's chain to Master Edric. The quest also ends with him (\"Report to Master Eadig in Camelot.\", deploy/bin/quest_dialogue.json)."
+  },
+  {"name": "Book of Lore", "table": "ItemTemplate", "id": "cq_book_of_lore",
+   "expect": {"Model": 488},
+   "set": {"Model": 500},
+   "why": "Icon (owner 2026-10-12, research dillus-guards-2026-10-12/icons.md): the Ravenclan giants' Book of Lore (level 45) shows a book (500), not upstream's sack (488, the template default); the item is shared with Midgard's \"The Rod and the Scholars\", also a book (owner 2026-10-12: \"the Book of Lore was a sack icon\")."
+  },
+  {"name": "Renegade Diary", "table": "ItemTemplate", "id": "cq_renegade_diary",
+   "expect": {"Model": 603},
+   "set": {"Model": 500},
+   "why": "Icon (owner 2026-10-12, research dillus-guards-2026-10-12/icons.md): \"Decorasan notices a book on the guard's belt\" ... \"This book (it's a diary)\" (WarCry 581, capture 2004-05-14): a book (500), not a scroll tube (603)."
+  },
+  {"name": "Crediac stone", "table": "ItemTemplate", "id": "cq_crediac_stone",
+   "expect": {"Model": 488},
+   "set": {"Model": 514},
+   "why": "Icon (owner 2026-10-12, research dillus-guards-2026-10-12/icons.md): \"They both dropped an unworked stone.\" (Allakhazam q80, 2001-11-03): a stone (514), not upstream's sack (488)."
+  },
+  {"name": "Cythraul Skull", "table": "ItemTemplate", "id": "cq_cythraul_skull",
+   "expect": {"Model": 488},
+   "set": {"Model": 540},
+   "why": "Icon (owner 2026-10-12, research dillus-guards-2026-10-12/icons.md): \"i had to kill a cythraul and take the skull back to twr ap alsig.\" (Allakhazam q244, 2002-04-01): a skull (540), not upstream's sack (488)."
+  },
+  {"name": "Supplies", "table": "ItemTemplate", "id": "cq_supplies",
+   "expect": {"Model": 593},
+   "set": {"Model": 488},
+   "why": "Icon (owner 2026-10-12, research dillus-guards-2026-10-12/icons.md): \"Collect supplies from merchant named Bline.\" (Allakhazam q370, 2002-09-18): a bag (488), not upstream's idol (593, matched by name to the house merchants' \"Supplies\")."
+  },
+  {"name": "Tepok's Sack", "table": "ItemTemplate", "id": "cq_tepok_s_sack",
+   "expect": {"Model": 603},
+   "set": {"Model": 488},
+   "why": "Icon (owner 2026-10-12, research dillus-guards-2026-10-12/icons.md): \"It is said Tepok carries with him a sack containing all this precious items.\" ... \"Give him the bag.\" (Allakhazam cquest 363, 2002-09-18): a bag (488), not upstream's scroll tube (603, matched by name to the \"Fly to Tepok's Mine\" tickets)."
+  },
+  {"name": "Arawnite Orders", "table": "ItemTemplate", "id": "cq_arawnite_orders",
+   "expect": {"Model": 488},
+   "set": {"Model": 499},
+   "why": "Icon (owner 2026-10-12, research dillus-guards-2026-10-12/icons.md): \"When you kill the messenger, you will collect a scroll.\" (WarCry 581, 2004-05-14), \"(Hand Twr ap Alsig the scroll from Captain Rhodri)\" (Allakhazam q244, 2003): a scroll (499)."
+  },
+  {"name": "Delfina's Reports", "table": "ItemTemplate", "id": "cq_delfina_s_reports",
+   "expect": {"Model": 488},
+   "set": {"Model": 499},
+   "why": "Icon (owner 2026-10-12, research dillus-guards-2026-10-12/icons.md): \"slay her, and return her reports\" (Allakhazam cquest 363, 2002-09-18); \"Get your scroll\" (posted 2003-05-24): a scroll (499), as the Arawnite Orders, not upstream's sack (488)."
+  },
+  {"name": "Document for Scribe Veral", "table": "ItemTemplate", "id": "cq_document_for_scribe_veral",
+   "expect": {"Model": 488},
+   "set": {"Model": 603},
+   "why": "Icon (owner 2026-10-12, research dillus-guards-2026-10-12/icons.md): \"he sends you to Camelot to deliver a note to Scribe Veral\" (Allakhazam q315, 2002): a scroll tube (603), as Rhodri's Note, not upstream's sack (488)."
+  },
+  {"name": "Dwarven Dispatch", "table": "ItemTemplate", "id": "cq_dwarven_dispatch",
+   "expect": {"Model": 527},
+   "set": {"Model": 603},
+   "why": "Icon (owner 2026-10-12, research dillus-guards-2026-10-12/icons.md): \"I was able to scoop up a dwarven dispatch from the Savant's belongings\" (Allakhazam q497, 2002): a written dispatch, a scroll tube (603), not upstream's orange vial (527, matched by name to the dwarven ales)."
+  },
+  {"name": "Dispatch for Twr ap Alsig", "table": "ItemTemplate", "id": "cq_dispatch_for_twr_ap_alsig",
+   "expect": {"Model": 527},
+   "set": {"Model": 603},
+   "why": "Icon (owner 2026-10-12, research dillus-guards-2026-10-12/icons.md): \"This dispatch proves as much! The person who write this speaks of supplies.\" (Rhodri, Allakhazam cquest 363, 2002-09-18): a written dispatch, a scroll tube (603), not upstream's orange vial (527)."
+  },
+  {"name": "Isolationist Documents", "table": "ItemTemplate", "id": "cq_isolationist_documents",
+   "expect": {"Model": 488},
+   "set": {"Model": 603},
+   "why": "Icon (owner 2026-10-12, research dillus-guards-2026-10-12/icons.md): \"Return the documents that he drops to Capt Rhodri.\" (Allakhazam q376, 2002-09-18): a scroll tube (603), not upstream's sack (488, the template default)."
+  },
+  {"name": "Death Dancer", "table": "ItemTemplate", "id": "cq_alb_death_dancer",
+   "expect": {"Model": 1},
+   "set": {"Model": 4},
+   "why": "Icon (owner 2026-10-12, research dillus-guards-2026-10-12/icons.md): Allakhazam's period picture of Death Dancer (2003-09-23) shows the long-sword icon of model 4, not the dagger of upstream's model 1."
+  },
+  {"name": "Dazzle", "table": "ItemTemplate", "id": "cq_alb_dazzle",
+   "expect": {"Model": 1},
+   "set": {"Model": 4},
+   "why": "Icon (owner 2026-10-12, research dillus-guards-2026-10-12/icons.md): Allakhazam's period picture of Dazzle shows the long-sword icon of model 4, not the dagger of upstream's model 1."
+  },
+  {"name": "Glitter", "table": "ItemTemplate", "id": "cq_alb_glitter",
+   "expect": {"Model": 15},
+   "set": {"Model": 20},
+   "why": "Icon (owner 2026-10-12, research dillus-guards-2026-10-12/icons.md): Allakhazam's period picture of Glitter (2003-03-12) shows the spiked-mace icon of model 20, not the war hammer of upstream's model 15."
+  },
+  {"name": "Lucky Pebble", "table": "ItemTemplate", "id": "cq_alb_lucky_pebble",
+   "expect": {"Model": 118},
+   "set": {"Model": 115},
+   "why": "Icon (owner 2026-10-12, research dillus-guards-2026-10-12/icons.md): Allakhazam's period picture of the Lucky Pebble (2004) shows a royal-blue gem, the Blue Gem (115), not upstream's Black Gem (118)."
+  },
+  {"name": "Shadow-Woven Coif", "table": "ItemTemplate", "id": "InfiltratorEpicHelm",
+   "expect": {"Model": 1290},
+   "set": {"Model": 62},
+   "why": "Icon (owner 2026-10-12, research dillus-guards-2026-10-12/icons.md): the level-50 Infiltrator helm was a leather helm (Allakhazam picture \"Shadow-woven Helm\"): model 62, not upstream's crown (1290, \"Tiara - Alb\", a later look)."
+  },
+  {"name": "Coif of the Shadowy Embers", "table": "ItemTemplate", "id": "MercenaryEpicHelm",
+   "expect": {"Model": 1290},
+   "set": {"Model": 63},
+   "why": "Icon (owner 2026-10-12, research dillus-guards-2026-10-12/icons.md): the level-50 Mercenary helm was a chain coif (Allakhazam picture): model 63, not upstream's crown (1290)."
+  },
+  {"name": "Coif of Murky Secrets", "table": "ItemTemplate", "id": "ReaverEpicHelm",
+   "expect": {"Model": 1290},
+   "set": {"Model": 63},
+   "why": "Icon (owner 2026-10-12, research dillus-guards-2026-10-12/icons.md): the level-50 Reaver helm was a dark chain coif (Allakhazam picture, 2003-11-11): model 63, not upstream's crown (1290)."
+  },
+  {"name": "Warm Coif of the Construct", "table": "ItemTemplate", "id": "CabalistEpicHelm",
+   "expect": {"Model": 1290},
+   "set": {"Model": 822},
+   "why": "Icon (owner 2026-10-12, research dillus-guards-2026-10-12/icons.md): the level-50 Cabalist helm was a cloth cap (Allakhazam picture \"Warm Cap of the Construct\"): model 822, not upstream's crown (1290)."
+  },
+  {"name": "Cap of Forbidden Rites", "table": "ItemTemplate", "id": "NecromancerEpicHelm",
+   "expect": {"Model": 1290},
+   "set": {"Model": 822},
+   "why": "Icon (owner 2026-10-12, research dillus-guards-2026-10-12/icons.md): the level-50 Necromancer helm was a cloth cap (Allakhazam picture): model 822, not upstream's crown (1290)."
+  },
+  {"name": "Cloak of Forgotten Curses", "table": "ItemTemplate", "id": "cq_alb_cloak_of_forgotten_curses",
+   "expect": {"Model": 57},
+   "set": {"Model": 96},
+   "why": "Icon (owner 2026-10-12, research dillus-guards-2026-10-12/icons.md): the level-45 Necromancer cloak was hooded (Allakhazam 5166): the hooded cloak (96); the backpack icon is the same."
+  },
+  {"name": "Cloak of Murky Secrets", "table": "ItemTemplate", "id": "cq_alb_cloak_of_murky_secrets",
+   "expect": {"Model": 57, "Color": 0},
+   "set": {"Model": 96, "Color": 43},
+   "why": "Icon (owner 2026-10-12, research dillus-guards-2026-10-12/icons.md): the level-45 Reaver cloak was hooded and black (Allakhazam 8076): the hooded cloak (96) in Cloth_Black (43); the backpack icon is the same."
   }
  ]
 }

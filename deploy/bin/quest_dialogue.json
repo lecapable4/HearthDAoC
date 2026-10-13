@@ -742,7 +742,7 @@
      "Belgrik carries it, the Ravenclan's chief, on his peak in the Pennine Mountains. If you want the book, you'll have to take it from him, and I wish you luck.",
      "Captain Rhodri must see this.",
      {
-      "Infiltrator": "With this book and the isolationist documents we can begin to piece it together. You have earned your reward, <Player>, and I have had it crated and sent to Master Edric in Camelot. Go and see him.",
+      "Infiltrator": "With this book and the isolationist documents we can begin to piece it together. You have earned your reward, <Player>, and I have had it crated and sent to Master Eadig in Camelot. Go and see him.",
       "Mercenary": "With this book and the isolationist documents we can begin to piece it together. You have earned your reward, <Player>, and I have had it crated and sent to Master Arenis in Camelot. Go and see him.",
       "Cabalist": "With this book and the isolationist documents we can begin to piece it together. You have earned your reward, <Player>, and I have had it crated and sent to Magus Isen in Camelot. Go and see him.",
       "Necromancer": "With this book and the isolationist documents we can begin to piece it together. You have earned your reward, <Player>, and I have had it crated and sent to Yulia in Camelot. Go and see her.",
@@ -757,7 +757,7 @@
      "Slay the Ravenclan giant Belgrik in the Pennine Mountains and take the Book of Lore.",
      "Return the Book of Lore to Captain Rhodri.",
      {
-      "Infiltrator": "Report to Master Edric in Camelot.",
+      "Infiltrator": "Report to Master Eadig in Camelot.",
       "Mercenary": "Report to Master Arenis in Camelot.",
       "Cabalist": "Report to Magus Isen in Camelot.",
       "Necromancer": "Report to Yulia in Camelot.",
@@ -785,7 +785,8 @@
     "21297": [
      "df8afe5353c4edf4a769399f77db7a915063134d21ccdb69b7f4dae6db61d393",
      "f03e3f568754c8ef117df75426e5b335840c787b05f2e104b4c577f21675a7f9",
-     "11538012574925faf195af63054477f5028b23449999c1659f866a16c734a0c5"
+     "11538012574925faf195af63054477f5028b23449999c1659f866a16c734a0c5",
+     "368946fac555a3cad06833ccdb37b90c0f10c4f90d83c446912df0f9612f0817"
     ],
     "21295": [
      "df8afe5353c4edf4a769399f77db7a915063134d21ccdb69b7f4dae6db61d393",

@@ -30,6 +30,10 @@ DOCKERFILE = os.path.join(DEPLOY, "Dockerfile")
 LORD_ELIDYN = "1f005bc1-27ae-40b0-bc42-1ec407a4aa34"
 LEVEL_50_IDS = [990509, 990511, 990513, 990512, 990519]
 LEVEL_11_IDS = [20157, 20155, 20156, 20159, 20158]  # "Entry Into Tomorrow", rebuilt to the period story
+# Upstream's entries with a marker or event spawn moved to the period (2026-10-12; deploy/tests/test_epic_period.py):
+# level 25 and 30 "Regal Nobility" and the Shrouded Isles level 7 "Strange Beings", with their Heretic rows.
+PERIOD_IDS = [21304, 21305, 21306, 21307, 21308, 21309, 21489, 21490, 21491, 21492, 21493, 21494,
+              20476, 20477, 20478, 20479, 20480, 20481]
 
 
 def read(path):
@@ -46,7 +50,7 @@ class ExtraQuestFileTests(unittest.TestCase):
             self.extra = json.load(f)
 
     def test_it_marks_the_level_50_stages_and_lord_elidyn(self):
-        self.assertEqual(sorted(int(k) for k in self.extra["Quests"]), sorted(LEVEL_50_IDS + LEVEL_11_IDS))
+        self.assertEqual(sorted(int(k) for k in self.extra["Quests"]), sorted(LEVEL_50_IDS + LEVEL_11_IDS + PERIOD_IDS))
         for qid in LEVEL_50_IDS:
             quest = self.extra["Quests"][str(qid)]
             self.assertNotIn("Replace", quest)  # upstream has no entry for them
@@ -544,7 +548,7 @@ class EpicWorldTests(unittest.TestCase):
         added = sorted(int(k) for k, quest in extra["Quests"].items() if not quest.get("Replace"))
         self.assertEqual(added, sorted(self.data["steps"]["50"]["ids"]))
         replaced = sorted(int(k) for k, quest in extra["Quests"].items() if quest.get("Replace"))  # the rebuilt level 11
-        self.assertEqual(replaced, sorted(qid for qid in self.data["steps"]["11"]["ids"] if qid is not None))
+        self.assertEqual(replaced, sorted([qid for qid in self.data["steps"]["11"]["ids"] if qid is not None] + PERIOD_IDS))
         self.assertTrue(self.conn.execute("SELECT 1 FROM Mob WHERE Mob_ID=?", (extra["QuestMonsterIds"][0],)).fetchone())
 
 

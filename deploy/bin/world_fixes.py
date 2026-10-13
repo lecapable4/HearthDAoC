@@ -28,12 +28,16 @@
    quest_dialogue.py, right after the epic chains, under its own savepoint like them. It has no marker: at every
    start it rewrites the texts of a quest that still hold upstream's text or an earlier version of its own, and
    leaves the owner's own edits alone.
-8. Period corrections to monsters, items and quests (levels, spots, prices, rewards; level 11's thieves Frund and
-   Agisthil first, then the ten classic quests that handed their reward twice, then the trainers who give the Guild of
-   Shadows level 43): mob_fixes.py, from mob_fixes.json,
-   last, under its own savepoint like the three before it. No marker: at every start it changes a row only while it
+8. The quest camps upstream archived as post-legacy spawns that the period's walkthroughs describe (Delfina's rangers,
+   the level-45 courier's isolationist camp, the level-48 Ellyll Seer's village, Lieutenant Grimarth):
+   quest_camps.py, from quest_camps.json, under its own savepoint like the steps before it. Each camp is copied once
+   per world (marker quest-camp:<key> in fork_world_fixes), so rows the owner removes later stay removed.
+9. Period corrections to monsters, items and quests (levels, spots, prices, rewards; level 11's thieves Frund and
+   Agisthil first, then the ten classic quests that handed their reward twice, then the Guild of Shadows epic's
+   givers, monsters and item icons): mob_fixes.py, from mob_fixes.json, after the camps (it moves rows of
+   them), under its own savepoint like the steps before it. No marker: at every start it changes a row only while it
    still holds the values upstream shipped, and names the rows that hold neither those nor the file's.
-9. The leveling spawns an earlier `hdc spawns restore` brought back next to a quest's kill target named like them but
+10. The leveling spawns an earlier `hdc spawns restore` brought back next to a quest's kill target named like them but
    for case (level 20's "arawnite messenger" beside the "Arawnite Messenger"): spawns.remove_quest_twins, last, under
    its own savepoint. Only rows listed in fork_restored_mobs; they stay in upstream's archive, as `hdc spawns undo`
    leaves them, and the restore now leaves them out.
@@ -49,6 +53,7 @@ import sys
 import battlegrounds
 import epic_chains
 import mob_fixes
+import quest_camps
 import quest_dialogue
 import spawns
 
@@ -169,6 +174,7 @@ def apply(db):
             changes.extend(battlegrounds.apply(conn, _now()))
             changes.extend(epic_chains.apply(conn, _now()))
             changes.extend(quest_dialogue.apply(conn, _now()))
+            changes.extend(quest_camps.apply(conn, _now()))
             changes.extend(mob_fixes.apply(conn, _now()))
             changes.extend(spawns.remove_quest_twins(conn))
     finally:
