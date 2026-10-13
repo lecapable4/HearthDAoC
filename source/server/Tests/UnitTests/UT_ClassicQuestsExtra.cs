@@ -220,4 +220,51 @@ public sealed class UT_ClassicQuestsExtra
         ClassicQuests.Config merged = MergeChat("""{ "Chat": { "Captain Rhodri": null } }""");
         Assert.That(merged.Chat["Captain Rhodri"]["Hello"], Is.EqualTo("Greetings."));
     }
+
+    // HearthDAoC (owner 2026-10-13, #121 #126): an NPC the fork moves (Captain Rhodri to the north wall, Sir Tilian to the
+    // north-west corner, the supply run to Bline Tengit) takes the map markers on his old spot with him, in every quest
+    // of either file, the replaced ones included.
+    private const string Moves = """
+    { "MovedMarkers": [ { "From": { "Region": 1, "X": 1, "Y": 2, "Z": 3 }, "To": { "Region": 1, "X": 7, "Y": 8, "Z": 9 } } ] }
+    """;
+
+    [Test]
+    public void AMovedNpcTakesTheMarkersOnHisOldSpot()
+    {
+        ClassicQuests.Config merged = ClassicQuests.Merge(Parse(Upstream), Parse(Moves));
+        Assert.That(merged.Quests[21482].Steps[1].Marker, Is.EqualTo(new ClassicQuests.Point(1, 7, 8, 9)));
+    }
+
+    [Test]
+    public void MarkersElsewhereStay()
+    {
+        ClassicQuests.Config merged = ClassicQuests.Merge(Parse(Extra), Parse(Moves));
+        Assert.Multiple(() =>
+        {
+            Assert.That(merged.Quests[990509].Steps[1].Marker, Is.EqualTo(new ClassicQuests.Point(1, 568158, 404718, 5032)));
+            Assert.That(merged.Quests[21482].Steps[1].Marker, Is.EqualTo(new ClassicQuests.Point(1, 9, 9, 9)));
+        });
+    }
+
+    [Test]
+    public void AReplacedEntrysMarkersMoveToo()
+    {
+        const string replaced = """
+        { "Quests": { "21482": { "Replace": true, "Steps": [ null, { "Marker": { "Region": 1, "X": 1, "Y": 2, "Z": 3 } } ] } },
+          "MovedMarkers": [ { "From": { "Region": 1, "X": 1, "Y": 2, "Z": 3 }, "To": { "Region": 1, "X": 7, "Y": 8, "Z": 9 } } ] }
+        """;
+        ClassicQuests.Config merged = ClassicQuests.Merge(Parse(Upstream), Parse(replaced));
+        Assert.That(merged.Quests[21482].Steps[1].Marker, Is.EqualTo(new ClassicQuests.Point(1, 7, 8, 9)));
+    }
+
+    [Test]
+    public void TheExtraFilesLinksAreRead()
+    {
+        const string links = """
+        { "Links": [ { "Name": "Delfina's fire", "Members": [ "d", "r1", "r2" ], "Callers": [ "d" ], "Range": 1500 } ] }
+        """;
+        ClassicQuests.Config merged = ClassicQuests.Merge(Parse(Upstream), Parse(links));
+        Assert.That(merged.Links, Has.Count.EqualTo(1));
+        Assert.That(merged.Links[0].Members, Is.EqualTo(new[] { "d", "r1", "r2" }));
+    }
 }

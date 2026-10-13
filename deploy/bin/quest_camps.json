@@ -52,6 +52,16 @@
    "why": "Level 20/25: the renegades' officer at Sir Dillus's tower in Llyn Barfog, \"Lieutenant Grimarth ... Minimum Level : 21 Maximum Level : 21\" (Allakhazam cmob 6396, entry 2003-04-02); \"Lt. grimarth and two guards will make the rounds coming down into the valley\" (2003-01-02). He stands where upstream's row had him: no period route for his patrol survives.",
    "ids": [
     "1e9635f8-d760-4bb3-adfe-7360ef400bd0"
-   ]}
+   ]},
+  {"key": "lieutenant-cian", "name": "Lieutenant Cian", "kind": "clone",
+   "like": "44da6de7-96b4-4a58-b33d-202220d99463", "id": "68b26ff8-6003-5b14-9b56-01a33a205e0a",
+   "set": {"Name": "Lieutenant Cian", "X": 528649, "Y": 357937, "Z": 9200, "Heading": 0, "Level": 49, "NPCTemplateID": -1},
+   "why": "#121: capnbry's radar logged Captain Rhodri, Lieutenant Brude and \"Lieutenant Cian\" (level 49) together on Snowdonia Fortress's north wall, Z 9200 (2002-2004), and Cian helps Rhodri kill the level-30 assassin (2002-07-11); our world has no Cian. He is made like Lt. Brude (model, gear, realm, level) beside him; NPCTemplateID -1, since Brude's template would name him Brude. The owner checked the spot in game (2026-10-13)."},
+  {"key": "generated-bline", "name": "the generated Bline", "kind": "archive",
+   "names": ["Bline"], "ids": ["97c5b723-b48d-50a5-b4a2-d7fe0f0cd73e"],
+   "why": "#126: the level-7 supply run's first step went to the Humberton merchant Bline Tengit (\"Bline is his FIRST name!! he stands outside the door\", 2002-09-22); upstream's generator made a level-5 peace-flagged \"Bline\" at the bindstone, 959 units east. The quest goes to Bline Tengit now (mob_fixes.json), and this copy is archived."},
+  {"key": "standing-martley", "name": "the standing Martley", "kind": "archive",
+   "names": ["Martley"], "ids": ["b94c9ac2-ba75-493e-a90c-65a5c62a839e"],
+   "why": "#124: Martley appears at the single-tent camp of drakoran neophytes (\"he spawns in the single tent camp\", 2003-01-05; \"When you kill one of the neophytes, Martley will spawn\", 2003; \"Martley appeared at the corpse\", 2004-06-12). Upstream had a passive Martley standing 2.7k north of the camp; deploy/hearthdaoc-quests.json makes him an event spawn at the camp, and this copy is archived."}
  ]
 }

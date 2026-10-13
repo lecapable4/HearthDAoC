@@ -13,12 +13,12 @@
      "Reaver": "<Player>. Our friends at the Keep on the road to Snowdonia are short of supplies, and today the Temple needs a courier, not a killer. A bundle waits in Humberton. A small [errand], but the Temple remembers who can be trusted with small things."
     },
     "SourceText": [
-     "Good. Go to Humberton and find Bline; he waits near the bindstone. He will give you the supplies and tell you where to go. Do not linger on the road.",
+     "Good. Go to Humberton and find Bline Tengit; he stands outside the door of his hut, past the bindstone. He will give you the supplies and tell you where to go. Do not linger on the road.",
      "Talk to Thol Dunnin on your way to Snowdonia. She's the smith at Snowdonia Station, up in the Black Mountains; she'll tell you where they go from there.",
      "Keep going down the road and deliver the supplies to Ley Manton at Swanton Keep. I'd go with you myself, but I can't leave my post."
     ],
     "StepText": [
-     "Collect the supplies from Bline, who waits near the bindstone in Humberton.",
+     "Collect the supplies from Bline Tengit, who stands outside his hut past the bindstone in Humberton.",
      "Talk to the smith Thol Dunnin at Snowdonia Station.",
      "Deliver the supplies to Ley Manton at Swanton Keep."
     ],
@@ -33,27 +33,32 @@
     "21500": [
      "2104b99c7599b52dc223eb7be8a8355d6213985fc99769f653a74f32d610393f",
      "6e5c3a12b93be8f4a876e68806b3ecf6dc7ba29dc8a6e772ddcf067ede0a7714",
-     "313561d7a31b8c14c5d9a4ed8bf2f492f30b3919aaafc371b15d3b222361032d"
+     "313561d7a31b8c14c5d9a4ed8bf2f492f30b3919aaafc371b15d3b222361032d",
+     "bee0417ad41aaa06a8f5e67a0c48915bb050a91397c433fee4c9452c6ae76a70"
     ],
     "21498": [
      "2104b99c7599b52dc223eb7be8a8355d6213985fc99769f653a74f32d610393f",
      "aa12a09dbdc62672b7fea0295064e9ee11a1bfe00e5b2f0fee42c06756825a25",
-     "d6f03e3c796e6bd341321af24c0bb0a8cc6b33b1d655d23902d1ba88c447b07d"
+     "d6f03e3c796e6bd341321af24c0bb0a8cc6b33b1d655d23902d1ba88c447b07d",
+     "a505b52b481caa0d14ee1a504bba4c1e8d5598c98f7b6f25d273034f80d2b308"
     ],
     "21499": [
      "2104b99c7599b52dc223eb7be8a8355d6213985fc99769f653a74f32d610393f",
      "64d73726fda3b36960d3f80017d0c0e66393863f735e305582e0cb28376209ef",
-     "f08ab5fc5edd641e1fc0f6d3aac60d003959a18be343a57398ee7fad8c5c227e"
+     "f08ab5fc5edd641e1fc0f6d3aac60d003959a18be343a57398ee7fad8c5c227e",
+     "4a55372fbdeaa821ae579d0bfcf6ef989cb975f8c9accf65c1d5b7b7b4ae8ebb"
     ],
     "20497": [
      "2104b99c7599b52dc223eb7be8a8355d6213985fc99769f653a74f32d610393f",
      "76a392a8d387c31ac10fa293ac9bab758ee5f3863b26d2a12106846902bd2210",
-     "ffffe929108814fade3c72fccd6b7700379b223d7e0ad6618295fbf3eb825fc1"
+     "ffffe929108814fade3c72fccd6b7700379b223d7e0ad6618295fbf3eb825fc1",
+     "05bed6c3b16bf3ceac423545a7b3fa4f8833c83d49f9a1d2b4e97ab30d58177e"
     ],
     "21501": [
      "2104b99c7599b52dc223eb7be8a8355d6213985fc99769f653a74f32d610393f",
      "bf889245b7c412a54b964caee35f46d191f301e1d49d8dedfb5510eaa59b4038",
-     "334b99940b704ddf481c5e93c4863d151bbd4761b3d12b0bce9c3cbf8a118f25"
+     "334b99940b704ddf481c5e93c4863d151bbd4761b3d12b0bce9c3cbf8a118f25",
+     "bc1ea267631680badeec43ec49e4d2f7404618f9829982150c0824cd1c9c0d0f"
     ]
    }
   },

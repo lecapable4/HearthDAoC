@@ -167,6 +167,8 @@ class EpicPeriodTests(unittest.TestCase):
         clean = sqlite3.connect(f"file:{TEST_WORLD}?mode=ro", uri=True)
         try:
             for camp in camps():
+                if camp.get("kind", "copy") != "copy":
+                    continue  # an NPC added like another row, or a row archived (test_epic_followups.py)
                 for mob_id in camp["ids"]:
                     with self.subTest(camp["name"], mob_id=mob_id):
                         row = clean.execute("SELECT lower(Name) FROM offline_classic165_removed_mobs WHERE Mob_ID=?",

@@ -239,7 +239,7 @@ SERVER_UNIT_TESTS = ("dotnet test source/server/Tests/Tests.csproj --nologo --fi
                      '|FullyQualifiedName~UT_DataQuestDependency|FullyQualifiedName~UT_DataQuestDeliveryItem|FullyQualifiedName~UT_DataQuestOffers|FullyQualifiedName~UT_QuestJournal'
                      '|FullyQualifiedName~UT_DataQuestWhisper'
                      '|FullyQualifiedName~UT_QuestNames'
-                     '|FullyQualifiedName~UT_ClassicQuestsExtra|FullyQualifiedName~UT_ClassicQuestsChoice'
+                     '|FullyQualifiedName~UT_ClassicQuestsExtra|FullyQualifiedName~UT_ClassicQuestsChoice|FullyQualifiedName~UT_LinkedCamps'
                      '|FullyQualifiedName~UT_EpicChain'
                      '|FullyQualifiedName~UT_QuestIndicatorProbe'
                      '|FullyQualifiedName~UT_QuestIndicators|FullyQualifiedName~UT_IndicatorSentStore"')
@@ -264,7 +264,7 @@ class ServerUnitTestWorkflowTests(unittest.TestCase):
                                  "UT_DataQuestDependency", "UT_DataQuestDeliveryItem", "UT_DataQuestOffers", "UT_QuestJournal",
                                  "UT_DataQuestWhisper",
                                  "UT_QuestNames",
-                                 "UT_ClassicQuestsExtra", "UT_ClassicQuestsChoice",
+                                 "UT_ClassicQuestsExtra", "UT_ClassicQuestsChoice", "UT_LinkedCamps",
                                  "UT_EpicChain",
                                  "UT_QuestIndicatorProbe",
                                  "UT_QuestIndicators", "UT_IndicatorSentStore"])

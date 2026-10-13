@@ -38,6 +38,8 @@ EVENT_SPAWNED = {
     "Anklebiter", "Arawnite Assassin", "Archdruid Cadwallen", "Cadoc", "Calikana", "Ceriallen", "Dash", "Driss",
     "Enraged Bwca", "Fasius Previlus", "Gashir", "Ghostwalker's Apprentice", "Little Wind", "Lunaris Primus Pilus",
     "Neophyte Spirit", "Sephucoth", "Shade of Harish", "Shyene Muire", "Sockburn worm", "Spicket", "Straw", "Widower",
+    # deploy/hearthdaoc-quests.json's own: SI 11 "Shades and Shadows" (#124); his standing copy is archived.
+    "Martley",
 }
 
 # Givers nothing spawns as, under any capitals: the "XP Item" collection quests 117 ("Glowing Soul Gem") and 217

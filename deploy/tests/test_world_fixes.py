@@ -290,13 +290,14 @@ class FixesTests(unittest.TestCase):
             "Shadows_50: 0 finished carried, 0 removed, 0 epic vests recharged",
             "Quest dialogue: 145 quests rewritten",
             "Quest camps: copied back from upstream's archive: Delfina's camp (22), the isolationist camp (39), "
-            "the Ellyll Seer's village (30), Lieutenant Grimarth (1)",
-            "Mob fixes: 66 corrected: Agisthil (Mob fe76247d-ab9e-5a21-b66a-f629e577c87b), Agisthil (NpcTemplate 12070), "
+            "the Ellyll Seer's village (30), Lieutenant Grimarth (1); added: Lieutenant Cian; archived in "
+            "fork_removed_mobs: the generated Bline (1), the standing Martley (1)",
+            "Mob fixes: 75 corrected: Agisthil (Mob fe76247d-ab9e-5a21-b66a-f629e577c87b), Agisthil (NpcTemplate 12070), "
             "Frund (NpcTemplate 12165), Frund (Mob 3ce2271f-b9f6-4504-b55a-250da35504ba), "
             "Cloudy Green Stone (ItemTemplate cq_alb_cloudy_green_stone), "
             "Cloudy Green Stone (ItemTemplate cq_cloudy_green_stone), Flint Knife (ItemTemplate cq_flint_knife), "
             "Flinthead Club (ItemTemplate cq_flinthead_club), Flint Dirk (ItemTemplate cq_flint_dirk), "
-            "Lady Leana (DataQuest 20022) and 56 more",
+            "Lady Leana (DataQuest 20022) and 65 more",
         ])
         self.assertEqual(self.q("SELECT Mob_ID FROM fork_removed_mobs WHERE FixId='duplicate-townspeople' ORDER BY Mob_ID"),
                          [(GRAENT_GOES,), ("231313cf-eb6a-408f-9811-f697c705ffb7",),
@@ -307,7 +308,9 @@ class FixesTests(unittest.TestCase):
                          [(GRAENT_STAYS, 1, 574197, 530518, 2933)])
         self.assertEqual(self.q("SELECT FixId FROM fork_world_fixes ORDER BY FixId"),
                          [("classic-battlegrounds-v2",), ("epic-chains-v1",), ("quest-camp:delfina",),
-                          ("quest-camp:ellyll-seer",), ("quest-camp:grimarth",), ("quest-camp:isolationists",)])
+                          ("quest-camp:ellyll-seer",), ("quest-camp:generated-bline",), ("quest-camp:grimarth",),
+                          ("quest-camp:isolationists",), ("quest-camp:lieutenant-cian",),
+                          ("quest-camp:standing-martley",)])
         self.assertEqual(self.q("SELECT Value FROM ServerProperty WHERE `Key`='disabled_classes'"), [("33;34;39;58-62",)])
         self.assertEqual(self.q("SELECT RaceID FROM StartupLocation WHERE ClassID=20 ORDER BY RaceID"), [(1,), (4,), (13,)])
         self.assertEqual(dict(self.q("SELECT `Key`, Value FROM ServerProperty WHERE `Key` IN ('motd', 'starting_msg')")),

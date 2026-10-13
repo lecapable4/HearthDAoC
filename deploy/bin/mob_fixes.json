@@ -387,6 +387,51 @@
    "expect": {"StepItemTemplates": "cq_bronze_short_sword|cq_sveawolf_tooth|", "CollectItemTemplate": "cq_bronze_short_sword||cq_sveawolf_tooth"},
    "set": {"StepItemTemplates": "bronze_short_sword|cq_sveawolf_tooth|", "CollectItemTemplate": "bronze_short_sword||cq_sveawolf_tooth"},
    "why": "Midgard's \"Sveabone Hilt Sword\" (Gridash, Vasudheim): \"Buy a bronze short sword from Gyda, southwest of the Jordheim bridge, and give it to Gridash.\" DataQuest takes an item whose Id_nb contains the step's turn-in id, and upstream's id was cq_bronze_short_sword, which nothing sells, drops or hands out, so the quest could not be finished (#100, found 2026-10-10 by a scan of every turn-in of the 1,302 classic quests; the only one with no source). Gyda's sword list (MidBlades) sells bronze_short_sword2, which the plain id matches."
+  },
+  {"name": "Traveler's Way 7 at Bline Tengit, Mercenary", "table": "DataQuest", "id": 21498,
+   "expect": {"TargetName": "Bline;1|Thol Dunnin;1|Ley Manton;1"},
+   "set": {"TargetName": "Bline Tengit;1|Thol Dunnin;1|Ley Manton;1"},
+   "why": "Traveler's Way 7, step 1 (#126): the supplies come from the Humberton merchant Bline Tengit (Allakhazam q370, 2002-09-22: \"Bline is his FIRST name!! he stands outside the door\"; WarCry 67, 2004-07-14), not from the level-5 \"Bline\" upstream's generator put at the bindstone (archived, quest_camps.json). A merchant's interact still counts for the step (GameMerchant.Interact runs GameNPC's first)."
+  },
+  {"name": "Traveler's Way 7 at Bline Tengit, Cabalist", "table": "DataQuest", "id": 21499,
+   "expect": {"TargetName": "Bline;1|Thol Dunnin;1|Ley Manton;1"},
+   "set": {"TargetName": "Bline Tengit;1|Thol Dunnin;1|Ley Manton;1"},
+   "why": "Traveler's Way 7, step 1 (#126): the supplies come from the Humberton merchant Bline Tengit (Allakhazam q370, 2002-09-22: \"Bline is his FIRST name!! he stands outside the door\"; WarCry 67, 2004-07-14), not from the level-5 \"Bline\" upstream's generator put at the bindstone (archived, quest_camps.json). A merchant's interact still counts for the step (GameMerchant.Interact runs GameNPC's first)."
+  },
+  {"name": "Traveler's Way 7 at Bline Tengit, Necromancer", "table": "DataQuest", "id": 20497,
+   "expect": {"TargetName": "Bline;1|Thol Dunnin;1|Ley Manton;1"},
+   "set": {"TargetName": "Bline Tengit;1|Thol Dunnin;1|Ley Manton;1"},
+   "why": "Traveler's Way 7, step 1 (#126): the supplies come from the Humberton merchant Bline Tengit (Allakhazam q370, 2002-09-22: \"Bline is his FIRST name!! he stands outside the door\"; WarCry 67, 2004-07-14), not from the level-5 \"Bline\" upstream's generator put at the bindstone (archived, quest_camps.json). A merchant's interact still counts for the step (GameMerchant.Interact runs GameNPC's first)."
+  },
+  {"name": "Traveler's Way 7 at Bline Tengit, Reaver", "table": "DataQuest", "id": 21501,
+   "expect": {"TargetName": "Bline;1|Thol Dunnin;1|Ley Manton;1"},
+   "set": {"TargetName": "Bline Tengit;1|Thol Dunnin;1|Ley Manton;1"},
+   "why": "Traveler's Way 7, step 1 (#126): the supplies come from the Humberton merchant Bline Tengit (Allakhazam q370, 2002-09-22: \"Bline is his FIRST name!! he stands outside the door\"; WarCry 67, 2004-07-14), not from the level-5 \"Bline\" upstream's generator put at the bindstone (archived, quest_camps.json). A merchant's interact still counts for the step (GameMerchant.Interact runs GameNPC's first)."
+  },
+  {"name": "Captain Rhodri", "table": "Mob", "id": "45d3ac8c-b693-4acf-af70-e0f36585e1d4",
+   "expect": {"Region": 1, "X": 528239, "Y": 359818, "Z": 9088, "Heading": 8},
+   "set": {"X": 528411, "Y": 358139, "Z": 9200, "Heading": 0},
+   "why": "#121: \"upstairs on the northern wall looking down on the courtyard\" (2002-03-29); \"He is on the top level above the exit to the frontier (N side)\" (WarCry 821, 2004-05-31); capnbry's radar, Z 9200 (loc 28699, 55035 in our frame). Upstream's Rhodri stood on the south landing, the layout players reported after New Frontiers (2004-07-09). The owner checked the spot in game (2026-10-13). deploy/hearthdaoc-quests.json moves the markers on his old spot (MovedMarkers). He faces the courtyard (south, heading 0)."
+  },
+  {"name": "Lieutenant Brude", "table": "Mob", "id": "44da6de7-96b4-4a58-b33d-202220d99463",
+   "expect": {"Region": 1, "X": 528519, "Y": 359799, "Z": 9088, "Heading": 23},
+   "set": {"X": 528322, "Y": 358021, "Z": 9200, "Heading": 0},
+   "why": "#121: capnbry's radar logged Lieutenant Brude beside Captain Rhodri on the north wall, Z 9200 (2002-2004). The owner checked the spot in game (2026-10-13). "
+  },
+  {"name": "Sir Tilian", "table": "Mob", "id": "9c99cb1d-193c-495e-9bb6-0720fa9a472e",
+   "expect": {"Region": 1, "X": 586282, "Y": 476329, "Z": 3480, "Heading": 2158},
+   "set": {"X": 583943, "Y": 476323, "Heading": 3072},
+   "why": "#121: \"He is located in the NW corner on the top level\" (WarCry 821, 2004-05-31); capnbry, Forest Sauvage loc 18695, 58531, Z 3480. Upstream's Tilian stood at the east end of the top floor, 2,339 units away. The owner checked the spot in game (2026-10-13). The markers on his old spot move with him (MovedMarkers). He faces the room (east)."
+  },
+  {"name": "isolationist wizardess, by the courier's fire", "table": "Mob", "id": "80e60247-caa8-465d-bbba-dcbb22f6cfc1",
+   "expect": {"X": 603204, "Y": 408195, "Z": 5412, "Heading": 2286},
+   "set": {"X": 603660, "Y": 405155, "Z": 5971, "Heading": 3755},
+   "why": "#119: \"The courier is next to the tent and he is linked to the two by the fire. When I did this it was a female wizard and a male armsman.\" (WarCry 645, capture 2002-06-03). The nearest wizardess of the isolationist camp (quest_camps.json copies it back), 2,958 units off, comes to the fire beside the courier and the armsman (owner 2026-10-13); the three are linked (hearthdaoc-quests.json \"Links\")."
+  },
+  {"name": "Traveler's Way 7 at Bline Tengit, Infiltrator", "table": "DataQuest", "id": 21500,
+   "expect": {"TargetName": "Bline;1|Thol Dunnin;1|Ley Manton;1"},
+   "set": {"TargetName": "Bline Tengit;1|Thol Dunnin;1|Ley Manton;1"},
+   "why": "Traveler's Way 7, step 1 (#126): the supplies come from the Humberton merchant Bline Tengit (Allakhazam q370, 2002-09-22: \"Bline is his FIRST name!! he stands outside the door\"; WarCry 67, 2004-07-14), not from the level-5 \"Bline\" upstream's generator put at the bindstone (archived, quest_camps.json). A merchant's interact still counts for the step (GameMerchant.Interact runs GameNPC's first)."
   }
  ]
 }
