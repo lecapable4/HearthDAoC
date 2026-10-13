@@ -317,6 +317,8 @@ namespace DOL.GS
                     _nextPlanTick = 0;
                 }
                 ObserveDeaths(bot);
+                // HearthDAoC: note a release (not a resurrection) before the hand-over clears it.
+                HearthDAoC.RpTimerWaitScript.NoteRelease(bot);
 
                 // Every autonomous return uses the same navmesh controller,
                 // even before a casualty has propagated into group metadata.

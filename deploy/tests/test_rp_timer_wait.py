@@ -186,5 +186,58 @@ class ScriptWiringTests(unittest.TestCase):
                 self.assertNotIn("IsSafeArea(", source(path), path)
 
 
+class UpstreamHookTests(unittest.TestCase):
+    def test_the_release_note_comes_after_observe_deaths_and_before_the_hand_over(self):
+        tick = between(source(WBC), "public bool Tick(BotBrain brain)", "if (!bot.IsAlive || bot.IsReturningAfterRelease)")
+        call = "HearthDAoC.RpTimerWaitScript.NoteRelease(bot);"
+        marked(self, tick, call)
+        self.assertLess(tick.index("bot.IsTemporaryGroupHelper || bot.IsPlayerLedGroup)\n                return false;"),
+                        tick.index(call))
+        self.assertLess(tick.index("ObserveDeaths(bot);"), tick.index(call))
+        self.assertLess(tick.index(call), tick.index("if (!bot.IsPlayerLedGroup)"))
+        self.assertIn("if (!bot.IsPlayerLedGroup)\n                    bot.HandOverReleaseReturnToGroup();", tick)
+
+    def test_the_warband_gate_is_in_the_regroup_completion_before_try_complete(self):
+        text = source(GC)
+        condition = between(text, "if (session.LeaderReadyForAssembly &&\n", "\n            {")
+        call = ("!HearthDAoC.RpTimerWaitScript.WarbandWaits(session.Id, session.ObjectiveKind, session.RendezvousRegion, "
+                "session.Rendezvous, members) &&")
+        marked(self, condition, call)
+        self.assertLess(condition.index(call), condition.index("session.Recovery.TryComplete("))
+
+    def test_recruiting_skips_waiting_bots(self):
+        available = between(source(GC), "GameBot[] available = activeRoster", ".ToArray();")
+        marked(self, available, "!HearthDAoC.RpTimerWaitScript.IsWaiting(bot) &&")
+        self.assertLess(available.index("IsWaiting(bot)"), available.index(".OrderBy("))
+
+    def test_the_threat_scan_filter_is_inside_the_nearby_chain(self):
+        nearby = between(source(FT), "GameLiving[] nearby = ", ".ToArray();")
+        call = ".Where(target => !HearthDAoC.RpTimerWaitScript.IsWaiting(bot) || FiringOnRealm(bot, target))"
+        marked(self, nearby, call)
+        self.assertLess(nearby.index("<= TargetSearchRadius)"), nearby.index(call))
+        self.assertLess(nearby.index(call), nearby.index(".OrderBy("))
+
+
+class UpstreamFactTests(unittest.TestCase):
+    """What the waits mirror from upstream code: a sync that changes one fails here."""
+
+    def test_the_realm_point_timer_is_as_the_waits_mirror_it(self):
+        text = source(ARPR)
+        self.assertIn('internal const string LastRealmPointDeathTickProperty = "autonomous.rvr.last.realm.point.death.tick";', text)
+        self.assertIn("long worthInterval = Math.Max(0, Properties.RP_WORTH_SECONDS) * 1000L;", text)
+        self.assertIn("bool isWorthRealmPoints = previousDeath < 0 || now - previousDeath >= worthInterval;", text)
+
+    def test_the_first_contact_point_is_from_upstreams_roam_and_scan(self):
+        roam = between(source(BG), "private bool RoamBattleground(", "IssueVariedRvrPath(")
+        self.assertIn("central != null ? new(central.X, central.Y, central.Z) : new(entry.X, entry.Y, entry.Z), 0.6f))", roam)
+        self.assertIn("anchor = nav.GetRandomPoint(zone, anchor, 900, nav.DefaultFilters) ?? anchor;", roam)
+        self.assertIn("private const int TargetSearchRadius = 5000;", source(WBC))
+
+    def test_the_force_key_and_the_formation_point_are_upstreams(self):
+        self.assertIn('bot.TempProperties.SetProperty("RvrEventForce", forceId);', source(WBC))
+        self.assertIn("public static Vector3 RendezvousFormationPoint(GameBot bot, string groupId, Vector3 center, bool tight)",
+                      source(GC))
+
+
 if __name__ == "__main__":
     unittest.main()
