@@ -3393,6 +3393,13 @@ namespace DOL.GS.Quests
 				m_questPlayer.RemoveFinishedQuest(this);
 				DeleteFromDatabase();
 			}
+			else
+			{
+				// HearthDAoC: an abandoned repeat keeps its finished count but goes back to step 0, as a finish leaves it;
+				// with its step kept, the next login put it back in the journal (#112).
+				m_charQuest.Step = 0;
+				GameServer.Database.SaveObject(m_charQuest);
+			}
 
 			m_questPlayer.Out.SendQuestListUpdate();
 			m_questPlayer.Out.SendMessage(LanguageMgr.GetTranslation(m_questPlayer.Client, "AbstractQuest.AbortQuest"), eChatType.CT_System, eChatLoc.CL_SystemWindow);

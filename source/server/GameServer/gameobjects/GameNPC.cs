@@ -1767,12 +1767,21 @@ namespace DOL.GS
 			AbstractQuest quest = HasQuest(questType);
 			if (quest != null)
 			{
+				// HearthDAoC: a full journal refuses before the quest is built, since building it saves its record (#112).
+				if (QuestJournal.IsFull(player.QuestList.Count))
+				{
+					player.Out.SendMessage(DataQuestOffers.JournalFullText, eChatType.CT_System, eChatLoc.CL_SystemWindow);
+					return false;
+				}
 				AbstractQuest newQuest = (AbstractQuest)Activator.CreateInstance(questType, new object[] { player, startStep });
 				if (newQuest != null && player.AddQuest(newQuest))
 				{
 					player.Out.SendNPCsQuestEffect(this, GetQuestIndicator(player));
 					return true;
 				}
+				// HearthDAoC: a quest AddQuest refused (one the player is on) leaves no record behind (#112).
+				if (newQuest != null)
+					newQuest.DeleteFromDatabase();
 			}
 			return false;
 		}

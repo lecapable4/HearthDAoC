@@ -119,10 +119,6 @@ def read_any(path):
         return f.read()
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 DIALOG = os.path.join(GAME_SERVER, "packets", "Client", "168", "DialogResponseHandler.cs")
 
 
@@ -149,3 +145,7 @@ class DialogAnswerTests(unittest.TestCase):
         with open(DIALOG, "rb") as f:
             raw = f.read()
         self.assertEqual(raw.count(b"\r\n"), raw.count(b"\n"))
+
+
+if __name__ == "__main__":
+    unittest.main()

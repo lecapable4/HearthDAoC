@@ -663,6 +663,15 @@ class EpicCharacterTests(unittest.TestCase):
         charges = dict(self.conn.execute("SELECT Inventory_ID, Charges FROM Inventory WHERE Inventory_ID IN ('i1','i4')"))
         self.assertEqual(charges, {"i1": 3, "i4": 0})
 
+    def test_an_empty_vest_in_the_account_vault_of_such_a_character_gets_charges(self):
+        # The account vault's items belong to "<account>_<realm>" (AccountVaultKeeper.GetOwner), not to the character.
+        self.conn.execute("UPDATE DOLCharacters SET AccountName='acct' WHERE DOLCharacters_ID='char-rea'")
+        self.conn.execute("INSERT INTO Inventory (Inventory_ID, OwnerID, ITemplate_Id, SlotPosition, Charges) "
+                          "VALUES ('v1', 'acct_Albion', 'ReaverEpicVest', 2500, 0)")
+        self.conn.commit()
+        epic_chains.apply(self.conn, NOW)
+        self.assertEqual(self.conn.execute("SELECT Charges FROM Inventory WHERE Inventory_ID='v1'").fetchone(), (3,))
+
     def test_an_upgraded_world_leaves_an_emptied_vest_empty(self):
         # #94: hdc upgrade-world imports the characters into upstream's fresh world, which has no epic-chains-v1 marker,
         # so the fix runs again; the old quest rows were carried over the first time, so nothing is recharged.
