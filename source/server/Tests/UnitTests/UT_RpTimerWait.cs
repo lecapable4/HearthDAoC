@@ -1782,4 +1782,230 @@ public sealed class UT_RpTimerWait
         Assert.That(gate, Is.EqualTo(new RpWarbandGate(true, true, March, 240_000)));
         AssertKept(Marks(gate, members)[0], slot.Current);
     }
+
+    // The four cases of wait, in the order of section 3.
+    private static readonly RpWaitCase[] EveryWaitCase =
+        { RpWaitCase.Frontier, RpWaitCase.Siege, RpWaitCase.Warband, RpWaitCase.Battleground };
+
+    // Hooks 5 and 6 ask whether the bot counts as waiting (2.4), for death count 3: the switch on, 240 s left on its
+    // timer, standing at the marker's spot in its region with its assignment id, not in a player's group, in a group
+    // only for a warband marker, and no battleground arrival (the wiring gives one only for a Released marker in a
+    // battleground region). Each test sets what it is about.
+    private static bool Counts(RpWaitMarker marker, bool enabled = true, int deathCount = 3, long timeLeft = TimeLeft,
+        ushort? region = null, Vector3? position = null, string assignmentId = null, bool playerLed = false,
+        bool? inGroup = null, Vector3? battlegroundArrival = null) =>
+        RpTimerWait.IsWaiting(enabled, marker, deathCount, timeLeft, region ?? marker.Region, position ?? marker.Spot,
+            assignmentId ?? marker.AssignmentId, playerLed, inGroup ?? (marker.Case == RpWaitCase.Warband),
+            battlegroundArrival);
+
+    // 2.4, section 4: counting as waiting has no clock. No time goes in but the time left, so the turns a waiting bot
+    // spends fighting, casting or rebuffing, when no hook runs, never let it charge or be recruited. It counts 60 s
+    // after its wait started, 5 min after on a server whose rp_worth_seconds is 600, and in its last millisecond, at
+    // its spot or 3,000 from it in its wait's region, where a fight took it.
+    [TestCase(RpWaitCase.Frontier)]
+    [TestCase(RpWaitCase.Siege)]
+    [TestCase(RpWaitCase.Warband)]
+    [TestCase(RpWaitCase.Battleground)]
+    public void AWaitingBotCountsWithNoClock(RpWaitCase waitCase)
+    {
+        RpWaitMarker waiting = Waiting(waitCase);
+        long minuteLater = RpTimerWait.WorthlessForMilliseconds(DeathTick, waiting.Started + 60_000, RpWorthSeconds);
+        long fiveMinutesLater = RpTimerWait.WorthlessForMilliseconds(DeathTick, waiting.Started + 300_000, 600);
+        Assert.That(minuteLater, Is.EqualTo(220_000));
+        Assert.That(fiveMinutesLater, Is.EqualTo(280_000));
+
+        var foughtAway = new Vector3(waiting.Spot.X + 3_000, waiting.Spot.Y, waiting.Spot.Z);
+        foreach (long timeLeft in new[] { minuteLater, fiveMinutesLater, 1L })
+        {
+            Assert.That(Counts(waiting, timeLeft: timeLeft), Is.True);
+            Assert.That(Counts(waiting, timeLeft: timeLeft, position: foughtAway), Is.True);
+        }
+    }
+
+    // 2.4: every part must hold, so each mismatch alone stops a wait counting, whatever its case: the switch off
+    // (section 6), no marker (a resurrected bot, a PvE goal), a marker for another death (killed again: the count is
+    // raised before the Dying handler runs), time left 0 (worth points: it charges what it sees, section 4), another
+    // region or assignment id than its wait's (hook 3 ends it on its next turn), a player's group (3.8), or the marker
+    // Left (the wait ended).
+    [TestCase("switch off")]
+    [TestCase("no marker")]
+    [TestCase("another death")]
+    [TestCase("time left 0")]
+    [TestCase("another region")]
+    [TestCase("another assignment id")]
+    [TestCase("player-led")]
+    [TestCase("Left")]
+    public void EachMismatchStopsItCounting(string mismatch)
+    {
+        foreach (RpWaitCase waitCase in EveryWaitCase)
+        {
+            RpWaitMarker waiting = Waiting(waitCase);
+            Assert.That(Counts(waiting), Is.True, $"{waitCase}");
+            bool counts = mismatch switch
+            {
+                "switch off" => Counts(waiting, enabled: false),
+                "no marker" => RpTimerWait.IsWaiting(true, null, 3, TimeLeft, waiting.Region, waiting.Spot,
+                    waiting.AssignmentId, false, waitCase == RpWaitCase.Warband, null),
+                "another death" => Counts(waiting, deathCount: 4),
+                "time left 0" => Counts(waiting, timeLeft: 0),
+                "another region" => Counts(waiting, region: CamelotRegion),
+                "another assignment id" => Counts(waiting, assignmentId: "albion-40-13-RvR"),
+                "player-led" => Counts(waiting, playerLed: true),
+                "Left" => Counts(waiting with { Phase = RpWaitPhase.Left }),
+                _ => throw new ArgumentOutOfRangeException(nameof(mismatch)),
+            };
+            Assert.That(counts, Is.False, $"{waitCase}");
+        }
+    }
+
+    // 2.4: a warband wait counts only while the bot is still in a group (a warband that disbands mid-wait ends its
+    // wait, section 1). The group matters for no other wait: a frontier, siege or battleground wait, and a warband
+    // member's wait converted to a siege wait (3.4), count in a group (a siege party's merge, section 4) or out of one.
+    [Test]
+    public void AWaitingWarbandWithNoGroupDoesNotCount()
+    {
+        RpWaitMarker held = Waiting(RpWaitCase.Warband);
+        Assert.That(Counts(held, inGroup: true), Is.True);
+        Assert.That(Counts(held, inGroup: false), Is.False);
+
+        RpWaitMarker converted = held with { Case = RpWaitCase.Siege, EventKeepId = "rvr-keep-50", Started = Now };
+        RpWaitMarker[] others =
+        {
+            Waiting(RpWaitCase.Frontier), Waiting(RpWaitCase.Siege), Waiting(RpWaitCase.Battleground), converted,
+        };
+        foreach (RpWaitMarker waiting in others)
+        {
+            Assert.That(Counts(waiting, inGroup: false), Is.True, $"{waiting.Case}");
+            Assert.That(Counts(waiting, inGroup: true), Is.True, $"{waiting.Case}");
+        }
+    }
+
+    // 2.4, 3.1: a battleground bot released outside (here in Camelot) counts from the moment the teleporter lands it,
+    // before its first look, so the threat scan of its first think inside doesn't charge an enemy it only sees: in
+    // any battleground region, within 2,500 of its realm's arrival point there (horizontally: 400 higher). Not with
+    // no arrival known, not in another region than a battleground's with one, and not yet at its release point.
+    [TestCase(0f, true)]
+    [TestCase(2_500f, true)]
+    [TestCase(2_501f, false)]
+    [TestCase(2_600f, false)]
+    public void AReleasedBotNearItsBattlegroundArrivalCounts(float away, bool counts)
+    {
+        RpWaitMarker released = ReleasedForTheBattleground();
+        var standing = new Vector3(AlbionArrival.X, AlbionArrival.Y - away, AlbionArrival.Z + 400);
+        for (ushort battleground = RpTimerWait.FirstBattlegroundRegion;
+             battleground <= RpTimerWait.LastBattlegroundRegion; battleground++)
+        {
+            Assert.That(Counts(released, region: battleground, position: standing, battlegroundArrival: AlbionArrival),
+                Is.EqualTo(counts), $"region {battleground}");
+            Assert.That(Counts(released, region: battleground, position: standing), Is.False);
+        }
+
+        Assert.That(Counts(released, region: 1, position: standing, battlegroundArrival: AlbionArrival), Is.False);
+        Assert.That(Counts(released), Is.False);
+    }
+
+    // 2.4, 3.2: a bot released at a bind in its own frontier (Albion's, Midgard's or Hibernia's) counts before its
+    // first look while it stands within 750 of its release point there (horizontally: 300 lower), the first look's own
+    // gate; not in another region at the same coordinates.
+    [TestCase(0f, true)]
+    [TestCase(750f, true)]
+    [TestCase(751f, false)]
+    [TestCase(800f, false)]
+    public void AReleasedBotNearItsFrontierBindCounts(float away, bool counts)
+    {
+        var standing = new Vector3(Bind.X + away, Bind.Y, Bind.Z - 300);
+        ushort[] frontiers = { RpTimerWait.AlbionFrontier, RpTimerWait.MidgardFrontier, RpTimerWait.HiberniaFrontier };
+        foreach (ushort frontier in frontiers)
+        {
+            RpWaitMarker released = Released() with { ReleaseRegion = frontier, Region = frontier };
+            Assert.That(Counts(released, position: standing), Is.EqualTo(counts), $"region {frontier}");
+
+            ushort another = frontier == RpTimerWait.AlbionFrontier
+                ? RpTimerWait.MidgardFrontier
+                : RpTimerWait.AlbionFrontier;
+            Assert.That(Counts(released, region: another, position: standing), Is.False);
+        }
+    }
+
+    // 2.4, section 1: a frontier invader, or an attacker of a keep in an enemy frontier, releases in its capital
+    // (Camelot, Jordheim or Tir na Nog: regions 10, 101 and 201; Camelot's point serves for each, only the region
+    // matters), never in the frontier of its fight. So its Released marker never counts: not at its bind in the
+    // capital, and not later in any frontier, at its release point's coordinates or at a frontier bind.
+    [Test]
+    public void AnInvadersReleasedMarkerNeverCounts()
+    {
+        ushort[] frontiers = { RpTimerWait.AlbionFrontier, RpTimerWait.MidgardFrontier, RpTimerWait.HiberniaFrontier };
+        foreach (ushort capital in new ushort[] { CamelotRegion, 101, 201 })
+        {
+            RpWaitMarker released = ReleasedInCamelot() with { ReleaseRegion = capital, Region = capital };
+            Assert.That(Counts(released), Is.False, $"region {capital}");
+            foreach (ushort frontier in frontiers)
+            {
+                Assert.That(Counts(released, region: frontier), Is.False);
+                Assert.That(Counts(released, region: frontier, position: Bind), Is.False);
+            }
+        }
+
+        Assert.That(Counts(Released()), Is.True);
+    }
+
+    // 2.4: a Released marker counts under the same conditions as a wait: not with its time left at 0 (worth points
+    // already), for an older death (killed again before its first look), with another assignment id, in a player's
+    // group, or with the switch off; at a frontier bind or on a battleground arrival point alike.
+    [Test]
+    public void AReleasedMarkerOtherwiseOffDoesNotCount()
+    {
+        RpWaitMarker atBind = Released();
+        Assert.That(Counts(atBind), Is.True);
+        Assert.That(Counts(atBind, timeLeft: 0), Is.False);
+        Assert.That(Counts(atBind, deathCount: 4), Is.False);
+        Assert.That(Counts(atBind, assignmentId: "albion-40-13-RvR"), Is.False);
+        Assert.That(Counts(atBind, playerLed: true), Is.False);
+        Assert.That(Counts(atBind, enabled: false), Is.False);
+
+        // The battleground bot landed on its realm's arrival point in Thidranki, its first look still to come.
+        RpWaitMarker landed = ReleasedForTheBattleground();
+        bool Landed(bool enabled = true, int deathCount = 3, long timeLeft = TimeLeft, string assignmentId = null,
+            bool playerLed = false) =>
+            Counts(landed, enabled, deathCount, timeLeft, Thidranki, AlbionArrival, assignmentId, playerLed,
+                battlegroundArrival: AlbionArrival);
+        Assert.That(Landed(), Is.True);
+        Assert.That(Landed(timeLeft: 0), Is.False);
+        Assert.That(Landed(deathCount: 4), Is.False);
+        Assert.That(Landed(assignmentId: "albion-20-13-Battleground"), Is.False);
+        Assert.That(Landed(playerLed: true), Is.False);
+        Assert.That(Landed(enabled: false), Is.False);
+    }
+
+    // 3.7, 2.4: a bot killed while waiting, or while released before its first look, stops counting at once: its
+    // death count is raised before the Dying handler runs, and the handler then latches the old marker Left.
+    // Resurrected where it fell (no release), it has no marker for the new death and charges and is recruited as any
+    // bot; released instead, hook 3 notes the new death and it counts again at its bind.
+    [Test]
+    public void AMarkerLatchedByADeathDoesNotCount()
+    {
+        RpWaitMarker[] markers =
+        {
+            Waiting(RpWaitCase.Frontier), Waiting(RpWaitCase.Siege), Waiting(RpWaitCase.Warband), Released(),
+        };
+        foreach (RpWaitMarker before in markers)
+        {
+            RpWaitSlot slot = SlotWith(before);
+            Assert.That(Counts(slot.Current), Is.True);
+            Assert.That(Counts(slot.Current, deathCount: 4), Is.False);
+
+            slot.Apply(marker => RpTimerWait.Died(marker, 4));
+            RpWaitMarker left = slot.Current;
+            Assert.That(left.Phase, Is.EqualTo(RpWaitPhase.Left));
+            Assert.That(Counts(left, deathCount: 4), Is.False);
+            Assert.That(Counts(left), Is.False);
+
+            AssertKept(ReleaseTurn(left, deathCount: 4, returning: false), left);
+            Assert.That(Counts(left, deathCount: 4), Is.False);
+
+            RpWaitChange noted = ReleaseTurn(left, deathCount: 4);
+            Assert.That(slot.TrySwap(noted.Before, noted.Next), Is.True);
+            Assert.That(Counts(slot.Current, deathCount: 4), Is.True);
+        }
+    }
 }

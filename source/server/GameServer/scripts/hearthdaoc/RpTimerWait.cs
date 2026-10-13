@@ -606,4 +606,30 @@ public static class RpTimerWait
             changes[i] = WarbandMark(gate, rendezvousRegion, members[i], sessionId, now);
         return changes;
     }
+
+    // 2.4: counts as waiting (hooks 5 and 6). All of: enabled; marker for deathCount; timeLeft > 0; assignmentId ==
+    // marker.AssignmentId; !playerLed; and either (Waiting, region == marker.Region, and inGroup for a Warband marker)
+    // or (Released, and: in a battleground region with battlegroundArrival known and Distance2D(position, it) <=
+    // 2,500; or marker.ReleaseRegion a frontier region, region == marker.ReleaseRegion and Distance2D(position,
+    // ReleasePoint) <= 750). Left: false.
+    public static bool IsWaiting(bool enabled, RpWaitMarker marker, int deathCount, long timeLeft, ushort region,
+        Vector3 position, string assignmentId, bool playerLed, bool inGroup, Vector3? battlegroundArrival)
+    {
+        if (!enabled || marker == null || marker.DeathCount != deathCount || timeLeft <= 0 ||
+            assignmentId != marker.AssignmentId || playerLed)
+            return false;
+
+        // No clock: a wait counts in its region wherever a fight took the bot (a warband member while still grouped);
+        // a release counts where its first look will happen, so the threat scan before that look holds too.
+        return marker.Phase switch
+        {
+            RpWaitPhase.Waiting => region == marker.Region && (marker.Case != RpWaitCase.Warband || inGroup),
+            RpWaitPhase.Released =>
+                (IsBattlegroundRegion(region) && battlegroundArrival is Vector3 arrival &&
+                 Distance2D(position, arrival) <= ArrivalGate) ||
+                (IsFrontierRegion(marker.ReleaseRegion) && region == marker.ReleaseRegion &&
+                 Distance2D(position, marker.ReleasePoint) <= BindGate),
+            _ => false,
+        };
+    }
 }
