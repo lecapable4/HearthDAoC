@@ -179,7 +179,11 @@ world (`deploy/bin/quest_camps.json`): Delfina's Tylwyth Teg rangers (level 43),
 courier, the Ellyll Seer's village (level 48) and Lieutenant Grimarth at Sir Dillus's tower. The first start after
 the update shows `Quest camps: copied back from upstream's archive: Delfina's camp (22), the isolationist camp (39),
 the Ellyll Seer's village (30), Lieutenant Grimarth (1)` in `./hdc fixes`; later starts say nothing, and rows you
-remove with `/mob remove` stay removed.
+remove with `/mob remove` stay removed. The same file adds Lieutenant Cian beside Captain Rhodri on Snowdonia
+Fortress's north wall and archives two rows the period didn't have (the generated "Bline" beside the merchant Bline
+Tengit, and the standing Martley, who now appears at the neophytes' camp). Four of these camps are linked: attack
+Delfina, Sir Dillus, the isolationist courier or the Savant and their companions join in (`Links` in
+`hearthdaoc-quests.json`; remove a group there to switch it off).
 
 **Mob fixes.** Period corrections to upstream's monsters, items and quests, from the quest archives: level 11's thieves
 Frund and Agisthil are level 10, Frund stands at the red dwarf camp beside Agisthil, "Zombie Problem"'s Cloudy Green

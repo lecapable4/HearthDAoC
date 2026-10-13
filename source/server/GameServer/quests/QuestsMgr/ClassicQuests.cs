@@ -160,7 +160,33 @@ namespace DOL.GS.Quests
             /// <summary>The walkthroughs' NPC conversation: NPC name -> clicked/whispered keyword -> what the NPC answers
             /// (owner 2026-10-07: the quests had only a bare offer; the classic [keyword] chains were missing).</summary>
             public Dictionary<string, Dictionary<string, string>> Chat { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+            /// <summary>HearthDAoC: in hearthdaoc-quests.json, NPCs the fork moved: every map marker on a From point (an
+            /// NPC's old spot) shows on its To point instead, in every quest of both files (owner 2026-10-13).</summary>
+            public List<MarkerMove> MovedMarkers { get; set; } = new();
+            /// <summary>HearthDAoC: in hearthdaoc-quests.json, the quest camps whose members join a fight against whoever
+            /// attacks one of its callers (#119; see HearthDAoC.LinkedCamps).</summary>
+            public List<LinkGroup> Links { get; set; } = new();
         }
+
+        /// <summary>HearthDAoC: a moved NPC's old spot and new one (see <see cref="Config.MovedMarkers"/>).</summary>
+        public sealed class MarkerMove
+        {
+            public Point From { get; set; }
+            public Point To { get; set; }
+        }
+
+        /// <summary>HearthDAoC (#119): a linked quest camp. Members are Mob_IDs; Callers, the members whose attacker the
+        /// others join (empty: every member); Range, how far from the attacked member the others may stand.</summary>
+        public sealed class LinkGroup
+        {
+            public string Name { get; set; }
+            public List<string> Members { get; set; } = new();
+            public List<string> Callers { get; set; } = new();
+            public int Range { get; set; } = 1500;
+        }
+
+        /// <summary>HearthDAoC: the linked quest camps of the loaded files (#119).</summary>
+        public static IReadOnlyList<LinkGroup> Links => _config.Links ?? new List<LinkGroup>();
 
         [GameServerStartedEvent]
         public static void OnServerStarted(DOLEvent e, object sender, EventArgs args)
@@ -624,6 +650,17 @@ namespace DOL.GS.Quests
                     upstream.QuestMonsterIds.Add(mob);
             if (extra.Chat != null)
                 MergeChat(upstream, extra.Chat);
+            // HearthDAoC: the fork's linked camps, and the markers of the NPCs it moved, in every quest (owner 2026-10-13).
+            if (extra.Links != null)
+                (upstream.Links ??= new()).AddRange(extra.Links);
+            if (extra.MovedMarkers != null)
+                foreach (QuestInfo quest in upstream.Quests.Values)
+                    foreach (StepInfo step in quest?.Steps ?? new List<StepInfo>())
+                    {
+                        if (step?.Marker == null) continue;
+                        MarkerMove move = extra.MovedMarkers.FirstOrDefault(m => m?.From != null && m.To != null && m.From == step.Marker);
+                        if (move != null) step.Marker = move.To;
+                    }
             return upstream;
         }
 

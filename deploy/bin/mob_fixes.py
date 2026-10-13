@@ -15,7 +15,8 @@ The file:
   {"fixes": [{"name": "Frund", "table": "Mob", "id": "3ce2...", "expect": {"X": 491936, ...},
               "set": {"X": 537351, ...}, "why": "..."}]}
 - table and id: Mob (the row whose Mob_ID is id), NpcTemplate (the rows whose TemplateId is id), ItemTemplate (the row
-  whose Id_nb is id) or DataQuest (the quest whose ID is id). One entry per row.
+  whose Id_nb is id) or DataQuest (the quest whose ID is id). Entries of one row each check and change their own
+  columns, which no other entry of the row may name (a later correction in another column is its own entry).
 - expect: the values the row must still hold, upstream's, column by column; it has a value for every column of set.
 - set: the values to set (never the row's id). Every column of expect and set must be one of the table's columns, or
   the fix is not applied. Values are text, numbers or null, and compare as SQLite compares them with the column (12
@@ -69,12 +70,17 @@ def _check(entry, n):
 def _plan(conn, data):
     """[(entry, table, key column)] of the entries whose table is in the world, after checking the whole file."""
     tables = {name.lower() for (name,) in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
-    plan, seen = [], set()
+    plan, seen = [], {}
     for n, entry in enumerate(data.get("fixes", []), 1):
         what, table = _check(entry, n)
-        if (table, entry["id"]) in seen:
-            raise ValueError(f"{what}: its row has another entry")
-        seen.add((table, entry["id"]))
+        # Entries of one row check and change their own columns (a later correction of a row an earlier one already
+        # corrected, in another column); two of them may not share one.
+        columns = {column.lower() for column in (*entry["expect"], *entry["set"])}
+        shared = sorted(columns & seen.get((table, entry["id"]), set()))
+        if shared:
+            names = [c for c in (*entry["expect"], *entry["set"]) if c.lower() in shared]
+            raise ValueError(f"{what}: another entry of its row also has {', '.join(dict.fromkeys(names))}")
+        seen[(table, entry["id"])] = seen.get((table, entry["id"]), set()) | columns
         if table.lower() not in tables:
             continue  # a world without the table: nothing to correct
         have = {name.lower() for _, name, *_ in conn.execute(f'PRAGMA table_info("{table}")')}

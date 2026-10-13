@@ -106,11 +106,64 @@ class QuestCampTests(unittest.TestCase):
                          ["Quest camps: not in the archive as named: Delfina's camp (r1, r2)"])
         self.assertIsNone(conn.execute("SELECT 1 FROM Mob").fetchone())
 
+    # "clone": an NPC the period had and the world lacks, made like another row (Lieutenant Cian like Lieutenant Brude).
+    CIAN = {"key": "cian", "name": "Lieutenant Cian", "kind": "clone", "like": "b1", "id": "c1",
+            "set": {"Name": "Lieutenant Cian", "X": 7}, "why": "period"}
+
+    def test_a_clone_is_added_like_its_row_once(self):
+        conn = world()
+        conn.execute("INSERT INTO Mob VALUES ('b1', 'Lieutenant Brude', 1, 5, 6, 9200)")
+        self.assertEqual(quest_camps.apply(conn, NOW, {"camps": [self.CIAN]}), ["Quest camps: added: Lieutenant Cian"])
+        self.assertEqual(conn.execute("SELECT Mob_ID, Name, Region, X, Y, Z FROM Mob ORDER BY Mob_ID").fetchall(),
+                         [("b1", "Lieutenant Brude", 1, 5, 6, 9200), ("c1", "Lieutenant Cian", 1, 7, 6, 9200)])
+        conn.execute("DELETE FROM Mob WHERE Mob_ID='c1'")  # the owner removed him: he stays removed
+        self.assertEqual(quest_camps.apply(conn, NOW, {"camps": [self.CIAN]}), [])
+        self.assertIsNone(conn.execute("SELECT 1 FROM Mob WHERE Mob_ID='c1'").fetchone())
+
+    def test_a_clone_whose_row_is_missing_waits_quietly(self):
+        # Not this world's (another world, or a test's); a later start tries again.
+        conn = world()
+        self.assertEqual(quest_camps.apply(conn, NOW, {"camps": [self.CIAN]}), [])
+        conn.execute("INSERT INTO Mob VALUES ('b1', 'Lieutenant Brude', 1, 5, 6, 9200)")
+        self.assertEqual(quest_camps.apply(conn, NOW, {"camps": [self.CIAN]}), ["Quest camps: added: Lieutenant Cian"])
+
+    def test_a_clone_whose_id_is_taken_is_named_in_the_log(self):
+        conn = world()
+        conn.execute("INSERT INTO Mob VALUES ('b1', 'Lieutenant Brude', 1, 5, 6, 9200)")
+        conn.execute("INSERT INTO Mob VALUES ('c1', 'Someone', 1, 5, 6, 9200)")
+        self.assertEqual(quest_camps.apply(conn, NOW, {"camps": [self.CIAN]}),
+                         ["Quest camps: not added: Lieutenant Cian (its Mob_ID c1 is taken)"])
+
+    # "archive": a row the period didn't have, kept in fork_removed_mobs (the generated Bline beside Bline Tengit).
+    BLINE = {"key": "bline", "name": "the generated Bline", "kind": "archive", "ids": ["x1"], "names": ["Bline"],
+             "why": "period"}
+
+    def test_an_archived_row_leaves_the_world_and_is_kept(self):
+        conn = world()
+        conn.execute("INSERT INTO Mob VALUES ('x1', 'Bline', 1, 5, 6, 7)")
+        self.assertEqual(quest_camps.apply(conn, NOW, {"camps": [self.BLINE]}),
+                         ["Quest camps: archived in fork_removed_mobs: the generated Bline (1)"])
+        self.assertIsNone(conn.execute("SELECT 1 FROM Mob WHERE Mob_ID='x1'").fetchone())
+        self.assertEqual(conn.execute("SELECT Mob_ID, Name, FixId FROM fork_removed_mobs").fetchall(),
+                         [("x1", "Bline", "quest-camp:bline")])
+        self.assertEqual(quest_camps.apply(conn, NOW, {"camps": [self.BLINE]}), [])
+
+    def test_a_row_to_archive_with_another_name_stays(self):
+        conn = world()
+        conn.execute("INSERT INTO Mob VALUES ('x1', 'Bline Tengit', 1, 5, 6, 7)")
+        self.assertEqual(quest_camps.apply(conn, NOW, {"camps": [self.BLINE]}),
+                         ["Quest camps: not archived (another name): the generated Bline (x1)"])
+        self.assertIsNotNone(conn.execute("SELECT 1 FROM Mob WHERE Mob_ID='x1'").fetchone())
+
+    def test_a_row_to_archive_already_gone_is_quietly_done(self):
+        conn = world()
+        self.assertEqual(quest_camps.apply(conn, NOW, {"camps": [self.BLINE]}), [])
+
     def test_the_shipped_file_is_well_formed(self):
         data = quest_camps.load_data()
         keys = [camp["key"] for camp in data["camps"]]
         self.assertEqual(len(keys), len(set(keys)))
-        ids = [i for camp in data["camps"] for i in camp["ids"]]
+        ids = [i for camp in data["camps"] for i in camp.get("ids", []) + [camp.get("id")] if i]  # a clone has "id"
         self.assertEqual(len(ids), len(set(ids)))
         for camp in data["camps"]:
             with self.subTest(camp["key"]):

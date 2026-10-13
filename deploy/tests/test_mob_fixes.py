@@ -90,6 +90,28 @@ class SyntheticTests(unittest.TestCase):
                          (1, 500, 600, 70, 200, 0, NOW))
         self.assertEqual(self.conn.execute("SELECT Level, LastTimeRowUpdated FROM NpcTemplate").fetchone(), ("10", NOW))
 
+    # Owner 2026-10-13: a later correction of a row an earlier one already corrected, in another column (the level-7
+    # Infiltrator quest got Master Eadig in one release and Bline Tengit in the next). Each entry checks its own columns.
+    TWO = {"fixes": [
+        {"name": "Mulgrut giver", "table": "DataQuest", "id": 20207, "expect": {"Name": "Cleric Mulgrut"},
+         "set": {"Name": "Cleric Mulgrut (fixed)"}, "why": "2026"},
+        {"name": "Mulgrut reward", "table": "DataQuest", "id": 20207, "expect": {"FinalRewardItemTemplates": "belt|alb_belt"},
+         "set": {"FinalRewardItemTemplates": "alb_belt"}, "why": "2026"},
+    ]}
+
+    def test_two_entries_of_one_row_in_other_columns_each_apply(self):
+        self.run_fix({"fixes": self.TWO["fixes"][:1]})  # an earlier release had only the first
+        self.assertEqual(self.run_fix(self.TWO), ["Mob fixes: 1 corrected: Mulgrut reward (DataQuest 20207)"])
+        self.assertEqual(self.conn.execute("SELECT Name, FinalRewardItemTemplates FROM DataQuest WHERE ID=20207").fetchone(),
+                         ("Cleric Mulgrut (fixed)", "alb_belt"))
+        self.assertEqual(self.run_fix(self.TWO), [])
+
+    def test_two_entries_of_one_row_may_not_share_a_column(self):
+        data = {"fixes": [self.TWO["fixes"][0], dict(self.TWO["fixes"][1], expect={"Name": "x"}, set={"Name": "y"})]}
+        line, = self.run_fix(data)
+        self.assertEqual(line, "Mob fixes: not applied (fix 2 (Mulgrut reward): another entry of its row also has Name); "
+                               "the monsters, items and quests keep the values they have")
+
     def test_a_second_run_changes_nothing_and_prints_nothing(self):
         self.run_fix()
         self.conn.execute("UPDATE Mob SET LastTimeRowUpdated=?", (OLD,))

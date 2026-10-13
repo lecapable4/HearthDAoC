@@ -31,10 +31,11 @@ LORD_ELIDYN = "1f005bc1-27ae-40b0-bc42-1ec407a4aa34"
 LEVEL_50_IDS = [990509, 990511, 990513, 990512, 990519]
 LEVEL_11_IDS = [20157, 20155, 20156, 20159, 20158]  # "Entry Into Tomorrow", rebuilt to the period story
 # Upstream's entries with a marker or event spawn moved to the period (2026-10-12; deploy/tests/test_epic_period.py):
-# level 25 and 30 "Regal Nobility", the Shrouded Isles level 7 "Strange Beings" (with their Heretic rows) and level 45
-# "Lord of Deceit".
+# level 25 and 30 "Regal Nobility", the Shrouded Isles level 7 "Strange Beings" (with their Heretic rows), level 45
+# "Lord of Deceit" and the Shrouded Isles level 11 "Shades and Shadows" (deploy/tests/test_epic_followups.py).
 PERIOD_IDS = [21304, 21305, 21306, 21307, 21308, 21309, 21489, 21490, 21491, 21492, 21493, 21494,
-              20476, 20477, 20478, 20479, 20480, 20481, 21295, 21296, 21297, 21298, 21299]
+              20476, 20477, 20478, 20479, 20480, 20481, 21295, 21296, 21297, 21298, 21299,
+              20467, 20468, 20469, 20470, 20471, 20472]
 
 
 def read(path):
