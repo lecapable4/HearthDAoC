@@ -1736,6 +1736,8 @@ namespace DOL.GS
                 _rvrSharedEvent = false;
                 _nextRvrPlanReview = 0;
             }
+            // HearthDAoC: back from a death and worth no realm points yet: wait at the bind.
+            if (RpTimerWaitRvr(brain, bot, battleActive, dynamicWarband, committedPlan != null)) return true;
 
             // RvR has no PvE puller. Every cohesive member can acquire a local
             // target, with pressure spread over the closest visible enemies.

@@ -239,5 +239,79 @@ class UpstreamFactTests(unittest.TestCase):
                       source(GC))
 
 
+class ControllerHookTests(unittest.TestCase):
+    def test_the_battleground_wait_comes_after_the_region_check_and_before_every_role(self):
+        tour = between(source(BG), "private bool ExecuteBattleground(", "private bool RoamBattleground(")
+        call = "if (RpTimerWaitBattleground(brain, bot, bracket, central)) return true;"
+        marked(self, tour, call)
+        self.assertLess(tour.index("BotOverCap("), tour.index(call))
+        self.assertLess(tour.index("bot.CurrentRegionID != bracket.RegionId"), tour.index(call))
+        self.assertLess(tour.index("_rvrIntent = assault ?"), tour.index(call))
+        self.assertLess(tour.index(call), tour.index("TryRunSiegeJob(bot)"))
+        self.assertLess(tour.index(call), tour.index("return RoamBattleground("))
+
+    def test_the_rvr_wait_comes_after_the_musters_and_the_stale_target_clear(self):
+        rvr = between(source(WBC), "private bool ExecuteRvr(BotBrain brain, GameBot bot)", "GameLiving enemy = FindRvrTarget(bot);")
+        call = "if (RpTimerWaitRvr(brain, bot, battleActive, dynamicWarband, committedPlan != null)) return true;"
+        marked(self, rvr, call)
+        self.assertLess(rvr.index("return HandleSiegeRally(bot, forceId, rally);"), rvr.index(call))
+        self.assertLess(rvr.index("_nextRvrPlanReview = 0;"), rvr.index(call))
+        self.assertLess(rvr.index(call), rvr.index("if (TryRunSiegeJob(bot)) return true;"))
+
+    def test_the_fork_is_called_from_upstream_files_only_by_the_six_hooks(self):
+        calls = {}
+        for path in cs_files(GAME_SERVER):
+            if path.startswith(FORK + os.sep):
+                continue
+            count = source(path).count("RpTimerWait")
+            if count:
+                calls[os.path.basename(path)] = count
+        self.assertEqual(calls, {
+            "AutonomousWorldBotController.Battleground.cs": 1,
+            "AutonomousWorldBotController.cs": 2,
+            "AutonomousBotGroupCoordinator.cs": 2,
+            "AutonomousWorldBotController.FrontierThreat.cs": 1,
+        })
+
+    def test_the_controller_part_is_a_partial_of_the_controller(self):
+        text = source(CONTROLLER_CS)
+        self.assertIn("namespace DOL.GS;\n", text)
+        self.assertIn("public sealed partial class AutonomousWorldBotController\n", text)
+        self.assertIn("private bool RpTimerWaitBattleground(BotBrain brain, GameBot bot, BattlegroundBrackets.Bracket bracket,", text)
+        self.assertIn("private bool RpTimerWaitRvr(BotBrain brain, GameBot bot, bool battleActive, bool dynamicWarband, bool keepPlan)", text)
+
+    def test_the_private_members_the_controller_part_uses_are_upstreams(self):
+        wbc, bg, keep, siege = source(WBC), source(BG), source(KEEP_TRAVEL), source(SIEGE)
+        self.assertIn("private bool IssuePath(GameBot bot, Vector3 destination, Vector3? validatedContinuation = null,", wbc)
+        self.assertIn("private void SetStatus(\n            GameBot bot,\n            string activity,", wbc)
+        self.assertIn("private void ResetRouteOrderState()", wbc)
+        self.assertIn("private CampDestination _rvrDestination;", wbc)
+        self.assertIn("private long _nextRvrPlanReview;", wbc)
+        self.assertIn("private void SetBattlegroundStatus(GameBot bot, BattlegroundBrackets.Bracket bracket, string activity, string detail, string target = \"\")", bg)
+        self.assertIn("private long _keepStallSince;", keep)
+        self.assertIn("private void ReleaseSiegeJob(GameBot bot)", siege)
+        # The part never reads _siegeJobKeep; it relies on ReleaseSiegeJob clearing it (spec 3.3, Siege.cs:469).
+        self.assertIn("_siegeJobKeep=null;", between(siege, "private void ReleaseSiegeJob(GameBot bot)", "\n        }"))
+
+
+class EndingsTests(unittest.TestCase):
+    def test_the_upstream_files_keep_their_endings(self):
+        for path, crlf in ((BG, True), (WBC, False), (GC, False), (FT, False)):
+            with open(path, "rb") as f:
+                raw = f.read()
+            self.assertEqual(raw.count(b"\r\n"), raw.count(b"\n") if crlf else 0, path)
+            self.assertFalse(raw.startswith(b"\xef\xbb\xbf"), path)
+
+    def test_the_fork_files_are_lf_without_bom(self):
+        tests = os.path.join(ROOT, "source", "server", "Tests", "UnitTests")
+        for path in (DECISIONS_CS, SCRIPT_CS, CONTROLLER_CS, os.path.join(tests, "UT_RpTimerWait.cs"),
+                     os.path.join(tests, "UT_RpTimerWaitScript.cs"), os.path.abspath(__file__)):
+            with open(path, "rb") as f:
+                raw = f.read()
+            self.assertNotIn(b"\r", raw, path)
+            self.assertFalse(raw.startswith(b"\xef\xbb\xbf"), path)
+            self.assertNotIn(b"\t", raw, path)
+
+
 if __name__ == "__main__":
     unittest.main()
