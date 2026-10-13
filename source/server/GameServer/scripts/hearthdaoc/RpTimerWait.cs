@@ -210,3 +210,95 @@ public readonly record struct RpWarbandMember(
 /// off, a session that is not RvR, or a committed force. <see cref="MarchMilliseconds"/> and
 /// <see cref="HolderTimeLeft"/> are 0 when no member holds the gate.</summary>
 public readonly record struct RpWarbandGate(bool Waits, bool Writes, long MarchMilliseconds, long HolderTimeLeft);
+
+/// <summary>The decisions (7.1). Plain values in and out; no server state.</summary>
+public static class RpTimerWait
+{
+    /// <summary>3.2: a frontier or siege first look within this of the release point.</summary>
+    public const int BindGate = 750;
+    /// <summary>3.1: a battleground first look within this of its realm's BotArrival.</summary>
+    public const int ArrivalGate = 2_500;
+    /// <summary>3.4: a drafted warband member's first look as a siege member within this of its slot.</summary>
+    public const int SlotGate = 200;
+    /// <summary>Section 4: a waiting bot farther than this from its spot walks back.</summary>
+    public const int WalkBackBeyond = 200;
+    /// <summary>3.1, section 4: a Start walks to its spot when farther than this (IssuePath's own arrival radius,
+    /// WBC:5176-5180), so a battleground bot landed on slot 0 walks to its slot 160-330 away.</summary>
+    public const int SpotTolerance = 48;
+    /// <summary>3.1: enemy roam anchors lie this share of the way from an arrival point to the central keep (BG:124-125).</summary>
+    public const float ContactShare = 0.6f;
+    /// <summary>3.1: roamers patrol within this of their anchor (BG:135).</summary>
+    public const int PatrolRadius = 900;
+    /// <summary>3.1: the threat scan's reach (WBC:35, TargetSearchRadius).</summary>
+    public const int ScanRadius = 5_000;
+    /// <summary>2.3: the shortest think wake.</summary>
+    public const int WakeFloorMilliseconds = 250;
+    /// <summary>2.4: the battleground regions (BattlegroundBrackets.IsBattlegroundRegion).</summary>
+    public const ushort FirstBattlegroundRegion = 250, LastBattlegroundRegion = 253;
+    /// <summary>2.4: the three frontier regions (Albion, Midgard, Hibernia).</summary>
+    public const ushort AlbionFrontier = 1, MidgardFrontier = 100, HiberniaFrontier = 200;
+
+    // 2.4: 250-253.
+    public static bool IsBattlegroundRegion(ushort region) =>
+        region is >= FirstBattlegroundRegion and <= LastBattlegroundRegion;
+
+    // 2.4: 1, 100 or 200.
+    public static bool IsFrontierRegion(ushort region) =>
+        region is AlbionFrontier or MidgardFrontier or HiberniaFrontier;
+
+    // 2.2, 2.4, 3.1: the horizontal (X, Y) distance; every gate, walk-back and trip distance uses it.
+    public static double Distance2D(Vector3 a, Vector3 b)
+    {
+        double dx = (double)a.X - b.X, dy = (double)a.Y - b.Y;
+        return Math.Sqrt(dx * dx + dy * dy);
+    }
+
+    // 2.1: ms until worth realm points (0 = worth), exactly as ARPR:82-86: 0 with no death on record (last < 0) or an
+    // interval of 0 (rp_worth_seconds <= 0); else interval - (now - last), kept within 0 to interval.
+    public static long WorthlessForMilliseconds(long lastDeathTick, long now, int rpWorthSeconds)
+    {
+        long interval = Math.Max(0, rpWorthSeconds) * 1000L;
+        if (lastDeathTick < 0 || interval == 0)
+            return 0;
+        return Math.Clamp(interval - (now - lastDeathTick), 0, interval);
+    }
+
+    // 2.2: the largest of the live MaxSpeed, MaxSpeedBase, and MaxSpeedBase x bestOwnSpeedValue / 100 (units/s).
+    public static double BestSpeed(short maxSpeed, short maxSpeedBase, double bestOwnSpeedValue) =>
+        Math.Max(Math.Max(maxSpeed, maxSpeedBase), maxSpeedBase * bestOwnSpeedValue / 100);
+
+    // 2.2: distance / speed in ms, rounded down; long.MaxValue when speed <= 0 (no speed: it never waits).
+    public static long TripMilliseconds(double distance, double unitsPerSecond)
+    {
+        if (unitsPerSecond <= 0)
+            return long.MaxValue;
+        double milliseconds = Math.Floor(distance * 1000 / unitsPerSecond);
+        return milliseconds < long.MaxValue ? (long)milliseconds : long.MaxValue;
+    }
+
+    // 3.1: the point max(0, 0.6 x |AC| - 900 - 5,000) from the arrival A toward the central keep C (A itself for a
+    // short field, or when A = C).
+    public static Vector2 FirstContactPoint(Vector2 arrival, Vector2 centralKeep)
+    {
+        Vector2 toKeep = centralKeep - arrival;
+        float length = toKeep.Length();
+        float along = ContactShare * length - PatrolRadius - ScanRadius;
+        return along > 0 ? arrival + toKeep * (along / length) : arrival;
+    }
+
+    // 2.3, 7.1: the game tick at which time left = trip: last + max(0, rp_worth_seconds) x 1000 - trip, the trip
+    // clamped to 0..interval (no overflow with a trip of long.MaxValue).
+    public static long LeaveTick(long lastDeathTick, int rpWorthSeconds, long tripMilliseconds)
+    {
+        long interval = Math.Max(0, rpWorthSeconds) * 1000L;
+        return lastDeathTick + interval - Math.Clamp(tripMilliseconds, 0, interval);
+    }
+
+    // 2.3: the next think interval: max(250, leaveTick - now + ceil(tickDuration / 2)) when that is below
+    // standardInterval, else standardInterval (17 ms at 30 ticks/s; 0 in tests, where TickDuration is 0).
+    public static int ThinkWakeMilliseconds(long leaveTick, long now, double tickDurationMilliseconds, int standardInterval)
+    {
+        long wake = Math.Max(WakeFloorMilliseconds, leaveTick - now + (long)Math.Ceiling(tickDurationMilliseconds / 2));
+        return wake < standardInterval ? (int)wake : standardInterval;
+    }
+}

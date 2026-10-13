@@ -148,4 +148,175 @@ public sealed class UT_RpTimerWait
         Assert.That(copy == waiting, Is.True);
         Assert.That(new RpWaitChange(waiting, copy, RpWaitAction.None, RpWaitReason.None).Changes, Is.True);
     }
+
+    // The realm point timer as the tests set it: a death at game time 1,000,000 and rp_worth_seconds 300 (2.1).
+    private const long DeathTick = 1_000_000;
+    private const int RpWorthSeconds = 300;
+
+    // The central keep, as the spec measured it, the same in all four battlegrounds (3.1).
+    private static readonly Vector2 CentralKeep = new(33_089, 38_271);
+
+    // A game tick at 30 ticks a second (GameLoop.TickDuration); a brain may think up to half of one early (2.3).
+    private const double TickAt30PerSecond = 1000.0 / 30;
+
+    [Test]
+    public void NoDeathOnRecordIsWorthAtOnce() =>
+        Assert.That(RpTimerWait.WorthlessForMilliseconds(-1, 5_000_000, RpWorthSeconds), Is.EqualTo(0));
+
+    [TestCase(0)]
+    [TestCase(-5)]
+    public void ZeroOrNegativeRpWorthSecondsIsWorthAtOnce(int rpWorthSeconds) =>
+        Assert.That(RpTimerWait.WorthlessForMilliseconds(DeathTick, DeathTick, rpWorthSeconds), Is.EqualTo(0));
+
+    // ARPR:86 pays once now - last >= the interval; until then the time left is the rest of it.
+    [TestCase(0L, 300_000L)]
+    [TestCase(299_999L, 1L)]
+    [TestCase(300_000L, 0L)]
+    [TestCase(400_000L, 0L)]
+    public void TimeLeftAfterTheDeath(long sinceDeath, long expected) =>
+        Assert.That(RpTimerWait.WorthlessForMilliseconds(DeathTick, DeathTick + sinceDeath, RpWorthSeconds),
+            Is.EqualTo(expected));
+
+    [Test]
+    public void AClockBeforeTheDeathTickGivesTheWholeInterval() =>
+        Assert.That(RpTimerWait.WorthlessForMilliseconds(DeathTick, DeathTick - 100_000, RpWorthSeconds),
+            Is.EqualTo(300_000));
+
+    // A released bot starts at a third of its health, below the 33% that slows its live speed (2.2).
+    [Test]
+    public void AHurtBotStillCountsItsBaseSpeed() =>
+        Assert.That(RpTimerWait.BestSpeed(60, 191, 0), Is.EqualTo(191));
+
+    // A singer starts its speed song only once it moves: a song of 140 counts while it stands.
+    [Test]
+    public void ItsOwnSpeedSongCounts() =>
+        Assert.That(RpTimerWait.BestSpeed(60, 191, 140), Is.EqualTo(267.4).Within(1e-9));
+
+    // Another bot's faster song already on it.
+    [Test]
+    public void AFasterLiveSpeedWins() =>
+        Assert.That(RpTimerWait.BestSpeed(300, 191, 140), Is.EqualTo(300));
+
+    [Test]
+    public void TheTripIsTheStraightLineAtBestSpeedRoundedDown()
+    {
+        // Midgard's arrival point to its first contact point at 191 units/s (3.1): 42.83 s.
+        Assert.That(RpTimerWait.TripMilliseconds(8_181, 191), Is.EqualTo(42_832));
+        Assert.That(RpTimerWait.TripMilliseconds(190, 191), Is.EqualTo(994));
+        Assert.That(RpTimerWait.TripMilliseconds(0, 191), Is.EqualTo(0));
+    }
+
+    [Test]
+    public void NoSpeedMeansItNeverWaits()
+    {
+        Assert.That(RpTimerWait.TripMilliseconds(8_181, 0), Is.EqualTo(long.MaxValue));
+        Assert.That(RpTimerWait.TripMilliseconds(8_181, -1), Is.EqualTo(long.MaxValue));
+
+        // A bot waits while its time left is more than its trip: not even a death this moment is.
+        long timeLeft = RpTimerWait.WorthlessForMilliseconds(DeathTick, DeathTick, RpWorthSeconds);
+        Assert.That(timeLeft, Is.EqualTo(300_000));
+        Assert.That(timeLeft > RpTimerWait.TripMilliseconds(8_181, 0), Is.False);
+
+        // Its leave moment is the death itself, long past, and the arithmetic does not overflow.
+        Assert.That(RpTimerWait.LeaveTick(DeathTick, RpWorthSeconds, long.MaxValue), Is.EqualTo(DeathTick));
+    }
+
+    // Each realm's BattlegroundBrackets.BotArrival: the first contact point lies 0.6 of the way to the central keep,
+    // less the 900 a roamer patrols from its anchor and the 5,000 its threat scan reaches (3.1's table).
+    [TestCase(36_428f, 51_260f, 2_147d, 35_893.5d, 49_180.8d)]
+    [TestCase(53_150f, 26_093f, 8_181d, 46_156.9d, 30_338.2d)]
+    [TestCase(19_714f, 19_085f, 8_133d, 24_364.9d, 25_756.6d)]
+    public void FirstContactIsOnTheLineToTheCentralKeep(float arrivalX, float arrivalY, double fromArrival,
+        double contactX, double contactY)
+    {
+        var arrival = new Vector2(arrivalX, arrivalY);
+        Vector2 contact = RpTimerWait.FirstContactPoint(arrival, CentralKeep);
+
+        Assert.That(Vector2.Distance(arrival, contact), Is.EqualTo(fromArrival).Within(1));
+        Assert.That(contact.X, Is.EqualTo(contactX).Within(1));
+        Assert.That(contact.Y, Is.EqualTo(contactY).Within(1));
+        // On the line from the arrival to the keep: the two legs add up to the whole.
+        Assert.That(Vector2.Distance(arrival, contact) + Vector2.Distance(contact, CentralKeep),
+            Is.EqualTo(Vector2.Distance(arrival, CentralKeep)).Within(1));
+    }
+
+    [Test]
+    public void AShortFieldGivesTheArrivalItself()
+    {
+        // |AC| = 9,000: 0.6 x 9,000 = 5,400, short of 900 + 5,000, so a patrol can see the arrival point itself.
+        var arrival = new Vector2(10_000, 10_000);
+        Assert.That(RpTimerWait.FirstContactPoint(arrival, new Vector2(10_000, 19_000)), Is.EqualTo(arrival));
+        Assert.That(RpTimerWait.FirstContactPoint(arrival, arrival), Is.EqualTo(arrival));
+    }
+
+    [Test]
+    public void LeaveTickIsWhenTimeLeftEqualsTheTrip()
+    {
+        long leave = RpTimerWait.LeaveTick(DeathTick, RpWorthSeconds, 42_832);
+        Assert.That(leave, Is.EqualTo(DeathTick + 300_000 - 42_832));
+        Assert.That(RpTimerWait.WorthlessForMilliseconds(DeathTick, leave, RpWorthSeconds), Is.EqualTo(42_832));
+        Assert.That(RpTimerWait.WorthlessForMilliseconds(DeathTick, leave - 1, RpWorthSeconds), Is.EqualTo(42_833));
+
+        // A trip longer than the interval: leave at once (the death tick, already past).
+        Assert.That(RpTimerWait.LeaveTick(DeathTick, RpWorthSeconds, 400_000), Is.EqualTo(DeathTick));
+    }
+
+    [Test]
+    public void TheWakeIsTheLeaveMomentPlusHalfATickRoundedUp()
+    {
+        Assert.That(RpTimerWait.ThinkWakeMilliseconds(DeathTick + 1_000, DeathTick, TickAt30PerSecond, 2_500),
+            Is.EqualTo(1_017));
+        // GameLoop.TickDuration is 0 in tests: no half tick.
+        Assert.That(RpTimerWait.ThinkWakeMilliseconds(DeathTick + 1_000, DeathTick, 0, 2_500), Is.EqualTo(1_000));
+    }
+
+    [TestCase(100L)]
+    [TestCase(-3_000L)]
+    public void TheWakeIsAtLeast250Milliseconds(long leaveIn) =>
+        Assert.That(RpTimerWait.ThinkWakeMilliseconds(DeathTick + leaveIn, DeathTick, TickAt30PerSecond, 2_500),
+            Is.EqualTo(250));
+
+    [Test]
+    public void TheStandardIntervalWinsWhenItIsSooner() =>
+        Assert.That(RpTimerWait.ThinkWakeMilliseconds(DeathTick + 5_000, DeathTick, TickAt30PerSecond, 2_500),
+            Is.EqualTo(2_500));
+
+    [Test]
+    public void DistancesAreHorizontal()
+    {
+        Assert.That(RpTimerWait.Distance2D(new Vector3(0, 0, 0), new Vector3(3_000, 4_000, 0)), Is.EqualTo(5_000));
+        Assert.That(RpTimerWait.Distance2D(new Vector3(0, 0, 0), new Vector3(3_000, 4_000, 2_500)), Is.EqualTo(5_000));
+        Assert.That(RpTimerWait.Distance2D(Bind, new Vector3(Bind.X, Bind.Y, Bind.Z + 600)), Is.EqualTo(0));
+    }
+
+    [Test]
+    public void TheRegionsAreTheWorlds()
+    {
+        for (int region = 0; region <= 1_000; region++)
+        {
+            ushort id = (ushort)region;
+            Assert.That(RpTimerWait.IsBattlegroundRegion(id), Is.EqualTo(BattlegroundBrackets.IsBattlegroundRegion(id)),
+                $"battleground region {id}");
+            Assert.That(RpTimerWait.IsFrontierRegion(id), Is.EqualTo(id is 1 or 100 or 200), $"frontier region {id}");
+        }
+    }
+
+    [Test]
+    public void TheConstantsAreTheSpecs()
+    {
+        Assert.That(RpTimerWait.BindGate, Is.EqualTo(750));
+        Assert.That(RpTimerWait.ArrivalGate, Is.EqualTo(2_500));
+        Assert.That(RpTimerWait.SlotGate, Is.EqualTo(200));
+        Assert.That(RpTimerWait.WalkBackBeyond, Is.EqualTo(200));
+        Assert.That(RpTimerWait.SpotTolerance, Is.EqualTo(48));
+        Assert.That(RpTimerWait.ContactShare, Is.EqualTo(0.6f));
+        Assert.That(RpTimerWait.PatrolRadius, Is.EqualTo(900));
+        Assert.That(RpTimerWait.ScanRadius, Is.EqualTo(5_000));
+        Assert.That(RpTimerWait.WakeFloorMilliseconds, Is.EqualTo(250));
+        Assert.That(RpTimerWait.FirstBattlegroundRegion, Is.EqualTo(250));
+        Assert.That(RpTimerWait.LastBattlegroundRegion, Is.EqualTo(253));
+        Assert.That(RpTimerWait.AlbionFrontier, Is.EqualTo(1));
+        Assert.That(RpTimerWait.MidgardFrontier, Is.EqualTo(100));
+        Assert.That(RpTimerWait.HiberniaFrontier, Is.EqualTo(200));
+    }
 }
