@@ -373,4 +373,142 @@ public static class RpTimerWait
             _ => RpWaitChange.Keep(marker),
         };
     }
+
+    // 2.4, 3.1-3.4: the spot a wait uses: a Waiting marker's Spot; for a Released marker, look.BattlegroundSlot in a
+    // battleground (look.Case Battleground), else its ReleasePoint. Trips are measured from it. (A Left marker, which
+    // no hook asks about, gives its stored Spot too.)
+    public static Vector3 WaitSpot(RpWaitMarker marker, RpWaitLook look)
+    {
+        if (marker.Phase != RpWaitPhase.Released)
+            return marker.Spot;
+        return look.Case == RpWaitCase.Battleground ? look.BattlegroundSlot : marker.ReleasePoint;
+    }
+
+    // Decide's Ignore, Skip and Leave. Ignore keeps the marker read (the same reference: nothing to swap); a Skip
+    // latches it Left with the hook's case stored, a Leave latches it Left; neither walks.
+    private static RpWaitDecision Ignore(RpWaitMarker marker) =>
+        new(RpWaitVerdict.Ignore, RpWaitReason.None, marker, marker, RpWaitAction.None, false);
+
+    private static RpWaitDecision Skip(RpWaitMarker marker, RpWaitCase hookCase, RpWaitReason reason,
+        RpWaitAction action = RpWaitAction.Skip) =>
+        new(RpWaitVerdict.Skip, reason, marker, marker with { Phase = RpWaitPhase.Left, Case = hookCase }, action,
+            false);
+
+    private static RpWaitDecision Leave(RpWaitMarker marker, RpWaitReason reason) =>
+        new(RpWaitVerdict.Leave, reason, marker, marker with { Phase = RpWaitPhase.Left }, RpWaitAction.Leave, false);
+
+    // 2.3, 2.4, 3.1-3.4: hooks 1-2. The rules, in order (Left = marker with { Phase = Left }):
+    // 1. marker null, or marker.DeathCount != deathCount: Ignore.
+    // 2. Left: Ignore (the latch).
+    // 3. Released (the first look):
+    //    a. look.Case Warband: Ignore (the gate decides).
+    //    b. timeLeft <= 0: Skip(Trip), Next = Left with Case = look.Case, action None (worth already: no line).
+    //    c. look.Relic: Skip(Relic).
+    //    d. Frontier or Siege with look.Region != marker.ReleaseRegion: Skip(OtherRegion).
+    //    e. !look.HasTarget: Skip(NoTarget).  f. look.TargetRegion != look.Region: Skip(OtherRegion).
+    //    g. outside the gate (Battleground: Distance2D(Position, Arrival) > 2,500; Frontier, Siege: Distance2D(Position,
+    //       ReleasePoint) > 750): Skip(MovedAway).
+    //    h. timeLeft <= trip: Skip(Trip).
+    //    i. Start: marker with { Phase = Waiting, Case = look.Case, Region = look.Region, Spot = WaitSpot(marker, look),
+    //       AssignmentId = look.AssignmentId, EventKeepId = look.Case == Siege ? look.EventKeepId : null, Started = now },
+    //       action Start, WalkBack = Distance2D(Position, Spot) > SpotTolerance (48: it walks to its spot).
+    //    Each Skip: Next = Left with Case = look.Case, action Skip.
+    // 4. Waiting (each Leave: Next = Left, action Leave):
+    //    a. look.AssignmentId != marker.AssignmentId: Leave(Changed).
+    //    b. marker.Case Siege, look.Case Siege, look.EventKeepId != marker.EventKeepId: Leave(Called) (before the region).
+    //    c. look.Region != marker.Region: Leave(Changed).
+    //    d. look.Relic: Leave(Relic).
+    //    e. marker.Case Warband: look.Case Warband: Ignore (the gate's); look.Case Siege: Distance2D(Position, Spot) > 200:
+    //       Leave(MovedAway); !HasTarget: Leave(NoTarget); TargetRegion != Region: Leave(OtherRegion); timeLeft <= trip:
+    //       Leave(Due); else Convert: marker with { Case = Siege, EventKeepId = look.EventKeepId, Started = now },
+    //       Reason Battle, action Convert, WalkBack false; look.Case Frontier or Battleground: Leave(Changed).
+    //    f. look.Case != marker.Case: Leave(Changed).
+    //    g. !HasTarget: Leave(NoTarget); TargetRegion != Region: Leave(OtherRegion).
+    //    h. timeLeft <= trip: Leave(Due).
+    //    i. Hold: Next = marker, action None, WalkBack = Distance2D(Position, marker.Spot) > 200.
+    public static RpWaitDecision Decide(RpWaitMarker marker, int deathCount, RpWaitLook look, long timeLeft,
+        long tripMilliseconds, long now)
+    {
+        if (marker == null || marker.DeathCount != deathCount || marker.Phase == RpWaitPhase.Left)
+            return Ignore(marker);
+
+        if (marker.Phase == RpWaitPhase.Released)
+        {
+            if (look.Case == RpWaitCase.Warband)
+                return Ignore(marker);
+            if (timeLeft <= 0)
+                return Skip(marker, look.Case, RpWaitReason.Trip, RpWaitAction.None);
+            if (look.Relic)
+                return Skip(marker, look.Case, RpWaitReason.Relic);
+            if ((look.Case is RpWaitCase.Frontier or RpWaitCase.Siege) && look.Region != marker.ReleaseRegion)
+                return Skip(marker, look.Case, RpWaitReason.OtherRegion);
+            if (!look.HasTarget)
+                return Skip(marker, look.Case, RpWaitReason.NoTarget);
+            if (look.TargetRegion != look.Region)
+                return Skip(marker, look.Case, RpWaitReason.OtherRegion);
+            bool outside = look.Case == RpWaitCase.Battleground
+                ? Distance2D(look.Position, look.Arrival) > ArrivalGate
+                : Distance2D(look.Position, marker.ReleasePoint) > BindGate;
+            if (outside)
+                return Skip(marker, look.Case, RpWaitReason.MovedAway);
+            if (timeLeft <= tripMilliseconds)
+                return Skip(marker, look.Case, RpWaitReason.Trip);
+
+            Vector3 spot = WaitSpot(marker, look);
+            RpWaitMarker started = marker with
+            {
+                Phase = RpWaitPhase.Waiting,
+                Case = look.Case,
+                Region = look.Region,
+                Spot = spot,
+                AssignmentId = look.AssignmentId,
+                EventKeepId = look.Case == RpWaitCase.Siege ? look.EventKeepId : null,
+                Started = now,
+            };
+            return new RpWaitDecision(RpWaitVerdict.Start, RpWaitReason.None, marker, started, RpWaitAction.Start,
+                Distance2D(look.Position, spot) > SpotTolerance);
+        }
+
+        if (look.AssignmentId != marker.AssignmentId)
+            return Leave(marker, RpWaitReason.Changed);
+        if (marker.Case == RpWaitCase.Siege && look.Case == RpWaitCase.Siege &&
+            look.EventKeepId != marker.EventKeepId)
+            return Leave(marker, RpWaitReason.Called);
+        if (look.Region != marker.Region)
+            return Leave(marker, RpWaitReason.Changed);
+        if (look.Relic)
+            return Leave(marker, RpWaitReason.Relic);
+
+        // 4.e: a held warband outside battle is the gate's; drafted into a battle (a siege) it converts at its slot,
+        // after the same target and time checks as any wait.
+        bool converts = marker.Case == RpWaitCase.Warband;
+        if (converts)
+        {
+            if (look.Case == RpWaitCase.Warband)
+                return Ignore(marker);
+            if (look.Case != RpWaitCase.Siege)
+                return Leave(marker, RpWaitReason.Changed);
+            if (Distance2D(look.Position, marker.Spot) > SlotGate)
+                return Leave(marker, RpWaitReason.MovedAway);
+        }
+        else if (look.Case != marker.Case)
+        {
+            return Leave(marker, RpWaitReason.Changed);
+        }
+
+        if (!look.HasTarget)
+            return Leave(marker, RpWaitReason.NoTarget);
+        if (look.TargetRegion != look.Region)
+            return Leave(marker, RpWaitReason.OtherRegion);
+        if (timeLeft <= tripMilliseconds)
+            return Leave(marker, RpWaitReason.Due);
+        if (converts)
+        {
+            RpWaitMarker siege = marker with { Case = RpWaitCase.Siege, EventKeepId = look.EventKeepId, Started = now };
+            return new RpWaitDecision(RpWaitVerdict.Convert, RpWaitReason.Battle, marker, siege, RpWaitAction.Convert,
+                false);
+        }
+        return new RpWaitDecision(RpWaitVerdict.Hold, RpWaitReason.None, marker, marker, RpWaitAction.None,
+            Distance2D(look.Position, marker.Spot) > WalkBackBeyond);
+    }
 }
