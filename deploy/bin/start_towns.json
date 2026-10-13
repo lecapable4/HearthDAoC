@@ -1,0 +1,122 @@
+{
+ "_about": "The starting locations that were wrong for the period (1.65), moved to the period's towns at every start by deploy/bin/start_towns.py (run by world_fixes.py; owner's decisions 2026-10-13, research start-locations-2026-10-13). Each entry names a StartupLocation row by race and class, its spot as upstream ships it and the period's spot ([region, x, y, z, heading]), copied from the upstream row (copied_from_row, a StartupLoc_ID of upstream's 0.35 world) that already stands in the period town beside the right trainer. A row moves only while it is at upstream's spot, so the owner's own changes stay. The first nine are base-class rows, which every new character uses; the last four are final-class rows, which the bots use. Every entry says why, with its sources.",
+ "moves": [
+  {
+   "race": 1, "class": 18,
+   "name": "Briton Mage",
+   "town": "Adribard's Retreat (Avalon Marsh)",
+   "upstream": [1, 559975, 513748, 2619, 4115],
+   "period": [1, 472952, 628137, 2048, 509],
+   "copied_from_row": 12,
+   "why": "Mythic's starting-location list (Stratics, 2001-09-13), Prima's guide (2002, p.18) and Allakhazam's start zone list (2003-02-08) start a Briton Mage at Adribard's Retreat in Avalon Marsh, where Magus Saloc trains Mages (Prima p.127); upstream has Cotswold Village. The spot is the Briton Sorcerer's (row 12), 125 from Magus Saloc."
+  },
+  {
+   "race": 7, "class": 37,
+   "name": "Dwarf Seer",
+   "town": "Vasudheim (East Svealand)",
+   "upstream": [100, 805792, 701507, 4960, 6433],
+   "period": [100, 773771, 755376, 4600, 1363],
+   "copied_from_row": 114,
+   "why": "Mythic's list (Stratics, 2001-09-13), Prima (2002), Allakhazam (2003-02-08) and Prima's Atlas (2002: \"Dwarf Seers start in Vasudheim\"); upstream has Haggerfel. The spot is the Dwarf Healer's (row 114), 140 from Tosti, the Seer trainer."
+  },
+  {
+   "race": 8, "class": 37,
+   "name": "Kobold Seer",
+   "town": "Haggerfel (Vale of Mularn)",
+   "upstream": [100, 748428, 815912, 4408, 4713],
+   "period": [100, 805776, 701532, 4960, 2380],
+   "copied_from_row": 100,
+   "why": "Mythic's list (Stratics, 2001-09-13) and Prima's Atlas (2002) start a Kobold Seer in the Vale of Mularn, and Allakhazam (2003-02-08, and its 2004-02-27 update) names Haggerfel, where the Vale's only Seer trainer, Groa, stands; upstream has Fort Atla. The spot is the Kobold Shaman's (row 100), 93 from Groa."
+  },
+  {
+   "race": 5, "class": 37,
+   "name": "Norseman Seer",
+   "town": "Fort Atla (Gotar)",
+   "upstream": [100, 773735, 755370, 4600, 5520],
+   "period": [100, 748428, 815912, 4408, 4713],
+   "copied_from_row": 506,
+   "why": "Mythic's list (Stratics, 2001-09-13) and Prima's Atlas (2002: \"Norseman Seer ... starting place is Fort Atla in Gotar\"); Allakhazam's 2004-02-27 update says Galplen, and the owner chose the earlier sources (2026-10-13). Upstream has Vasudheim. The spot is the Kobold Seer's as upstream ships it (row 506), 101 from Hyndia, the Seer trainer: the three Seers form a cycle, so the file holds both spots and no other row is read."
+  },
+  {
+   "race": 11, "class": 54,
+   "name": "Elf Stalker",
+   "town": "Mag Mell (Lough Derg)",
+   "upstream": [200, 342462, 592667, 5456, 4190],
+   "period": [200, 347567, 491289, 5235, 2978],
+   "copied_from_row": 70,
+   "why": "Mythic's list (Stratics, 2001-09-13), Prima (2002) and Allakhazam (2003-02-08); upstream has Howth. The spot is the Elf Nightshade's (row 70), 115 from Ula, the Stalker trainer."
+  },
+  {
+   "race": 1, "class": 20,
+   "name": "Briton Disciple",
+   "town": "Caer Gothwaite (Shrouded Isles)",
+   "upstream": [1, 561542, 511988, 2448, 7739],
+   "period": [51, 532950, 549779, 4800, 1535],
+   "copied_from_row": 14,
+   "why": "The Shrouded Isles base classes started only in their SI city: Allakhazam's 2004-02-27 update (\"(only)\"), and Mythic's 1.72 patch notes (2004-10-26): \"All newly created Shrouded Isles races and base classes now have the option of starting in either a classic Camelot location ... or their Shrouded Isles location\", so before 1.72 they had none (owner 2026-10-13: as before 1.72). Upstream has Cotswold Village. The spot is the Briton Necromancer's (row 14), 132 from Narah, the Disciple trainer."
+  },
+  {
+   "race": 6, "class": 36,
+   "name": "Troll Mystic",
+   "town": "Aegirhamn (Shrouded Isles)",
+   "upstream": [100, 749110, 814677, 4408, 5571],
+   "period": [151, 289815, 355876, 3866, 3752],
+   "copied_from_row": 122,
+   "why": "A Troll Mystic can only become a Bonedancer, a Shrouded Isles class: Allakhazam's 2004-02-27 update, \"Mystic (Bonedancer) in Aegirhamn ... (only)\". One source, medium confidence: Mystic is a classic base class, so Mythic's 1.72 wording (2004-10-26, \"Shrouded Isles races and base classes\") does not cover it (owner 2026-10-13: as before 1.72). Upstream has Fort Atla. The spot is the Troll Bonedancer's (row 122), 160 from Pedra, the Mystic trainer."
+  },
+  {
+   "race": 9, "class": 57,
+   "name": "Celt Forester",
+   "town": "the Grove of Domnann (Shrouded Isles)",
+   "upstream": [200, 340903, 593620, 5464, 4935],
+   "period": [181, 423943, 446276, 5952, 3323],
+   "copied_from_row": 53,
+   "why": "The Shrouded Isles base classes started only in their SI city: Allakhazam's 2004-02-27 update (\"Way of the Grove ... (only)\"), and Mythic's 1.72 patch notes (2004-10-26), which gave them a classic start only then (owner 2026-10-13: as before 1.72). Upstream has Howth. The spot is the Celt Valewalker's (row 53), 129 from Miach, the Forester trainer."
+  },
+  {
+   "race": 10, "class": 57,
+   "name": "Firbolg Forester",
+   "town": "the Grove of Domnann (Shrouded Isles)",
+   "upstream": [200, 339718, 470315, 5200, 4131],
+   "period": [181, 423943, 446276, 5952, 3323],
+   "copied_from_row": 68,
+   "why": "As the Celt Forester: Allakhazam's 2004-02-27 update and Mythic's 1.72 patch notes (2004-10-26; owner 2026-10-13: as before 1.72). Upstream has a spot just outside Ardee. The spot is the Firbolg Valewalker's (row 68), the Celt Valewalker's too, 129 from Miach."
+  },
+  {
+   "race": 3, "class": 3,
+   "name": "Highlander Scout",
+   "town": "Ludlow Village (Black Mtns. South)",
+   "upstream": [1, 508413, 476161, 2304, 3087],
+   "period": [1, 530479, 479925, 2251, 2617],
+   "copied_from_row": 115,
+   "why": "A Scout is a Rogue, and Mythic's list (Stratics, 2001-09-13), Prima (2002; p.130: Master Odon, Rogue trainer, Ludlow) and Allakhazam (2003-02-08) start a Highlander Rogue at Ludlow Village, as upstream's base-class row does; its final-class Scout row, which bots stored as Highlander Scouts start from, has Humberton Village. The spot is the Highlander Minstrel's (row 115), 99 from Master Odon."
+  },
+  {
+   "race": 11, "class": 43,
+   "name": "Elf Blademaster",
+   "town": "Howth (Silvermine Mts.)",
+   "upstream": [200, 346321, 490665, 5318, 3020],
+   "period": [200, 342098, 591625, 5456, 4550],
+   "copied_from_row": 548,
+   "why": "A Blademaster is a Guardian, and Mythic's list (Stratics, 2001-09-13), Prima (2002) and Allakhazam (2003-02-08) start an Elf Guardian at Howth, as upstream's base-class row does; its final-class Blademaster row, which bots stored as Elf Blademasters start from, has Mag Mell. The spot is the Elf Guardian's (row 548), 113 from Kaley, the Guardian trainer."
+  },
+  {
+   "race": 11, "class": 45,
+   "name": "Elf Champion",
+   "town": "Howth (Silvermine Mts.)",
+   "upstream": [200, 346321, 490665, 5318, 3020],
+   "period": [200, 342098, 591625, 5456, 4550],
+   "copied_from_row": 548,
+   "why": "A Champion is a Guardian: as the Elf Blademaster (Mythic's list, Stratics, 2001-09-13; Prima, 2002; Allakhazam, 2003-02-08). Upstream's final-class Champion row has Mag Mell. The spot is the Elf Guardian's (row 548), 113 from Kaley."
+  },
+  {
+   "race": 5, "class": 26,
+   "name": "Norseman Healer",
+   "town": "Fort Atla (Gotar)",
+   "upstream": [100, 797844, 892766, 4744, 2082],
+   "period": [100, 748428, 815912, 4408, 4713],
+   "copied_from_row": 506,
+   "why": "A Healer is a Seer, and the Norseman Seer starts at Fort Atla (Mythic's list, Stratics, 2001-09-13; Prima's Atlas, 2002; owner 2026-10-13). Upstream's final-class Healer row, which bots stored as Norseman Healers start from, has Galplen, as Allakhazam's 2004-02-27 update. The spot is the Norseman Seer's: the Kobold Seer's as upstream ships it (row 506), 101 from Hyndia."
+  }
+ ]
+}

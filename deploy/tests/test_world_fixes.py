@@ -343,6 +343,13 @@ class FixesTests(unittest.TestCase):
             "the MarshBridge (Avalon Marsh), 23 on East Svealand's bridge 506, 15 on East Svealand's bridge 736, 11 "
             "on Bridge Wood (East Svealand), 14 on the Big Bridge (Gotar), 11 on the Celtic bridge (Caillte Garran), "
             "6 on the stone bridge (Shannon Estuary)",
+            "Start towns: 13 starting locations moved to the period's towns: Briton Mage to Adribard's Retreat (Avalon "
+            "Marsh), Dwarf Seer to Vasudheim (East Svealand), Kobold Seer to Haggerfel (Vale of Mularn), Norseman Seer "
+            "to Fort Atla (Gotar), Elf Stalker to Mag Mell (Lough Derg), Briton Disciple to Caer Gothwaite (Shrouded "
+            "Isles), Troll Mystic to Aegirhamn (Shrouded Isles), Celt Forester to the Grove of Domnann (Shrouded "
+            "Isles), Firbolg Forester to the Grove of Domnann (Shrouded Isles), Highlander Scout to Ludlow Village "
+            "(Black Mtns. South), Elf Blademaster to Howth (Silvermine Mts.), Elf Champion to Howth (Silvermine Mts.), "
+            "Norseman Healer to Fort Atla (Gotar)",
         ])
         self.assertEqual(self.q("SELECT Mob_ID FROM fork_removed_mobs WHERE FixId='duplicate-townspeople' ORDER BY Mob_ID"),
                          [(GRAENT_GOES,), ("231313cf-eb6a-408f-9811-f697c705ffb7",), (COMMANDER_GOES,),
