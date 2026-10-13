@@ -5,11 +5,13 @@ In the period (1.65) a new character's race and base class fixed its starting to
 trainer (Mythic's list on Stratics, 2001-09-13; Prima, 2002). Upstream's StartupLocation rows match that for 47 of the
 56 race and base-class starts; the file moves the other nine (owner's decisions 2026-10-13, research
 start-locations-2026-10-13): the Briton Mage, three Seers and the Elf Stalker to their period towns, and the Shrouded
-Isles base classes of the classic races (Briton Disciple, Troll Mystic, Celt and Firbolg Forester) to their SI city,
-the only start they had before patch 1.72. Four final-class rows follow (Highlander Scout, Elf Blademaster and
-Champion, Norseman Healer): no new character uses them while start_as_base_class turns a stock client's final class
-into its base class before the town is picked, but the bots, stored with a final class, start from them. Only new
-characters (and bots) are affected; existing characters keep their location and bind.
+Isles base classes of the classic races (Briton Disciple, Celt and Firbolg Forester) to their SI city, the only start
+they had before patch 1.72, with the Troll Mystic, which can only become a Bonedancer (on one source, Allakhazam 2004).
+Four final-class rows follow (Highlander Scout, Elf Blademaster and Champion, Norseman Healer): no new character uses
+them while start_as_base_class turns a stock client's final class into its base class before the town is picked, but
+the bots, stored with a final class, start from them, and the server sends a promoted player there when it has to
+repair a broken bind point (GamePlayer.ValidateBind). Only new characters (and bots) are affected; existing characters
+keep their location and bind.
 
 Like mob_fixes.py it has no marker. At every start a row of the entry's race and class still at upstream's spot
 (Region, X, Y, Z and Heading, the five values the fix sets) moves to the period's spot; one already there is up to

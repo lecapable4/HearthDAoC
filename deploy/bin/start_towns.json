@@ -62,7 +62,7 @@
    "upstream": [100, 749110, 814677, 4408, 5571],
    "period": [151, 289815, 355876, 3866, 3752],
    "copied_from_row": 122,
-   "why": "A Troll Mystic can only become a Bonedancer, a Shrouded Isles class: Allakhazam's 2004-02-27 update, \"Mystic (Bonedancer) in Aegirhamn ... (only)\" (Mythic's 1.72 patch notes, 2004-10-26, opened classic towns to the Shrouded Isles races and base classes later; owner 2026-10-13: as before 1.72). Upstream has Fort Atla. The spot is the Troll Bonedancer's (row 122), 160 from Pedra, the Mystic trainer."
+   "why": "A Troll Mystic can only become a Bonedancer, a Shrouded Isles class: Allakhazam's 2004-02-27 update, \"Mystic (Bonedancer) in Aegirhamn ... (only)\". One source, medium confidence: Mystic is a classic base class, so Mythic's 1.72 wording (2004-10-26, \"Shrouded Isles races and base classes\") does not cover it (owner 2026-10-13: as before 1.72). Upstream has Fort Atla. The spot is the Troll Bonedancer's (row 122), 160 from Pedra, the Mystic trainer."
   },
   {
    "race": 9, "class": 57,
