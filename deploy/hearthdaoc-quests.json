@@ -45,7 +45,8 @@
   "MovedMarkers": [
     {"From": {"Region": 1, "X": 528239, "Y": 359818, "Z": 9088}, "To": {"Region": 1, "X": 528411, "Y": 358139, "Z": 9200}, "Why": "Captain Rhodri, on Snowdonia Fortress's north wall (#121; deploy/bin/mob_fixes.json)"},
     {"From": {"Region": 1, "X": 586282, "Y": 476329, "Z": 3480}, "To": {"Region": 1, "X": 583943, "Y": 476323, "Z": 3480}, "Why": "Sir Tilian, in Castle Sauvage's north-west corner (#121)"},
-    {"From": {"Region": 1, "X": 508535, "Y": 477271, "Z": 2284}, "To": {"Region": 1, "X": 507581, "Y": 477378, "Z": 2304}, "Why": "the supply run's Bline: Bline Tengit, the Humberton merchant (#126)"}
+    {"From": {"Region": 1, "X": 508535, "Y": 477271, "Z": 2284}, "To": {"Region": 1, "X": 507581, "Y": 477378, "Z": 2304}, "Why": "the supply run's Bline: Bline Tengit, the Humberton merchant (#126)"},
+    {"From": {"Region": 1, "X": 528519, "Y": 359799, "Z": 9088}, "To": {"Region": 1, "X": 528322, "Y": 358021, "Z": 9200}, "Why": "Lieutenant Brude, beside Captain Rhodri on the north wall: his level 5 \"Simple Request\" and level 10 \"Departed Hero\" (#121)"}
   ],
   "Links": [
     {"Name": "Delfina's fire", "Members": ["b09ebff4-6f36-5f47-bb41-48161840d41c", "a95e6d6f-0f45-4cbd-a527-97467780ea80", "99755b89-b83f-4f2e-bf3b-84767b709ad6"], "Callers": ["b09ebff4-6f36-5f47-bb41-48161840d41c"], "Range": 1500, "Why": "Level 43: \"she is by the fire, linked to 2 rangers\" (2002-08-08); \"She and her two bodyguard directly agro'ed onto the pet\" (2003-11-18); one way only: \"Pull them first, she did not aggro while I dealt with them\" (2003-05-24)."},

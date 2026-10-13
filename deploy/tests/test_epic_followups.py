@@ -32,7 +32,8 @@ GENERATED_BLINE = "97c5b723-b48d-50a5-b4a2-d7fe0f0cd73e"
 STANDING_MARTLEY = "b94c9ac2-ba75-493e-a90c-65a5c62a839e"
 COURIER = "29945a96-6a08-51f5-8df9-f63612026614"
 WIZARDESS = "80e60247-caa8-465d-bbba-dcbb22f6cfc1"
-OLD = {"rhodri": (1, 528239, 359818, 9088), "tilian": (1, 586282, 476329, 3480), "bline": (1, 508535, 477271, 2284)}
+OLD = {"rhodri": (1, 528239, 359818, 9088), "tilian": (1, 586282, 476329, 3480), "bline": (1, 508535, 477271, 2284),
+       "brude": (1, 528519, 359799, 9088)}
 SUPPLY_RUN = [21500, 21498, 21499, 20497, 21501]
 SHADES = [20467, 20468, 20469, 20470, 20471, 20472]
 
@@ -105,6 +106,13 @@ class EpicFollowupTests(unittest.TestCase):
             with self.subTest(old=old):
                 self.assertGreater(before.count(old), 50)  # Rhodri's and Tilian's markers, in many quests
                 self.assertEqual(spots.count(new), before.count(old) + before.count(new))
+
+    def test_brudes_quests_point_at_him_on_the_wall(self):
+        # Lt. Brude gives level 5 "Simple Request" and level 10 "Departed Hero"; both end at him.
+        brude = self.mob(BRUDE, "Region", "X", "Y", "Z")
+        for qid in (20018, 20025):
+            with self.subTest(qid):
+                self.assertEqual(point(self.quests[qid]["Steps"][2]["Marker"]), brude)
 
     # #126
     def test_the_supply_run_starts_at_bline_tengit(self):
