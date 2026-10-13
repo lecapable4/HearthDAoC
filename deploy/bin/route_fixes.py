@@ -2,7 +2,7 @@
 
 A stable horse (GameTaxi) skips pathfinding and moves in a straight line, height included, from one point of its route
 to the next (PathPoints rows, ordered by Step). Most routes cross the Magical Bridge north of Camelot, the Prydwen Keep
-bridge and seven other bridges on one bank-to-bank segment with no point on the bridge, so the line runs up to 456
+bridge and nine other bridges on bank-to-bank segments with no point on the bridge, so the line runs up to 456
 under the walkway and the client draws the horse swimming in the river below (owner 2026-10-13). Each entry of the file
 is one such crossing: two consecutive points of a route as upstream ships them, and the points to put between them
 along the walkway, 15 over its height. The heights were measured on the owner's own client from the bridges' height
@@ -20,7 +20,9 @@ The file:
                   "points": [[x, y, z], ...], "deck": [[x, y, w], ...]}]}
 - points: between from and to, on the line between them and in order. Each takes the MaxSpeed of `to` (a segment's
   speed is its end point's), WaitTime 0, and a PathPoints_ID made from the crossing and its index (point_id), so the
-  added rows can be found. The route's later points move up by their number.
+  added rows can be found. The route's later points move up by their number. When a later release changes a
+  crossing's points (the heights tuned after a ride), its rows from the earlier release, still in one run between
+  from and to, are replaced by the new ones; moved or split up, they are the owner's and the crossing is named.
 - deck: the walkway's heights along the crossing, which the tests hold the fixed line to.
 - bridges: the names the start log uses, with no commas (the log lists them with commas).
 """
@@ -35,6 +37,7 @@ SAVEPOINT = "route_fixes"
 NOT_APPLIED = "Route fixes: not applied ({}); the horse routes keep the points they have"
 DATA_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "route_fixes.json")
 ON_LINE = 3  # how far off the straight line between from and to a point may be (rounding)
+OWN_MAX = 64  # point_id indexes below this mark the rows this fix added; no crossing has more points
 SHOWN = 10
 
 
@@ -75,6 +78,8 @@ def check(data):
         pts = crossing.get("points")
         if not isinstance(pts, list) or not pts or not all(_is_point(p) for p in pts):
             raise ValueError(f"{what}: no points")
+        if len(pts) > OWN_MAX:
+            raise ValueError(f"{what}: more than {OWN_MAX} points")
         if not isinstance(crossing.get("deck"), list) or not all(_is_point(p) for p in crossing["deck"]):
             raise ValueError(f"{what}: deck must be a list of [x, y, w]")
         (ax, ay, _), (bx, by, _) = crossing["from"], crossing["to"]
@@ -90,6 +95,11 @@ def check(data):
             if not last < along < length:
                 raise ValueError(f"{what}: the points must be in order between from and to")
             last = along
+
+
+def _rows(conn, route):
+    return conn.execute("SELECT PathID, Step, X, Y, Z, MaxSpeed, PathPoints_ID FROM PathPoints WHERE PathID=? "
+                        "ORDER BY Step", (route,)).fetchall()
 
 
 def _has_routes(conn):
@@ -111,15 +121,30 @@ def apply(conn, now=None, data=None):
             name.lower() for _, name, *_ in conn.execute('PRAGMA table_info("PathPoints")')} else None
         changed, kept = [], []
         for crossing in data.get("crossings") or []:
-            rows = conn.execute("SELECT PathID, Step, X, Y, Z, MaxSpeed FROM PathPoints WHERE PathID=? ORDER BY Step",
-                                (crossing["route"],)).fetchall()
+            rows = _rows(conn, crossing["route"])
             if not rows:
                 continue  # the route isn't in this world
             coords = [tuple(r[2:5]) for r in rows]
             start, end, pts = tuple(crossing["from"]), tuple(crossing["to"]), [tuple(p) for p in crossing["points"]]
+            label = f"{crossing['route']} ({data['bridges'][crossing['bridge']]})"
+            ours = {point_id(crossing, index) for index in range(OWN_MAX)}
+            mine = [i for i, row in enumerate(rows) if row[6] in ours]
+            if mine:  # this fix's rows, from this release or an earlier one with other numbers
+                first, last = mine[0], mine[-1]
+                if (mine != list(range(first, last + 1)) or first == 0 or last + 1 == len(rows)
+                        or coords[first - 1] != start or coords[last + 1] != end):
+                    kept.append(label)  # moved or split up since: the owner's now
+                    continue
+                if coords[first:last + 1] == pts:
+                    continue
+                conn.execute(f"DELETE FROM PathPoints WHERE PathPoints_ID IN ({', '.join('?' * len(mine))})",
+                             [rows[i][6] for i in mine])
+                conn.execute("UPDATE PathPoints SET Step=Step-? WHERE PathID=? AND Step>?",
+                             (len(mine), rows[first][0], rows[last][1]))
+                rows = _rows(conn, crossing["route"])
+                coords = [tuple(r[2:5]) for r in rows]
             done = [i for i in range(len(coords)) if coords[i:i + len(pts) + 2] == [start, *pts, end]]
             pending = [i for i in range(len(coords) - 1) if coords[i] == start and coords[i + 1] == end]
-            label = f"{crossing['route']} ({data['bridges'][crossing['bridge']]})"
             if done and not pending:
                 continue
             if len(pending) != 1 or done:

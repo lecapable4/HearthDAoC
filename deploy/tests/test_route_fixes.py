@@ -73,6 +73,29 @@ class RouteFixTests(unittest.TestCase):
         self.assertEqual(route_fixes.apply(conn, NOW, DATA), [])
         self.assertEqual(len(points(conn)), 7)
 
+    def test_points_from_an_earlier_release_are_replaced_by_the_files_new_ones(self):
+        # The heights may be tuned after the first rides: a later release's points replace the rows this fix added
+        # (found by their PathPoints_ID), and the route's later steps follow.
+        conn = world()
+        route_fixes.apply(conn, NOW, DATA)
+        retuned = dict(DATA, crossings=[dict(DATA["crossings"][0], points=[[1500, 0, 60]])])
+        self.assertEqual(route_fixes.apply(conn, NOW, retuned), [ONE_LINE])
+        self.assertEqual(points(conn), [(1, 0, 0, 0, 100), (2, 1000, 0, 0, 200), (3, 1500, 0, 60, 300),
+                                        (4, 2000, 0, 0, 300), (5, 3000, 0, 0, 400), (6, 4000, 0, 0, 500)])
+        self.assertEqual(conn.execute("SELECT PathPoints_ID FROM PathPoints WHERE Step=3").fetchone(),
+                         (route_fixes.point_id(retuned["crossings"][0], 0),))
+        self.assertEqual(route_fixes.apply(conn, NOW, retuned), [])
+
+    def test_its_own_points_moved_away_from_the_crossing_are_left_alone(self):
+        conn = world()
+        route_fixes.apply(conn, NOW, DATA)
+        conn.execute("UPDATE PathPoints SET Step=99 WHERE PathPoints_ID=?", (route_fixes.point_id(DATA["crossings"][0], 0),))
+        before = points(conn)
+        retuned = dict(DATA, crossings=[dict(DATA["crossings"][0], points=[[1500, 0, 60]])])
+        self.assertEqual(route_fixes.apply(conn, NOW, retuned),
+                         ["Route fixes: 1 left as it is (the route no longer has that segment): R1 (the first bridge)"])
+        self.assertEqual(points(conn), before)
+
     def test_two_crossings_of_one_route_both_get_their_points(self):
         data = dict(DATA, crossings=DATA["crossings"] + [
             {"route": "R1", "bridge": "b2", "from": [3000, 0, 0], "to": [4000, 0, 0], "points": [[3500, 0, 80]],
@@ -125,7 +148,8 @@ class RouteFixTests(unittest.TestCase):
         good = DATA["crossings"][0]
         for change, error in (({"points": []}, "no points"), ({"from": [1, 2]}, "from"),
                               ({"points": [[1700, 0, 50], [1300, 0, 50]]}, "in order"),
-                              ({"points": [[1300, 40, 50]]}, "off the line"), ({"route": ""}, "no route")):
+                              ({"points": [[1300, 40, 50]]}, "off the line"), ({"route": ""}, "no route"),
+                              ({"points": [[1001 + 10 * i, 0, 50] for i in range(65)]}, "more than 64 points")):
             with self.subTest(error):
                 with self.assertRaisesRegex(ValueError, error):
                     route_fixes.check(dict(DATA, crossings=[dict(good, **change)]))
