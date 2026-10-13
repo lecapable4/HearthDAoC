@@ -100,26 +100,28 @@ class UpsertTests(unittest.TestCase):
         self.assertEqual(row(self.db, sp.SI_KEY), ("server", sp.SI_DESCRIPTION, "False", "True"))
 
     def test_cli(self):
-        r = run_cli(self.db, "--gm-only-commands", "/tele;/tc", "--si-start-choice", "on")
+        r = run_cli(self.db, "--gm-only-commands", "/tele;/tc", "--si-start-choice", "on", "--bot-rp-timer-wait", "on")
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertEqual(value(self.db, sp.OVERRIDES_KEY), "/tele=2;/tc=2")
-        self.assertEqual(run_cli(self.db, "--gm-only-commands", "tele", "--si-start-choice", "on").returncode, 2)
+        self.assertEqual(run_cli(self.db, "--gm-only-commands", "tele", "--si-start-choice", "on",
+                                 "--bot-rp-timer-wait", "on").returncode, 2)
 
     def test_cli_writes_the_si_start_choice_as_true_or_false(self):
-        r = run_cli(self.db, "--gm-only-commands", "none", "--si-start-choice", "ON")
-        self.assertEqual((r.returncode, r.stdout, r.stderr), (0, "GM-only commands: none\nShrouded Isles start choice: on\n", ""))
+        r = run_cli(self.db, "--gm-only-commands", "none", "--si-start-choice", "ON", "--bot-rp-timer-wait", "on")
+        self.assertEqual((r.returncode, r.stdout, r.stderr),
+                         (0, "GM-only commands: none\nShrouded Isles start choice: on\nBot realm point timer wait: on\n", ""))
         self.assertEqual(row(self.db, sp.SI_KEY), ("server", sp.SI_DESCRIPTION, "False", "True"))
-        r = run_cli(self.db, "--gm-only-commands", "none", "--si-start-choice", "Off")
+        r = run_cli(self.db, "--gm-only-commands", "none", "--si-start-choice", "Off", "--bot-rp-timer-wait", "on")
         self.assertEqual((r.returncode, r.stdout, r.stderr), (0, "Shrouded Isles start choice: off\n", ""))
         self.assertEqual(row(self.db, sp.SI_KEY), ("server", sp.SI_DESCRIPTION, "False", "False"))
 
     def test_cli_prints_nothing_when_nothing_changes(self):
-        run_cli(self.db, "--gm-only-commands", "/tele;/tc", "--si-start-choice", "off")
-        r = run_cli(self.db, "--gm-only-commands", "/tele;/tc", "--si-start-choice", "OFF")
+        run_cli(self.db, "--gm-only-commands", "/tele;/tc", "--si-start-choice", "off", "--bot-rp-timer-wait", "off")
+        r = run_cli(self.db, "--gm-only-commands", "/tele;/tc", "--si-start-choice", "OFF", "--bot-rp-timer-wait", "OFF")
         self.assertEqual((r.returncode, r.stdout, r.stderr), (0, "", ""))
 
     def test_cli_refuses_a_bad_si_start_choice_and_writes_nothing(self):
-        r = run_cli(self.db, "--gm-only-commands", "/tele;/tc", "--si-start-choice", "yes")
+        r = run_cli(self.db, "--gm-only-commands", "/tele;/tc", "--si-start-choice", "yes", "--bot-rp-timer-wait", "on")
         self.assertEqual((r.returncode, r.stdout), (2, ""))
         self.assertEqual(r.stderr, "ERROR: HEARTHDAOC_SI_START_CHOICE must be on or off, got 'yes'\n")
         self.assertIsNone(value(self.db, sp.OVERRIDES_KEY))
@@ -137,8 +139,9 @@ class UpsertTests(unittest.TestCase):
         self.assertIsNone(value(self.db, sp.SI_KEY))
         sp.set_property(self.db, sp.OVERRIDES_KEY, sp.gm_only_overrides("/tele;/tc"))
         self.assertEqual(value(self.db, sp.OVERRIDES_KEY), "/tele=2;/tc=2")
-        r = run_cli(self.db, "--gm-only-commands", "/tele;/tc", "--si-start-choice", "on")
-        self.assertEqual((r.returncode, r.stdout), (0, "Shrouded Isles start choice: on\n"), r.stderr)
+        r = run_cli(self.db, "--gm-only-commands", "/tele;/tc", "--si-start-choice", "on", "--bot-rp-timer-wait", "on")
+        self.assertEqual((r.returncode, r.stdout), (0, "Shrouded Isles start choice: on\nBot realm point timer wait: on\n"),
+                         r.stderr)
         self.assertEqual(row(self.db, sp.SI_KEY), ("server", sp.SI_DESCRIPTION, "False", "True"))
 
 
