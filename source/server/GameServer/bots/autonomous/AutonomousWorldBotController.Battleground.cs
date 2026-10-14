@@ -66,6 +66,8 @@ namespace DOL.GS
             }
             _rvrSharedEvent = false;
             _rvrIntent = assault ? AutonomousRvrEventLayer.Intent.AssaultKeep : AutonomousRvrEventLayer.Intent.Roam;
+            // HearthDAoC: back from a death and worth no realm points yet: wait at the arrival point.
+            if (RpTimerWaitBattleground(brain, bot, bracket, central)) return true;
 
             if (assault)
             {

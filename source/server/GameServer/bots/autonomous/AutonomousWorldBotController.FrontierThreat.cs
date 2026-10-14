@@ -155,6 +155,8 @@ public sealed partial class AutonomousWorldBotController
                     (siegeFighter ? AutonomousRvrDefense.IsCombatant(npc) :
                         npc.Brain is IControlledBrain pet && pet.GetLivingOwner() is IGamePlayer)) && Eligible(npc)))
             .Where(target => bot.GetDistanceTo(target) <= TargetSearchRadius)
+            // HearthDAoC: a bot waiting out the realm point timer answers only enemies attacking it or a realm-mate near it.
+            .Where(target => !HearthDAoC.RpTimerWaitScript.IsWaiting(bot) || FiringOnRealm(bot, target))
             .Where(target => defending || !BotSiegeRuntime.Assigned(bot) || bot.IsWithinRadius(target, 450) && target is not GameSiegeWeapon)
             .OrderBy(target => target.TargetObject is GameBot friendly && friendly.Realm == bot.Realm &&
                 bot.IsWithinRadius(friendly, 1000) && BotSiegeRuntime.HoldingPosition(friendly) ? 0 : 1)

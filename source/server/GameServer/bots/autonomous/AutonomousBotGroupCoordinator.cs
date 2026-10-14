@@ -1478,6 +1478,8 @@ public static partial class AutonomousBotGroupCoordinator
         GameBot[] available = activeRoster
             .Where(bot => bot.IsAlive && !bot.IsTemporaryGroupHelper && !bot.IsPlayerLedGroup && bot.Group == null && bot.CurrentRegion != null &&
                           !AutonomousRealmRaid.IsReserved(bot) &&
+                          // HearthDAoC: a bot waiting out the realm point timer joins no new roaming warband.
+                          !HearthDAoC.RpTimerWaitScript.IsWaiting(bot) &&
                           // siege recruits are merged into full parties by FormSiegeParties, not random warbands
                           !(objectiveKind == eAutonomousObjectiveKind.RvR &&
                             AutonomousRvrEventLayer.IsForceCommitted($"rvr-{bot.DatabaseID}", GameLoop.GameLoopTime)) &&
@@ -1984,6 +1986,8 @@ public static partial class AutonomousBotGroupCoordinator
                 }
             }
             if (session.LeaderReadyForAssembly &&
+                // HearthDAoC: the warband leaves together once its member with the most time left can make the march.
+                !HearthDAoC.RpTimerWaitScript.WarbandWaits(session.Id, session.ObjectiveKind, session.RendezvousRegion, session.Rendezvous, members) &&
                 session.Recovery.TryComplete(RecoveryMembers(session, members, true), GameLoop.GameLoopTime))
             {
                 session.Phase = "Choosing group target";

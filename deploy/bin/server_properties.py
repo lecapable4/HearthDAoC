@@ -7,6 +7,9 @@ shortcuts then need GM rights.
 HEARTHDAOC_SI_START_CHOICE (on or off, case ignored) becomes the si_start_choice property (True or
 False): a new level-1 character of a classic race is then asked once whether to begin in its realm's
 Shrouded Isles town.
+HEARTHDAOC_BOT_RP_TIMER_WAIT (on or off, case ignored) becomes the bot_rp_timer_wait property (True or
+False): a gamebot released after a death in RvR or a battleground then waits at a safe spot and comes back
+just as it is worth realm points again.
 Only writes a property when its value differs, and prints a line for each one it changed.
 """
 import argparse
@@ -30,6 +33,13 @@ SI_DESCRIPTION = ("Ask new level 1 characters of the classic races whether to st
 SI_DEFAULT = "False"  # the code default (off), as the server itself writes it
 SI_VALUES = {"on": "True", "off": "False"}
 
+# Must match the server's [ServerProperty("server", "bot_rp_timer_wait", RP_WAIT_DESCRIPTION, false)] in
+# source/server/GameServer/scripts/hearthdaoc/RpTimerWaitScript.cs (deploy/tests/test_rp_timer_wait.py checks).
+RP_WAIT_KEY = "bot_rp_timer_wait"
+RP_WAIT_DESCRIPTION = ("Released gamebots wait at a safe spot until their trip back to the fight ends as their "
+                       "rp_worth_seconds timer does, so they come back worth realm points")
+RP_WAIT_DEFAULT = "False"  # the code default (off), as the server itself writes it
+
 
 class PropertyError(Exception):
     pass
@@ -52,6 +62,14 @@ def si_start_value(spec):
         return SI_VALUES[spec.lower()]
     except KeyError:
         raise PropertyError(f"HEARTHDAOC_SI_START_CHOICE must be on or off, got {spec!r}") from None
+
+
+def bot_rp_timer_wait_value(spec):
+    """'on' -> 'True', 'off' -> 'False', in any case; anything else is refused."""
+    try:
+        return SI_VALUES[spec.lower()]
+    except KeyError:
+        raise PropertyError(f"HEARTHDAOC_BOT_RP_TIMER_WAIT must be on or off, got {spec!r}") from None
 
 
 def set_property(db, key, value, category="server", description=OVERRIDES_DESCRIPTION, default=""):
@@ -82,10 +100,12 @@ def main(argv=None):
     ap.add_argument("--db", required=True)
     ap.add_argument("--gm-only-commands", required=True, help='e.g. "/tele;/tc", or "none"')
     ap.add_argument("--si-start-choice", required=True, help="on or off (case ignored)")
+    ap.add_argument("--bot-rp-timer-wait", required=True, help="on or off (case ignored)")
     a = ap.parse_args(argv)
     try:  # check every setting before writing any
         overrides = gm_only_overrides(a.gm_only_commands)
         si_start = si_start_value(a.si_start_choice)
+        rp_wait = bot_rp_timer_wait_value(a.bot_rp_timer_wait)
     except PropertyError as e:
         print(f"ERROR: {e}", file=sys.stderr)
         return 2
@@ -93,6 +113,8 @@ def main(argv=None):
         print(f"GM-only commands: {a.gm_only_commands.strip() or 'none'}")
     if set_property(a.db, SI_KEY, si_start, description=SI_DESCRIPTION, default=SI_DEFAULT):
         print(f"Shrouded Isles start choice: {a.si_start_choice.lower()}")
+    if set_property(a.db, RP_WAIT_KEY, rp_wait, description=RP_WAIT_DESCRIPTION, default=RP_WAIT_DEFAULT):
+        print(f"Bot realm point timer wait: {a.bot_rp_timer_wait.lower()}")
     return 0
 
 

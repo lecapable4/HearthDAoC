@@ -317,6 +317,8 @@ namespace DOL.GS
                     _nextPlanTick = 0;
                 }
                 ObserveDeaths(bot);
+                // HearthDAoC: note a release (not a resurrection) before the hand-over clears it.
+                HearthDAoC.RpTimerWaitScript.NoteRelease(bot);
 
                 // Every autonomous return uses the same navmesh controller,
                 // even before a casualty has propagated into group metadata.
@@ -1734,6 +1736,8 @@ namespace DOL.GS
                 _rvrSharedEvent = false;
                 _nextRvrPlanReview = 0;
             }
+            // HearthDAoC: back from a death and worth no realm points yet: wait at the bind.
+            if (RpTimerWaitRvr(brain, bot, battleActive, dynamicWarband, committedPlan != null)) return true;
 
             // RvR has no PvE puller. Every cohesive member can acquire a local
             // target, with pressure spread over the closest visible enemies.

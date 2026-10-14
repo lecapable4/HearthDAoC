@@ -242,7 +242,8 @@ SERVER_UNIT_TESTS = ("dotnet test source/server/Tests/Tests.csproj --nologo --fi
                      '|FullyQualifiedName~UT_ClassicQuestsExtra|FullyQualifiedName~UT_ClassicQuestsChoice|FullyQualifiedName~UT_LinkedCamps'
                      '|FullyQualifiedName~UT_EpicChain'
                      '|FullyQualifiedName~UT_QuestIndicatorProbe'
-                     '|FullyQualifiedName~UT_QuestIndicators|FullyQualifiedName~UT_IndicatorSentStore"')
+                     '|FullyQualifiedName~UT_QuestIndicators|FullyQualifiedName~UT_IndicatorSentStore'
+                     '|FullyQualifiedName~UT_RpTimerWait|FullyQualifiedName~UT_RpTimerWaitScript"')
 UNIT_TESTS = os.path.join(ROOT, "source", "server", "Tests", "UnitTests")
 
 
@@ -267,7 +268,8 @@ class ServerUnitTestWorkflowTests(unittest.TestCase):
                                  "UT_ClassicQuestsExtra", "UT_ClassicQuestsChoice", "UT_LinkedCamps",
                                  "UT_EpicChain",
                                  "UT_QuestIndicatorProbe",
-                                 "UT_QuestIndicators", "UT_IndicatorSentStore"])
+                                 "UT_QuestIndicators", "UT_IndicatorSentStore",
+                                 "UT_RpTimerWait", "UT_RpTimerWaitScript"])
         for name in names:
             with open(os.path.join(UNIT_TESTS, name + ".cs"), encoding="utf-8") as f:
                 self.assertIn(f"public sealed class {name}\n", f.read(), name)
