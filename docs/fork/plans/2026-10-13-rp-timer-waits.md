@@ -2,6 +2,12 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+> **After execution (2026-10-13):** the owner chose to adopt the tested code: the twelve task commits a fresh dry run
+> made from this plan as written (ee84242..08ef788), with the plan review's two changes folded into Tasks 5 and 12. A
+> whole-branch review (four seats, each finding checked by a skeptic) found one Important, fixed in a553f26: the
+> in-game guide's log reads now take every server log file, oldest first, since the server starts a new one at
+> midnight (this plan's copy of the guide reads `server.log` only). Rulings and the deferred minors are in the PR.
+
 **Goal:** A gamebot killed in RvR or a battleground and released waits at a safe spot (its realm's battleground
 arrival point, its bind, or its warband's slot at the border keep) and leaves when its time left is no more than its
 trip back, so it arrives just as it is worth realm points again; a frontier warband leaves together; a bot resurrected
