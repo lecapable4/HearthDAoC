@@ -313,5 +313,19 @@ class EndingsTests(unittest.TestCase):
             self.assertNotIn(b"\t", raw, path)
 
 
+class GuideTests(unittest.TestCase):
+    GUIDE = os.path.join(ROOT, "docs", "fork", "verification", "rp-timer-waits-ingame.md")
+    EVERY_LOG = "docker exec hearthdaoc-server sh -c 'cat $(ls -tr /data/logs/server*)'"
+
+    def test_the_log_reads_take_every_server_log_file_oldest_first(self):
+        # logconfig.xml starts a new server log at midnight and at 100 MB (archiveEvery="Day", kept 7 days), so a read
+        # of server.log alone would lose the day's earlier lines and show a wait across midnight as a lone leave.
+        guide = source(self.GUIDE)
+        self.assertEqual(guide.count("/data/logs/server.log"), 0, "a read of today's server.log only")
+        reads = guide.count("docker exec hearthdaoc-server")
+        self.assertEqual(guide.count(self.EVERY_LOG), reads - 1)  # all but `ls /data/logs`
+        self.assertIn("docker exec hearthdaoc-server ls /data/logs", guide)
+
+
 if __name__ == "__main__":
     unittest.main()

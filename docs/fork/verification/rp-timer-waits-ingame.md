@@ -17,15 +17,16 @@ leaves at its own moment (no waves).
 ## Reading the server log
 
 Each event writes one line starting `HEARTHDAOC_RP_WAIT` to the server log. `./hdc logs` keeps only the last 200
-lines, so read the log file itself, on the server, from `~/hearthdaoc`:
+lines, so read the log files themselves, on the server, from `~/hearthdaoc`. The server starts a new log file at
+midnight (and at 100 MB) and keeps a week of them, so every command here reads them all, oldest first:
 
 ```bash
-docker exec hearthdaoc-server grep HEARTHDAOC_RP_WAIT /data/logs/server.log
+docker exec hearthdaoc-server sh -c 'cat $(ls -tr /data/logs/server*)' | grep HEARTHDAOC_RP_WAIT
 ```
 
 Add `| tail -20` for the latest lines, or `| grep 'bot=<name>'` for one bot. Each line starts with its date and time
-(`MM/dd HH:mm:ss`). The server may start a new log file at midnight: `docker exec hearthdaoc-server ls /data/logs`
-shows the older ones beside `server.log`.
+(`MM/dd HH:mm:ss`). `docker exec hearthdaoc-server ls /data/logs` lists the files: `server.log` is today's, and the
+older ones carry their date.
 
 | Line | Written when | What to read |
 |---|---|---|
@@ -44,7 +45,7 @@ The arrival points outside the portal keeps, the same in all four battlegrounds:
 Every line counted by kind, case, reason and worth, for checks 7 and 9 and the reads at the end:
 
 ```bash
-docker exec hearthdaoc-server grep HEARTHDAOC_RP_WAIT /data/logs/server.log |
+docker exec hearthdaoc-server sh -c 'cat $(ls -tr /data/logs/server*)' | grep HEARTHDAOC_RP_WAIT |
   awk '{ k = ""; for (i = 1; i <= NF; i++) if ($i ~ /^(action|case|reason|worth)=/) k = k " " $i; n[k]++ }
        END { for (k in n) print n[k] k }' | sort -k2
 ```
@@ -54,7 +55,7 @@ right after the `grep` of any command here, with the month/day and hour:minute y
 from 18:00 to 21:00 on 14 October:
 
 ```bash
-docker exec hearthdaoc-server grep HEARTHDAOC_RP_WAIT /data/logs/server.log |
+docker exec hearthdaoc-server sh -c 'cat $(ls -tr /data/logs/server*)' | grep HEARTHDAOC_RP_WAIT |
   awk '$0 >= "10/14 18:00" && $0 < "10/14 21:00"' |
   awk '{ k = ""; for (i = 1; i <= NF; i++) if ($i ~ /^(action|case|reason|worth)=/) k = k " " $i; n[k]++ }
        END { for (k in n) print n[k] k }' | sort -k2
@@ -129,7 +130,11 @@ Result:
 In the counts (above): `start case=frontier` and `start case=siege` for defenders near their home binds (Fensalir
 Faste, Mjollner Faste, Dun Ailinne …); `skip … reason=other-region` for invaders, who release in their capital;
 `start case=warband` with a `group=`, one per released member at the warband's slots, and one `leave` each when the
-warband sets out together (`docker exec hearthdaoc-server grep 'case=warband' /data/logs/server.log`).
+warband sets out together:
+
+```bash
+docker exec hearthdaoc-server sh -c 'cat $(ls -tr /data/logs/server*)' | grep 'case=warband'
+```
 
 Result:
 
@@ -154,12 +159,13 @@ Result:
 Run these from `~/hearthdaoc` after some hours of play. A server restart ends every wait without a `leave` line (the
 timer and the waits are kept in memory only), so lines from before a restart can show a `start` with no `leave`.
 
-**Every `start` has exactly one `leave`.** The last two numbers should be 0 (except across a restart). The middle one
+**Every `start` has exactly one `leave`.** The last two numbers should be 0 (except across a restart, or at the start
+of the oldest log file kept, a week back). The middle one
 is how many bots are sitting out at the last line read; to see it at another moment, add a time filter such as
 `awk '$0 < "10/14 20:00"' |` after the `grep`.
 
 ```bash
-docker exec hearthdaoc-server grep -E 'HEARTHDAOC_RP_WAIT action=(start|leave) ' /data/logs/server.log |
+docker exec hearthdaoc-server sh -c 'cat $(ls -tr /data/logs/server*)' | grep -E 'HEARTHDAOC_RP_WAIT action=(start|leave) ' |
   awk '{ id = $0; sub(/.* id=/, "", id); sub(/ .*/, "", id)
          if ($0 ~ / action=start /) { starts++; if (open[id]) twice++; open[id] = 1 }
          else { leaves++; if (!open[id]) lone++; open[id] = 0 } }
@@ -173,7 +179,7 @@ battlegrounds; 1, 100 and 200 the frontiers). Compare a few hours with the switc
 (the time filter, above).
 
 ```bash
-docker exec hearthdaoc-server grep 'HEARTHDAOC_RP_WAIT action=died ' /data/logs/server.log |
+docker exec hearthdaoc-server sh -c 'cat $(ls -tr /data/logs/server*)' | grep 'HEARTHDAOC_RP_WAIT action=died ' |
   awk '{ r = $0; sub(/.* region=/, "", r); sub(/ .*/, "", r); all[r]++; total++
          if ($0 ~ / worth=no /) { no[r]++; none++ } }
        END { for (r in all) printf "region %s: %d of %d kills paid nothing\n", r, no[r], all[r]
@@ -186,7 +192,7 @@ deaths to monsters and neutral guards restart the timer too, but write no such l
 update.
 
 ```bash
-docker exec hearthdaoc-server grep 'RVR_BOT_KILLED ' /data/logs/server.log |
+docker exec hearthdaoc-server sh -c 'cat $(ls -tr /data/logs/server*)' | grep 'RVR_BOT_KILLED ' |
   awk 'BEGIN { split("0 31 59 90 120 151 181 212 243 273 304 334", before, " ") }
        { split(substr($0, 1, 14), t, /[\/ :]/)
          s = ((before[t[1] + 0] + t[2]) * 24 + t[3]) * 3600 + t[4] * 60 + t[5]
@@ -199,7 +205,7 @@ docker exec hearthdaoc-server grep 'RVR_BOT_KILLED ' /data/logs/server.log |
 259 s, Midgard and Hibernia about 227 s.
 
 ```bash
-docker exec hearthdaoc-server grep 'HEARTHDAOC_RP_WAIT action=leave ' /data/logs/server.log |
+docker exec hearthdaoc-server sh -c 'cat $(ls -tr /data/logs/server*)' | grep 'HEARTHDAOC_RP_WAIT action=leave ' |
   awk '/ reason=due/ { c = $0; sub(/.* case=/, "", c); sub(/ .*/, "", c)
          r = $0; sub(/.* realm=/, "", r); sub(/ .*/, "", r)
          w = $0; sub(/.* waited=/, "", w); sub(/ .*/, "", w); n[c " " r]++; sum[c " " r] += w }
