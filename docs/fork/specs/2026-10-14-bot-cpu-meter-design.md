@@ -1,8 +1,7 @@
 # Bot CPU meter: average CPU per bot, by kind (design)
 
-Status: draft for the owner's review, written 2026-10-18. The owner's decision of 2026-10-14 (section 1) sets the
-scope; every choice the research left open is ruled in section 11, and the owner can change any of them. Six of them
-want the owner's answer (Read this first).
+Status: approved by the owner 2026-10-18, with the default of every ruling (section 11). The owner's decision of
+2026-10-14 (section 1) set the scope.
 Date: 2026-10-14 (the decision). Fork: `lometur/HearthDAoC`. Branch: `bot-cpu-meter`. Issue #137. Release: merging the
 PR publishes the next release; the server picks it up with `./hdc update`, which adds `HEARTHDAOC_BOT_CPU=off` to
 `.env`. Nothing changes until a GM turns the meter on. No world data changes. Effort: about 2.5-3 working days with the
@@ -58,8 +57,8 @@ marked (est.) come from code reading or those local benchmarks, not from a runni
 
 **Upstream:** five lines in two files (GL 2, NS 3), each marked `// HearthDAoC:`. Four new files of our own.
 
-**Rulings that want your answer** (each has a default; the rest of section 11 is settled from the research and the
-code check)
+**Rulings the owner answered** (2026-10-18: the default of each; the rest of section 11 is settled from the research
+and the code check)
 
 - Ruling 3: `/botcpu on` with no minutes runs until `off` or the next start (default), or for 60 minutes. A meter
   left on costs an est. 1.4-5.4% of one core until then.
@@ -1098,18 +1097,19 @@ Short, for the live server; the prototype's full rules are in cpu §5 and README
 ## 11. Rulings
 
 Every choice the research left open, as this spec settles it. The owner may change any. Rulings 3, 4, 5, 15, 21 and
-26 want the owner's answer (Read this first); the rest are settled from the research and the code check.
+26 were the owner's to answer: the defaults, 2026-10-18 (Read this first); the rest are settled from the research and
+the code check.
 
 1. **Names** (owner, 2026-10-14: its own PR, off by default)**:** property `bot_cpu_meter`, category `server`, field
    `BOT_CPU_METER` in `BotCpuScript`, code default false; `HEARTHDAOC_BOT_CPU` (on/off, case ignored, default off);
    `--bot-cpu`; "Bot CPU meter: on|off".
 2. **The property is read once, at start.** `/botcpu on|off` overrides it until the next start and never writes it;
    `&serverproperties refresh` does not toggle a running meter.
-3. **`/botcpu on [minutes]`** (wants an answer), 1-1440, stops by itself; with no minutes it runs until `off` or the
+3. **`/botcpu on [minutes]`** (owner: default, 2026-10-18), 1-1440, stops by itself; with no minutes it runs until `off` or the
    restart; on an already running meter it sets or clears the stop time and writes the `on` line again.
-4. **`/botcpu heap` is not in the live PR** (wants an answer; 4.5). The rest of the research's commands stay: no
+4. **`/botcpu heap` is not in the live PR** (owner: default, 2026-10-18; 4.5). The rest of the research's commands stay: no
    arguments, `on`, `off`, `top [kind]`, `reset`.
-5. **`/botcpu` is GM** (wants an answer; `ePrivLevel.GM`), like `/diag` and `/epic`.
+5. **`/botcpu` is GM** (owner: default, 2026-10-18; `ePrivLevel.GM`), like `/diag` and `/epic`.
 6. **H1 hands the pool call to the meter** when on, so the meter can time nested calls; off, the pool call is
    unchanged.
 7. **H6 is taken**, as two marked lines around NS:28-31, charging `gamebot` / `Fleet`, with the nesting rule of 3.5.
@@ -1127,7 +1127,7 @@ Every choice the research left open, as this spec settles it. The owner may chan
     (3.3).
 14. **`monster`** covers every living that is not a bot, a player or a pet (guards, merchants, keep doors); a
     non-living owner is `unattributed` (2.5).
-15. **`playerbot`** (wants an answer) = a `GamePlayer` whose client implements `IPlayerBotClient` or is a
+15. **`playerbot`** (owner: default, 2026-10-18) = a `GamePlayer` whose client implements `IPlayerBotClient` or is a
     `BotDummyClient`; the prototype's client implements `IPlayerBotClient` (deriving from `BotDummyClient` also works)
     and is registered in `ClientService` (2.5).
 16. **`n`:** GameBots from the registry sampled each second (corpses included, est.); player kinds from client
@@ -1143,7 +1143,7 @@ Every choice the research left open, as this spec settles it. The owner may chan
 20. **Compare pairs:** `playerbot/gamebot`, `piloted/gamebot` and `player/gamebot`, when both have `n` ≥ 1.0; fields
     `cpu`, `alloc`, `calls`, `usPerCall`, with `calls` read as items per bot, not thinks (2.1, 7). No `think` ratio:
     the prototype's think is in `Timer` with its other timers, so it would not be like for like.
-21. **CSV** (wants an answer)**:** `/data/logs/bot-cpu.csv`, one row per window and kind, the window's process values
+21. **CSV** (owner: default, 2026-10-18)**:** `/data/logs/bot-cpu.csv`, one row per window and kind, the window's process values
     repeated, stage columns as whole-kind totals from the raw ticks; renamed `.1` above 50 MB or when its header is
     not the current one.
 22. **Process line:** the fields of 2.1; loop threads found by their `comm` names; the camp planner thread reported
@@ -1154,7 +1154,7 @@ Every choice the research left open, as this spec settles it. The owner may chan
     `UT_BotCpuMeter`, `UT_BotCpuReport`, `UT_BotCpuScript` and `deploy/tests/test_bot_cpu.py`.
 25. **Stage columns** as in 3.4: the 17 stages under short names, the three quest services merged into `Quests`, plus
     `Fleet`, `Pets` and `Other`.
-26. **`piloted` is kept** (wants an answer): cheap and ready if `/bot` returns; the other choice folds it into `player`
+26. **`piloted` is kept** (owner: default, 2026-10-18): cheap and ready if `/bot` returns; the other choice folds it into `player`
     and drops the pilot lookup on player-owned items (3.2).
 27. **The report side runs one step at a time** under one lock, with a first-in-first-out job queue; a command on the
     game loop only turns `Enabled` off (for `off`) and queues a job, and reads the result the report published;
