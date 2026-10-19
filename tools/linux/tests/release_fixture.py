@@ -7,6 +7,8 @@ import io
 import json
 import os
 import random
+import sqlite3
+import tempfile
 import threading
 import zipfile
 
@@ -39,6 +41,39 @@ DEFAULT_FILES = {
 
 def _sha(data):
     return hashlib.sha256(data).hexdigest()
+
+
+def sqlite_world(*statements):
+    """The bytes of a small SQLite database made by running the statements (a fake world)."""
+    with tempfile.TemporaryDirectory() as tmp:
+        path = os.path.join(tmp, "world.db")
+        con = sqlite3.connect(path)
+        try:
+            for sql in statements:
+                con.execute(sql)
+            con.commit()
+        finally:
+            con.close()
+        with open(path, "rb") as f:
+            return f.read()
+
+
+# The worlds of build_patched(), and the world update its patch carries for them.
+WORLD_SQL = ("CREATE TABLE Mob (Mob_ID TEXT PRIMARY KEY, Name TEXT, Level INTEGER, LastTimeRowUpdated TEXT)",
+             "INSERT INTO Mob VALUES ('m1', 'pooka', 10, '2026-01-01')")
+
+
+def world_update(old_level=10):
+    """Pooka m1 from old_level to 11, a new monster and a new table, like upstream's db-<version>.json."""
+    return {"Version": "test.1", "IgnoreColumns": ["LastTimeRowUpdated"],
+            "NewTables": [{"Table": "offline_world_bot_guild", "Indexes": [],
+                           "Create": "CREATE TABLE offline_world_bot_guild (BotId TEXT PRIMARY KEY, GuildID TEXT)"}],
+            "NewColumns": [],
+            "Tables": [{"Table": "Mob", "Columns": ["Mob_ID", "Name", "Level", "LastTimeRowUpdated"], "Key": ["Mob_ID"],
+                        "IgnoreCompare": [], "Insert": [["m2", "fenrir shredder", 30, "2026-10-01"]],
+                        "Update": [{"Old": ["m1", "pooka", old_level, "2026-01-01"],
+                                    "New": ["m1", "pooka", 11, "2026-10-01"]}],
+                        "Delete": []}]}
 
 
 def build(directory, files=None, part_size=4096, tamper=None, extra_names=()):
@@ -134,6 +169,22 @@ def build_patch(directory, lock, base_files, files=None, remove=(), updates=None
              "world_updates": {edition: {"database": key, "path": name, "sha256": _sha(update_bytes[name])}
                                for edition, (key, name, _) in updates.items()}}
     return dict(lock, patch=patch), files
+
+
+def build_patched(directory, update=None, **kw):
+    """A fake release whose edition worlds are small SQLite worlds (WORLD_SQL), with a fake patch on it laid out as
+    upstream's 0.37 patch is: a new classic-quests.json and navmesh/pockets.json, and a world update for both
+    editions (patch.json "plain" = classic). Returns (lock with the patch, base files, patch files)."""
+    files = dict(DEFAULT_FILES)
+    files["runtime/data/opendaoc.sqlite3.db"] = sqlite_world(*WORLD_SQL)
+    files["editions/0.34-no-custom-class/runtime/data/opendaoc.sqlite3.db"] = sqlite_world(*WORLD_SQL)
+    lock, files = build(directory, files)
+    update = world_update() if update is None else update
+    kw.setdefault("files", {"runtime/server/classic-quests.json": b'{"Quests": {"patched": 1}}',
+                            "runtime/server/navmesh/pockets.json": b'{"pockets": []}'})
+    kw.setdefault("updates", {"classic": ("plain", "db-test.1.json", update), "b": ("b", "db-test.1b.json", update)})
+    lock, patch_files = build_patch(directory, lock, files, **kw)
+    return lock, files, patch_files
 
 
 class RangeServer:

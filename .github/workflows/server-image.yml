@@ -54,7 +54,10 @@ jobs:
       - name: Install test tools
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends sqlite3 bubblewrap nasm
 
-      - name: Fetch a clean classic world for tests (database only)
+      # The world a new classic world starts from, made as the image makes it: for a release made of a base and an
+      # upstream patch (the lock's "patch"; 0.37b = 0.36b + upstream's 0.37 game patch), the base's world with the
+      # patch's world update, and the patch's classic-quests.json in server-files/ beside it. The world tests read both.
+      - name: Build a clean classic world for tests (database only)
         run: python3 deploy/bin/init_world.py --lock deploy/upstream.lock --data "$RUNNER_TEMP/world" --edition classic --skip-navmesh
 
       # The files the client patch sets patch (classic-creation.json: the classic edition's game.dll and two

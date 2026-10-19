@@ -14,8 +14,9 @@ REPO = os.path.abspath(os.path.join(HERE, "..", ".."))
 sys.path[:0] = [os.path.join(REPO, "deploy", "bin"), os.path.join(REPO, "tools", "linux"),
                 os.path.join(REPO, "tools", "linux", "tests")]
 
+import release_fixture as fx  # noqa: E402
 import world_update  # noqa: E402
-from odaoc_fetch import FetchError  # noqa: E402
+from odaoc_fetch import FetchError, Release  # noqa: E402
 
 WORLD = """
 CREATE TABLE Mob (Mob_ID TEXT PRIMARY KEY, Name TEXT, Level INTEGER, Size INTEGER, Note TEXT, LastTimeRowUpdated TEXT);
@@ -151,6 +152,81 @@ class ApplyTests(unittest.TestCase):
     def test_a_refusal_is_a_fetch_error(self):
         # init_world and world_admin report it like a failed download: the start or the command stops.
         self.assertTrue(issubclass(world_update.WorldUpdateError, FetchError))
+
+
+CLASSIC_DB = "editions/0.34-no-custom-class/runtime/data/opendaoc.sqlite3.db"
+
+
+class BuildWorldTests(unittest.TestCase):
+    """build_world: a release's clean world for an edition, the base's world plus the patch's world update."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.dir = self.tmp.name
+        self.dest = os.path.join(self.dir, "data", "world", "opendaoc.sqlite3.db")
+        self.cache = os.path.join(self.dir, "data", "upstream-cache")
+        self.cached = os.path.join(self.cache, fx.ROOT.rstrip("/"), CLASSIC_DB)
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def build(self, srv, lock, log=QUIET):
+        return world_update.build_world(Release(srv.lock(lock), retries=1, backoff=0), "classic", self.dest,
+                                        self.cache, log)
+
+    def test_without_a_patch_the_world_is_the_base_world_and_nothing_is_cached(self):
+        lock, files = fx.build(self.dir)
+        with fx.RangeServer(self.dir) as srv:
+            self.assertEqual(self.build(srv, lock), "ok")
+            self.assertEqual(self.build(srv, lock), "skip")
+        with open(self.dest, "rb") as f:
+            self.assertEqual(f.read(), files[CLASSIC_DB])
+        self.assertFalse(os.path.exists(self.cache))
+
+    def test_with_a_patch_the_verified_base_world_is_cached_and_a_copy_gets_the_update(self):
+        lock, files, _ = fx.build_patched(self.dir)
+        logged = []
+        with fx.RangeServer(self.dir) as srv:
+            self.assertEqual(self.build(srv, lock, logged.append), "ok")
+        self.assertEqual(logged, ["World data updated to test.1: 1 added, 1 changed, 0 removed."])
+        self.assertEqual(rows(self.dest, "SELECT Mob_ID, Level FROM Mob ORDER BY Mob_ID"), [("m1", 11), ("m2", 30)])
+        self.assertEqual(rows(self.dest, "SELECT Version, Notes FROM offline_patch_log"), [("test.1", "")])
+        with open(self.cached, "rb") as f:
+            self.assertEqual(f.read(), files[CLASSIC_DB])
+        self.assertEqual(os.listdir(os.path.dirname(self.dest)), ["opendaoc.sqlite3.db"])  # no .building or journal
+
+    def test_the_next_build_downloads_no_world_and_rebuilds_the_copy_from_the_cache(self):
+        lock, _, _ = fx.build_patched(self.dir)
+        with fx.RangeServer(self.dir) as srv:
+            self.build(srv, lock)
+            cached = os.stat(self.cached).st_mtime_ns
+            with open(self.dest, "r+b") as f:
+                f.write(b"damaged")  # whatever is at dest is replaced
+            self.assertEqual(self.build(srv, lock), "skip")
+        self.assertEqual(os.stat(self.cached).st_mtime_ns, cached)
+        self.assertEqual(rows(self.dest, "SELECT Mob_ID, Level FROM Mob ORDER BY Mob_ID"), [("m1", 11), ("m2", 30)])
+
+    def test_an_update_that_does_not_fit_the_base_leaves_dest_as_it_was(self):
+        lock, _, _ = fx.build_patched(self.dir, update=fx.world_update(old_level=9))
+        os.makedirs(os.path.dirname(self.dest))
+        with open(self.dest, "wb") as f:
+            f.write(b"the world before")
+        with fx.RangeServer(self.dir) as srv:
+            with self.assertRaisesRegex(world_update.WorldUpdateError, r"1 of its rows did not apply \(Mob update Mob_ID='m1'\)"):
+                self.build(srv, lock)
+        with open(self.dest, "rb") as f:
+            self.assertEqual(f.read(), b"the world before")
+        self.assertEqual(os.listdir(os.path.dirname(self.dest)), ["opendaoc.sqlite3.db"])
+
+    def test_a_base_world_not_matching_the_manifest_is_refused_before_anything_is_built(self):
+        files = dict(fx.DEFAULT_FILES, **{CLASSIC_DB: fx.sqlite_world(*fx.WORLD_SQL)})
+        lock, files = fx.build(self.dir, files, tamper={CLASSIC_DB: "4" * 64})
+        lock, _ = fx.build_patch(self.dir, lock, files, updates={"classic": ("plain", "db.json", fx.world_update())})
+        with fx.RangeServer(self.dir) as srv:
+            with self.assertRaisesRegex(FetchError, "SHA-256 mismatch against the release manifest"):
+                self.build(srv, lock)
+        self.assertFalse(os.path.exists(self.dest))
+        self.assertFalse(os.path.exists(self.cached))
 
 
 if __name__ == "__main__":

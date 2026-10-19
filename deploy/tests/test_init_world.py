@@ -1,7 +1,10 @@
+import contextlib
+import io
 import json
 import os
 import re
 import shutil
+import sqlite3
 import sys
 import tempfile
 import unittest
@@ -265,6 +268,91 @@ class InitWorldTests(unittest.TestCase):
         self.assertEqual(os.listdir(os.path.join(self.data, "server-files")), ["test"])
         self.assertEqual(self.read(os.path.join(server, "classic-quests.json")),
                          self.files["runtime/server/classic-quests.json"])
+
+
+class PatchedReleaseTests(unittest.TestCase):
+    """A lock with a patch (0.37b = the 0.36b base + upstream's 0.37 game patch): the new world is the base's world
+    plus the patch's world update, and the patch's server files and navmesh files replace the base's."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.dir = self.tmp.name
+        self.data = os.path.join(self.dir, "data")
+        self.lock, self.files, self.patch_files = fx.build_patched(self.dir)
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def release(self, srv):
+        return Release(srv.lock(self.lock), retries=1, backoff=0)
+
+    def read(self, path):
+        with open(path, "rb") as f:
+            return f.read()
+
+    def world(self, sql):
+        con = sqlite3.connect(init_world.world_paths(self.data)["db"])
+        try:
+            return con.execute(sql).fetchall()
+        finally:
+            con.close()
+
+    def test_new_world_is_the_base_world_with_the_patchs_world_update(self):
+        logged = []
+        with fx.RangeServer(self.dir) as srv:
+            self.assertEqual(init_world.init(self.release(srv), self.data, "classic", log=logged.append), 0)
+        self.assertEqual(self.world("SELECT Mob_ID, Level FROM Mob ORDER BY Mob_ID"), [("m1", 11), ("m2", 30)])
+        self.assertEqual(self.world("SELECT Version FROM offline_patch_log"), [("test.1",)])
+        self.assertIn("World data updated to test.1: 1 added, 1 changed, 0 removed.", logged)
+        with open(os.path.join(self.data, "world.json"), encoding="utf-8") as f:
+            self.assertEqual(json.load(f)["version"], "test")
+
+    def test_the_patchs_navmesh_and_server_files_replace_the_bases(self):
+        with fx.RangeServer(self.dir) as srv:
+            init_world.init(self.release(srv), self.data, "classic", log=QUIET)
+        navmesh = init_world.world_paths(self.data)["navmesh"]
+        self.assertEqual(sorted(os.listdir(navmesh)), ["pockets.json", "zone001.nav", "zone002.nav"])
+        self.assertEqual(self.read(os.path.join(navmesh, "pockets.json")),
+                         self.patch_files["runtime/server/navmesh/pockets.json"])
+        files = init_world.server_files_dir(self.data, "test")
+        self.assertEqual(self.read(os.path.join(files, "classic-quests.json")),
+                         self.patch_files["runtime/server/classic-quests.json"])
+        self.assertEqual(self.read(os.path.join(files, "classic-quest-guides.json")),
+                         self.files["runtime/server/classic-quest-guides.json"])
+
+    def test_second_start_downloads_nothing(self):
+        with fx.RangeServer(self.dir) as srv:
+            init_world.init(self.release(srv), self.data, "classic", log=QUIET)
+            before = len(srv.requests)
+            self.assertEqual(init_world.init(self.release(srv), self.data, "classic", log=QUIET), 0)
+            self.assertEqual(len(srv.requests), before)
+
+    def main(self, srv):
+        lock_path = os.path.join(self.dir, "upstream.lock")
+        with open(lock_path, "w", encoding="utf-8") as f:
+            json.dump(srv.lock(self.lock), f)
+        err = io.StringIO()
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(err):
+            rc = init_world.main(["--lock", lock_path, "--data", self.data, "--edition", "classic", "--skip-navmesh"])
+        return rc, err.getvalue()
+
+    def test_a_world_update_that_does_not_fit_stops_the_first_start(self):
+        self.lock, _, _ = fx.build_patched(self.dir, update=fx.world_update(old_level=9))
+        with fx.RangeServer(self.dir) as srv:
+            rc, err = self.main(srv)
+        self.assertEqual(rc, init_world.EXIT_DOWNLOAD)
+        self.assertIn("the test.1 world update does not fit this world", err)
+        self.assertFalse(os.path.exists(os.path.join(self.data, "world.json")))  # the next start tries again
+        self.assertFalse(os.path.exists(init_world.world_paths(self.data)["db"]))
+
+    def test_a_start_keeps_this_bases_cached_world_and_removes_other_bases(self):
+        old = os.path.join(init_world.world_cache_dir(self.data), "OfflineDAoC-v0.33b", "world.db")
+        os.makedirs(os.path.dirname(old))
+        with open(old, "wb") as f:
+            f.write(b"an older base's world")
+        with fx.RangeServer(self.dir) as srv:
+            self.assertEqual(self.main(srv), (0, ""))
+        self.assertEqual(os.listdir(init_world.world_cache_dir(self.data)), [fx.ROOT.rstrip("/")])
 
 
 class ServerFilesLockTests(unittest.TestCase):

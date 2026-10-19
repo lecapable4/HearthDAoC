@@ -19,11 +19,15 @@ check of a new patch against the released base (source/tools/make_patch.py check
 line 189): any row that does not apply rolls everything back and raises WorldUpdateError naming the rows. The log
 table is created inside the transaction too, so a refused update leaves the file byte for byte as it was. A world
 that already has the log row is left alone, so a second run changes nothing. Nothing in the patch is executed.
+
+build_world() makes a release's clean world for an edition, as init_world (a new world) and world_admin
+(fetch-clean, upgrade-world) need it: the base's world, and with a patch, a copy of it with the patch's world update.
 """
 import base64
 import datetime
 import os
 import re
+import shutil
 import sqlite3
 import sys
 
@@ -147,3 +151,32 @@ def apply(db, update, version, log=print):
     log(f"World data updated to {version}: {counts['added']} added, {counts['changed']} changed, "
         f"{counts['removed']} removed.")
     return counts
+
+
+def build_world(release, edition, dest, cache, log=print):
+    """Put the release's clean world for `edition` at dest. Returns what fetching the base's world returned ("ok",
+    or "skip" when the file was there and right). Without a patch, dest is the base's world itself (verified). With
+    one, the patch's world update is fetched and checked first, then the base's world into the folder `cache`
+    (verified, and kept, so the next build downloads no world), and a copy of it gets the update and only then
+    replaces dest. A patched world has no published hash to resume by (its log row holds the time), so it is
+    rebuilt from the cached base each time."""
+    world_db = release.edition(edition)["world_db"]
+    if not release.lock.get("patch"):
+        return release.extract(world_db, dest)
+    version, update = release.world_update(edition)
+    base = os.path.join(cache, release.root.rstrip("/"), world_db)
+    got = release.extract(world_db, base)
+    os.makedirs(os.path.dirname(os.path.abspath(dest)), exist_ok=True)
+    tmp = dest + ".building"
+    try:
+        shutil.copyfile(base, tmp)
+        apply(tmp, update, version, log)
+        for side in ("-journal", "-wal", "-shm"):
+            if os.path.exists(tmp + side):
+                raise WorldUpdateError(f"the {version} world update left {os.path.basename(tmp + side)} behind")
+        os.replace(tmp, dest)
+    finally:
+        for path in (tmp, tmp + "-journal", tmp + "-wal", tmp + "-shm"):
+            if os.path.exists(path):
+                os.remove(path)
+    return got
