@@ -345,12 +345,13 @@ class PeriodChatTests(unittest.TestCase):
     def test_no_reply_holds_a_guides_placeholder_or_a_web_page(self):
         # The guard, with upstream's Chat merged as MergeChat does, over every key, whether a whisper reaches it or not:
         # upstream's replies that hold one (Mystemas's [Understand], Iohannes Aldar's [pay generously], Grindan Halig's
-        # [willing to bear the weight]) are all replaced by the fork's.
+        # [willing to bear the weight], and the guides' notes of CHAT_NOTES) are all replaced by the fork's.
         with open(UPSTREAM_QUESTS, encoding="utf-8") as f:
             upstream = json.load(f).get("Chat")
         self.assertEqual(sorted({(npc, key) for npc, key, _words in not_the_npcs_words(merged_chat(upstream, {}))}),
-                         [("grindan halig", "willing to bear the weight"), ("iohannes aldar", "pay generously"),
-                          ("mystemas", "understand")])
+                         [("cristin", "three things"), ("elizabeth", "other items"),
+                          ("grindan halig", "willing to bear the weight"), ("iohannes aldar", "pay generously"),
+                          ("mystemas", "understand"), ("tethra", "no more heads")])
         self.assertEqual(not_the_npcs_words(merged_chat(upstream, extra_chat())), [])
 
     @unittest.skipUnless(UPSTREAM_QUESTS, "needs upstream's classic-quests.json (HDC_CLASSIC_QUESTS)")
@@ -468,15 +469,16 @@ class ReachabilityTests(unittest.TestCase):
 
     def test_the_fixed_replies_are_offered_where_the_quests_show_them(self):
         # Crace's [enchanted silver] (Silver Run, stage 1), Skorri's [a cloak] (Solving the Argument, sent on accept)
-        # and Gral Bermorn's three (Weakened Bonds, stages 2 and 13, said by him; every keyword there is answered).
+        # and Gral Bermorn's three (Weakened Bonds, stage 2, said by him; every keyword there is answered). Since 0.36
+        # his stage 13 says only his reply to [opened from the other side] itself.
         shown = [(20288, "TargetText", 1, "crace", "enchanted silver"), (21142, "SourceText", 1, "skorri", "a cloak"),
-                 (20639, "TargetText", 2, "gral bermorn", "opened from the other side"),
-                 (20639, "TargetText", 13, "gral bermorn", "opened from the other side")]
+                 (20639, "TargetText", 2, "gral bermorn", "opened from the other side")]
         for qid, column, stage, npc, keyword in shown:
             with self.subTest(quest=qid, stage=stage, keyword=keyword):
                 text = self.stage(qid, column, stage)
                 self.assertIn(keyword, offered([text], self.chat[npc]))
                 self.assertEqual(unanswered([text], self.chat[npc]), [])
+        self.assertEqual(self.stage(20639, "TargetText", 13), self.chat["gral bermorn"]["opened from the other side"])
 
     def test_the_class_word_replies_are_offered_where_players_get_them(self):
         # Mystemas, Iohannes Aldar and Grindan Halig offer theirs from what they say in their quests' texts (Strange
@@ -505,25 +507,27 @@ class ReachabilityTests(unittest.TestCase):
 
     def test_the_words_that_were_player_in_quest_texts_are_the_guides(self):
         # Upstream's generator took "Now" and "Well" for names. Silver Run's Crace keeps <Player> where he speaks to the
-        # player ("Well, Elline, did you get the sporites?", "I hope you find it useful, Warden!").
+        # player ("Well, Elline, did you get the sporites?", "I hope you find it useful, Warden!"). Since 0.36 stage 1
+        # says his first lines and stage 5 his last.
         description, = self.conn.execute("SELECT Description FROM DataQuest WHERE ID=20013").fetchone()
         self.assertIn("hiding from Arawn for years, Now, with the Inconnu walking the land", description)
+        said = {1: ("are you? Well, you know about the [enchanted silver]", "Aye, Well, it's mainly",
+                    "two sporites. Well, <Player>, did you get", "quite useful. Well, that's what"),
+                5: ("I hope you find it useful, <Player>!",)}
         for qid in (20288, 20289, 20290, 20291):
-            for stage in (1, 5):
+            for stage, lines in said.items():
                 with self.subTest(quest=qid, stage=stage):
                     text = self.stage(qid, "TargetText", stage)
-                    for words in ("are you? Well, you know about the [enchanted silver]", "Aye, Well, it's mainly",
-                                  "two sporites. Well, <Player>, did you get", "quite useful. Well, that's what",
-                                  "I hope you find it useful, <Player>!"):
+                    for words in lines:
                         self.assertIn(words, text)
-                    self.assertEqual(text.count("<Player>"), 2)
+                    self.assertEqual(text.count("<Player>"), 1)
                     self.assertEqual(unanswered([text], self.chat["crace"]), [])
 
     def test_wariel_and_amora_ask_the_players_name_and_answer_it(self):
         # The period's keyword was [name]; upstream's generator wrote <Player>: "What is your <the player's name>?". The
-        # fork's Chat answers [name] with the guides' next line, as upstream's answers the texts' other keywords.
-        asks = [(20099, 1, "wariel", "Well hello young one. What is your [name]? Well, it is a pleasure"),
-                (20099, 7, "wariel", "Well hello young one. What is your [name]? Well, it is a pleasure")]
+        # fork's Chat answers [name] with the guides' next line, as upstream's answers the texts' other keywords. (Since
+        # 0.36 Trapper's Pride's stage 7, which said it all again, is empty.)
+        asks = [(20099, 1, "wariel", "Well hello young one. What is your [name]? Well, it is a pleasure")]
         asks += [(qid, 1, "amora", "Hello stranger, may I ask your [name]? It is a pleasure")
                  for qid in range(21102, 21118)]
         for qid, stage, npc, words in asks:

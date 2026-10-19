@@ -310,7 +310,7 @@ class FixesTests(unittest.TestCase):
             "Epic chains: Guild of Shadows 60 links, 60 XP and coin, 4 Supply Runs closed, 2 rewards and 7 texts "
             "fixed; 87 other links; 0 items added, 41 replaced, 36 item fixes; 5 level-50 quests, Lord Elidyn's camp "
             "17 restored; Shadows_50: 0 finished carried, 0 removed, 0 epic vests recharged",
-            "Quest dialogue: 145 quests rewritten",
+            "Quest dialogue: 142 quests rewritten",
             "Quest camps: copied back from upstream's archive: Delfina's camp (22), the isolationist camp (39), "
             "the Ellyll Seer's village (30), Lieutenant Grimarth (1); added: Lieutenant Cian; archived in "
             "fork_removed_mobs: the generated Bline (1), the standing Martley (1)",
@@ -383,12 +383,12 @@ class FixesTests(unittest.TestCase):
     def test_shipped_world_started_before_the_classic_quests_texts(self):
         # A world with this file's Guild of Shadows dialogue (its step entries) but not the classic quests' texts, as
         # hearth.9 to hearth.11 left it apart from later revisions of the chain's own text: its next start rewrites only
-        # the classic quests' texts (the ids entries, 80 quest rows), and the next nothing.
+        # the classic quests' texts (the ids entries, 77 quest rows), and the next nothing.
         shutil.copyfile(TEST_WORLD, self.db)
         data = qd.load_data()
         with mock.patch.object(qd, "load_data", return_value=dict(data, quests=[e for e in data["quests"] if "step" in e])):
             self.assertIn("Quest dialogue: 65 quests rewritten", wf.apply(self.db))
-        self.assertEqual(wf.apply(self.db), ["Quest dialogue: 80 quests rewritten"])
+        self.assertEqual(wf.apply(self.db), ["Quest dialogue: 77 quests rewritten"])
         self.assertEqual(wf.apply(self.db), [])
 
 
