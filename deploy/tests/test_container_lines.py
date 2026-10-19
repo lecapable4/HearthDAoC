@@ -6,7 +6,10 @@ world for tests" step builds HDC_TEST_WORLD, and runs deploy/bin/world_fixes.py 
 word for word ("Quest dialogue: N quests rewritten"), which a world-fix change or a new upstream world changes, and no
 deploy test ran them. This test runs the world fixes on a copy of HDC_TEST_WORLD and finds each line they expect:
 smoke.sh's logs_have "..." in some line, its world-fixes.log list at the start of one, and hdc_integration.sh's
-"^...$" as a whole line. Only lines of the world fixes are checked (the part before the first ":" is one of theirs).
+"^...$" as a whole line. The world-fixes.log list holds only world-fix lines, so each of its lines is checked; the
+other two also look at the server's log, so of theirs only the lines whose head (the part before the first ":") is
+one of the world fixes' are. CHECKED pins what is checked, so a line can't drop out unseen (a head renamed, or a fix
+that prints nothing on a later world: review finding deploy-1 of the 0.37 sync).
 """
 import os
 import re
@@ -23,6 +26,12 @@ import world_fixes  # noqa: E402
 TEST_WORLD = os.environ.get("HDC_TEST_WORLD")
 SMOKE = os.path.join(HERE, "smoke.sh")
 HDC_IT = os.path.join(HERE, "hdc_integration.sh")
+# (kind, head) of every world-fix line the container tests check: smoke.sh's two logs_have lines and its six
+# world-fixes.log lines, and hdc_integration.sh's two whole lines.
+CHECKED = [("in", "Epic chains"), ("in", "Quest dialogue"),
+           ("start", "Epic chains"), ("start", "Quest dialogue"), ("start", "Quest camps"), ("start", "Mob fixes"),
+           ("start", "Route fixes"), ("start", "Start towns"),
+           ("whole", "Quest dialogue"), ("whole", "Quest dialogue")]
 
 
 def read(path):
@@ -56,8 +65,8 @@ class ContainerLinesTests(unittest.TestCase):
 
     def test_the_container_tests_expect_the_lines_the_world_fixes_print(self):
         heads = {line.split(":", 1)[0] for line in self.lines if ":" in line}
-        checked = [(kind, s) for kind, s in expected() if s.split(":", 1)[0] in heads]
-        self.assertGreaterEqual(len(checked), 8)  # smoke.sh's two and its six, hdc_integration.sh's two
+        checked = [(kind, s) for kind, s in expected() if kind == "start" or s.split(":", 1)[0] in heads]
+        self.assertEqual(sorted((kind, s.split(":", 1)[0]) for kind, s in checked), sorted(CHECKED))
         for kind, s in checked:
             with self.subTest(kind=kind, line=s):
                 found = {"in": lambda line: s in line, "start": lambda line: line.startswith(s),
