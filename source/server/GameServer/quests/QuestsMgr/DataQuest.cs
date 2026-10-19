@@ -2590,6 +2590,7 @@ namespace DOL.GS.Quests
 					return;
 				if (firstItem != null)
 					GiveItem(living, player, firstItem, false);
+				_speaker = living; // HearthDAoC: a staged first text waits for the giver (the offer's answer is no interaction)
 				if (m_sourceTexts.Count > 0)
 				{
 					SendMessage(player, m_sourceTexts[0], 0, eChatType.CT_System, eChatLoc.CL_PopupWindow);

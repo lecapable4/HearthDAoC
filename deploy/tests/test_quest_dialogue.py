@@ -897,6 +897,22 @@ class WhisperKeywordSourceTests(unittest.TestCase):
         self.assertNotIn("CL_PopupWindow, WhisperPrompt(", body)
 
 
+class StagedSpeechSourceTests(unittest.TestCase):
+    """A quest text staged with {next} (upstream 0.36: the NPC says one turn per interaction) waits for the NPC that
+    said it: DataQuest.SendMessage queues the later turns on DataQuest._speaker, which upstream sets only when the
+    player interacts with an NPC or hands it an item (source check: a unit test would need a live player)."""
+
+    def test_an_accepted_offer_stages_its_first_text_on_the_giver(self):
+        # The fork's "Do you accept?" (DataQuestOffers) starts the quest from the prompt's answer, through StartOffered,
+        # where no interaction set _speaker: the first text's later turns were lost, or queued on another NPC.
+        with open(DATA_QUEST, encoding="utf-8-sig") as f:
+            source = f.read()
+        body = source.split("public virtual void StartOffered(GamePlayer player, GameLiving living)", 1)[1]
+        body = body.split("\n\t\t}\n", 1)[0]
+        self.assertIn("_speaker = living;", body)
+        self.assertLess(body.index("_speaker = living;"), body.index("SendMessage(player, m_sourceTexts[0]"))
+
+
 @unittest.skipUnless(TEST_WORLD, "needs HDC_TEST_WORLD (a clean classic world database)")
 class DigestCommandTests(unittest.TestCase):
     """--digests on a clean world prints upstream's text's digests, as the guard lists hold them; with --current, the
