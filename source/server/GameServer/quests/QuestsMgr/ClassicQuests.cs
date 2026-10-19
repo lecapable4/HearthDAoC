@@ -684,7 +684,8 @@ namespace DOL.GS.Quests
                 string keyword = quest.CurrentAdvanceText;
                 if (string.IsNullOrWhiteSpace(keyword) || (quest.CurrentTargetText ?? string.Empty).Contains("[" + keyword + "]"))
                     continue;
-                npc.SayTo(player, PacketHandler.eChatLoc.CL_PopupWindow, WhisperPrompt(quest.CurrentStepText, keyword));
+                // HearthDAoC: as the player reads it: The Lost Stone's keyword <Player> links the player's name (QuestWhispers).
+                npc.SayTo(player, PacketHandler.eChatLoc.CL_PopupWindow, DOL.GS.Behaviour.BehaviourUtils.GetPersonalizedMessage(WhisperPrompt(quest.CurrentStepText, keyword), player));
             }
         }
 

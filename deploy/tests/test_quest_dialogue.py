@@ -883,6 +883,19 @@ class WhisperKeywordSourceTests(unittest.TestCase):
                       body)
         self.assertNotIn("AdvanceText == text", body)
 
+    CLASSIC_QUESTS = os.path.join(os.path.dirname(DATA_QUEST), "ClassicQuests.cs")
+
+    def test_the_whisper_link_shows_the_keyword_as_the_player_reads_it(self):
+        # Upstream 0.36 shows a whisper step's keyword as a [link] when the player talks to the step's NPC
+        # (ClassicQuests.OfferWhisperLinks). The Lost Stone's (20192-20195) keyword is <Player>: sent as it is, the link
+        # read "[<Player>]". Personalized, it is the player's name, which a click whispers and Advances accepts.
+        with open(self.CLASSIC_QUESTS, encoding="utf-8-sig") as f:
+            source = f.read()
+        body = source.split("private static void OfferWhisperLinks(GamePlayer player, GameNPC npc)", 1)[1]
+        body = body.split("\n        }\n", 1)[0]
+        self.assertIn("BehaviourUtils.GetPersonalizedMessage(WhisperPrompt(quest.CurrentStepText, keyword), player)", body)
+        self.assertNotIn("CL_PopupWindow, WhisperPrompt(", body)
+
 
 @unittest.skipUnless(TEST_WORLD, "needs HDC_TEST_WORLD (a clean classic world database)")
 class DigestCommandTests(unittest.TestCase):
