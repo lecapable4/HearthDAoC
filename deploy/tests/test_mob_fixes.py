@@ -368,6 +368,8 @@ GROUPS = {
     "Dark Places of the Soul's rewards": ["Dark Places of the Soul (DataQuest 21264)",
                                           "Ring of Spun Silk (ItemTemplate cq_ring_of_spun_silk)",
                                           "Herbalist's Hauberk of Ivy (ItemTemplate cq_herbalist_s_hauberk_of_ivy)"],
+    "Hunt for Slith's tail": ["Hunt for Slith (DataQuest 20021)", "Slith's Tail (ItemTemplate cq_slith_s_tail)",
+                              "Slith's Tail (the reward) (ItemTemplate sliths_tail)"],
 }
 
 

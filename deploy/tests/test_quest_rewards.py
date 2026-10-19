@@ -63,11 +63,6 @@ DOUBLED = set(REWARDS) | set(REALM_REWARDS) | set(CALLED_REWARDS)
 ONCE_GRANTS = {(20975, 8, "cq_perfect_life_stone"), (21021, 3, "cq_pious_ring"), (21022, 3, "cq_pious_ring"),
                (21264, 6, "cq_ring_of_spun_silk"), (21264, 17, "cq_herbalist_s_hauberk_of_ivy"),
                (21371, 6, "cq_scurceol_s_bracer"), (21465, 3, "cq_mid_brack_s_hammer")}
-# Upstream's own: two delivery items of the 0.35b and 0.37b worlds that are worn (a level-4 ring, a level-7 jewel),
-# which 0.36's refresh hands again on the delivery step (the needed item, the delivery). Their quests' final rewards
-# are the real items (cq_alb_slith_s_tailpiece, cq_alb_demon_soul_gem). Left as upstream has them: a later decision.
-UPSTREAM_REISSUED = {(20021, 2, "needed", "cq_slith_s_tail"), (20021, 2, "delivery", "cq_slith_s_tail")} | {
-    (qid, 3, how, "cq_demon_soul_gem") for qid in (21502, 21503, 21504) for how in ("needed", "delivery")}
 
 
 def custom_steps():
@@ -321,11 +316,12 @@ class QuestRewardTests(unittest.TestCase):
 
     def test_an_item_handed_again_is_a_quest_token(self):
         # A real item that comes back while the player has none can be had without limit: put in the account vault
-        # (outside slots 7-249), sold or destroyed, it is handed again. Only grants hand one once (QuestGrants).
+        # (outside slots 7-249), sold or destroyed, it is handed again. Only grants hand one once (QuestGrants). Upstream's
+        # own two, the worn delivery items Slith's Tail and Demon Soul Gem, are tokens now too (their entries).
         real = real_items(self.conn)
         again = {(qid, n, how, item) for qid, n, how, item in handed_again(self.conn, self.steps)
                  if how != "grant" and item in real}
-        self.assertEqual(again, UPSTREAM_REISSUED)
+        self.assertEqual(again, set())
 
     def test_the_real_items_grants_hand_are_the_ones_quest_grants_hands_once(self):
         real = real_items(self.conn)
@@ -438,6 +434,42 @@ class QuestRewardTests(unittest.TestCase):
                          .fetchone(), (40, 1, 0))
         self.assertEqual(self.conn.execute("SELECT Item_Type, Level FROM ItemTemplate WHERE Id_nb='cq_mid_brack_s_hammer'")
                          .fetchone(), (10, 16))
+
+    def test_slith_s_tail_is_the_reward_at_the_end_and_the_delivered_tail_a_token(self):
+        # "Slith drops his tail, which is a dex ring." "You receive Slith's Tail from Slith! You have finished the Hunt for
+        # Slith quest." (Allakhazam cquest 11, Wayback captures 2002-04-29 to 2005-12-03); the ring: Albion, Dexterity 3,
+        # 1.00 lbs, level 4 (item 946, capture 2003-02-12). Upstream's tail is also the item stage 2 delivers to Commander
+        # Burcrif, which a lost one is handed again for, so it is a token, and the quest's reward is the ring.
+        token = "SELECT Item_Type, Object_Type, Level, Bonus1, Price FROM ItemTemplate WHERE Id_nb=?"
+        self.assertEqual(self.conn.execute(token, ("cq_slith_s_tail",)).fetchone(), (40, 0, 1, 0, 0))
+        self.assertEqual(handed(self.conn, self.steps)[20021], {"slith's tail": ["final reward: sliths_tail"]})
+        ring = "SELECT Name, Realm, Item_Type, Bonus1Type, Bonus1, Weight, Level, IsTradable FROM ItemTemplate WHERE Id_nb=?"
+        self.assertEqual(self.conn.execute(ring, ("sliths_tail",)).fetchone(), ("Slith's Tail", 1, 35, 2, 3, 10, 4, 0))
+        # Upstream's copy of the ring, as the clean world ships it, but for the delve line naming the quest.
+        columns = [c for _, c, *_ in self.conn.execute("PRAGMA table_info(ItemTemplate)")
+                   if c not in ("Id_nb", "ItemTemplate_ID", "LastTimeRowUpdated", "Description")]
+        select = "SELECT " + ", ".join(f'"{c}"' for c in columns) + " FROM ItemTemplate WHERE Id_nb=?"
+        clean = sqlite3.connect(f"file:{TEST_WORLD}?mode=ro", uri=True)
+        try:
+            self.assertEqual(self.conn.execute(select, ("sliths_tail",)).fetchone(),
+                             clean.execute(select, ("cq_slith_s_tail",)).fetchone())
+        finally:
+            clean.close()
+        self.assertEqual(self.conn.execute("SELECT Description FROM ItemTemplate WHERE Id_nb='sliths_tail'").fetchone(),
+                         ("Classic quest reward (Hunt for Slith)",))
+
+    def test_the_demon_soul_gem_delivered_is_a_token_and_the_reward_comes_at_the_end(self):
+        # "Kill the demon and you will get the Demon Soul Gem (hidden eye), return to the merchant in Humberton, turn in
+        # the Demon Soul Gem."; rewards: Svelte Armor Leggings, Demon Soul Gem (Allakhazam cquest 472, Wayback capture
+        # 2002-10-29); the jewel, for the Wizard and Sorcerer: Intelligence 4 (item 4768, capture 2003-02-02).
+        token = "SELECT Item_Type, Object_Type, Level, Bonus1, Price FROM ItemTemplate WHERE Id_nb=?"
+        self.assertEqual(self.conn.execute(token, ("cq_demon_soul_gem",)).fetchone(), (40, 0, 1, 0, 0))
+        quests = handed(self.conn, self.steps)
+        for qid in (21502, 21503):
+            self.assertEqual(quests[qid], {"demon soul gem": ["final reward: cq_alb_demon_soul_gem"]})
+        self.assertEqual(quests[21504], {"svelte armor leggings": ["final reward: cq_alb_svelte_armor_leggings"]})
+        self.assertEqual(self.conn.execute("SELECT Item_Type, Bonus1Type, Bonus1 FROM ItemTemplate "
+                                           "WHERE Id_nb='cq_alb_demon_soul_gem'").fetchone(), (24, 5, 4))
 
     def test_the_kept_items_delve_their_quest(self):
         # A delve's first line is the template's Description: upstream's plain templates read
