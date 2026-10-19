@@ -25,7 +25,7 @@ DEPLOY = os.path.dirname(HERE)
 sys.path.insert(0, os.path.join(DEPLOY, "bin"))
 
 import world_fixes as wf  # noqa: E402
-from tests.test_quest_reachability import EXTRA_QUESTS, TEST_WORLD, UPSTREAM_QUESTS  # noqa: E402
+from tests.test_quest_reachability import EXTRA_QUESTS, TEST_WORLD, UPSTREAM_QUESTS, merge_quests  # noqa: E402
 
 # DataQuest's eStepType. Kill, Interact, Whisper, Search and Collect hand the step's item when the step is done;
 # Deliver and DeliverFinish hand it when the step starts, and its target takes it; the other finishing steps hand
@@ -41,13 +41,12 @@ DOUBLED = set(REWARDS)
 
 
 def custom_steps():
-    """{quest ID: [step info]}: upstream's classic-quests.json, with the fork's entries that replace upstream's."""
+    """{quest ID: [step info]}: upstream's classic-quests.json merged with the fork's entries, as ClassicQuests.Merge
+    merges them (merge_quests)."""
     with open(UPSTREAM_QUESTS, encoding="utf-8") as f:
-        quests = dict(json.load(f)["Quests"])
+        upstream = json.load(f)["Quests"]
     with open(EXTRA_QUESTS, encoding="utf-8") as f:
-        for qid, info in json.load(f)["Quests"].items():
-            if not qid.startswith("_") and (info.get("Replace") or qid not in quests):
-                quests[qid] = info
+        quests = merge_quests(upstream, json.load(f)["Quests"])
     return {qid: info.get("Steps") or [] for qid, info in quests.items()}
 
 

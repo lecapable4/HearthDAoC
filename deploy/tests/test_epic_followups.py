@@ -21,7 +21,7 @@ DEPLOY = os.path.dirname(HERE)
 sys.path.insert(0, os.path.join(DEPLOY, "bin"))
 
 import world_fixes as wf  # noqa: E402
-from tests.test_quest_reachability import EXTRA_QUESTS, TEST_WORLD, UPSTREAM_QUESTS  # noqa: E402
+from tests.test_quest_reachability import EXTRA_QUESTS, TEST_WORLD, UPSTREAM_QUESTS, merge_quests  # noqa: E402
 
 RHODRI = "45d3ac8c-b693-4acf-af70-e0f36585e1d4"
 BRUDE = "44da6de7-96b4-4a58-b33d-202220d99463"
@@ -42,12 +42,10 @@ def merged_quests(move=True):
     """{quest id: steps}: upstream's file with the fork's entries and (with move) its moved markers, as
     ClassicQuests.Merge builds it."""
     with open(UPSTREAM_QUESTS, encoding="utf-8") as f:
-        quests = {int(k): v for k, v in json.load(f)["Quests"].items()}
+        upstream = json.load(f)["Quests"]
     with open(EXTRA_QUESTS, encoding="utf-8") as f:
         extra = json.load(f)
-    for qid, info in extra["Quests"].items():
-        if info.get("Replace") or int(qid) not in quests:
-            quests[int(qid)] = info
+    quests = {int(k): v for k, v in merge_quests(upstream, extra["Quests"]).items()}
     for steps in (q.get("Steps") or [] for q in quests.values() if move):
         for step in steps:
             for move in extra.get("MovedMarkers", []):
