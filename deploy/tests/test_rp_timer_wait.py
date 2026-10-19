@@ -62,6 +62,16 @@ def marked(test, body, call):
     test.assertIn("// HearthDAoC:", above, call)
 
 
+def ending(raw):
+    """A file's line ending, "CRLF" or "LF" (also for a file of one line), or None for a file of both or a lone CR."""
+    lf, crlf = raw.count(b"\n"), raw.count(b"\r\n")
+    if raw.count(b"\r") != crlf:
+        return None
+    if crlf == 0:
+        return "LF"
+    return "CRLF" if crlf == lf else None
+
+
 def cs_files(top):
     """Every .cs file under top, sorted."""
     found = []
@@ -295,12 +305,22 @@ class ControllerHookTests(unittest.TestCase):
 
 
 class EndingsTests(unittest.TestCase):
-    def test_the_upstream_files_keep_their_endings(self):
-        for path, crlf in ((BG, True), (WBC, False), (GC, True), (FT, False)):
+    def test_the_upstream_files_keep_one_ending(self):
+        # Upstream's endings, whichever they are (it turned GC to CRLF in 0.36), but one per file: a fork line in the
+        # other ending makes a file of both.
+        for path in (BG, WBC, GC, FT):
             with open(path, "rb") as f:
                 raw = f.read()
-            self.assertEqual(raw.count(b"\r\n"), raw.count(b"\n") if crlf else 0, path)
+            self.assertIsNotNone(ending(raw), path)
             self.assertFalse(raw.startswith(b"\xef\xbb\xbf"), path)
+
+    def test_a_file_of_both_endings_fails(self):
+        self.assertEqual(ending(b"a\r\nb\r\n"), "CRLF")
+        self.assertEqual(ending(b"a\nb\n"), "LF")
+        self.assertEqual(ending(b"a"), "LF")
+        self.assertIsNone(ending(b"a\r\nb\n"))
+        self.assertIsNone(ending(b"a\nb\r\n"))
+        self.assertIsNone(ending(b"a\rb\r\n"))
 
     def test_the_fork_files_are_lf_without_bom(self):
         tests = os.path.join(ROOT, "source", "server", "Tests", "UnitTests")
