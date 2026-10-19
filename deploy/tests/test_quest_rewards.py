@@ -232,6 +232,37 @@ class QuestRewardTests(unittest.TestCase):
             with self.subTest(qid, item=item):
                 self.assertEqual(quests[qid][item], [copy])
 
+    def test_the_called_rewards_are_handed_once(self):
+        # The copy the period's guide describes: a trade's own output, an NPC's hand-over (upstream's grant), a choice.
+        quests = handed(self.conn, self.steps)
+        for qid, item, copy in ((20512, "yellow quartz", "trade at step 1: cq_yellow_quartz"),
+                                (20975, "perfect life stone", "grant at step 8: cq_perfect_life_stone"),
+                                (21021, "pious ring", "grant at step 3: cq_pious_ring"),
+                                (21022, "pious ring", "grant at step 3: cq_pious_ring"),
+                                (21263, "vigdis's protector", "choice at step 8: cq_mid_vigdis_s_protector"),
+                                (21264, "ring of spun silk", "grant at step 6: cq_ring_of_spun_silk"),
+                                (21264, "herbalist's hauberk of ivy", "grant at step 17: cq_herbalist_s_hauberk_of_ivy"),
+                                (21371, "scurceol's bracer", "grant at step 6: cq_scurceol_s_bracer"),
+                                (21465, "brack's hammer", "grant at step 3: cq_brack_s_hammer")):
+            with self.subTest(qid, item=item):
+                self.assertEqual(quests[qid][item], [copy])
+
+    def test_a_granted_reward_is_the_period_item(self):
+        # "he will reward you with a Perfect Life Stone (Necklace item with 118hp)" (Allakhazam cquest 2007, Wayback
+        # capture 2004-04-19). Upstream's grant hands 0.35b's carried-only copy; it takes the realm template's values.
+        columns = [c for _, c, *_ in self.conn.execute("PRAGMA table_info(ItemTemplate)")
+                   if c not in ("Id_nb", "ItemTemplate_ID", "LastTimeRowUpdated")]
+        select = "SELECT " + ", ".join(f'"{c}"' for c in columns) + " FROM ItemTemplate WHERE Id_nb=?"
+        for granted, realm in (("cq_perfect_life_stone", "cq_hib_perfect_life_stone"),
+                               ("cq_pious_ring", "cq_mid_pious_ring"),
+                               ("cq_ring_of_spun_silk", "cq_mid_ring_of_spun_silk"),
+                               ("cq_herbalist_s_hauberk_of_ivy", "cq_mid_herbalist_s_hauberk_of_ivy"),
+                               ("cq_scurceol_s_bracer", "cq_alb_scurceol_s_bracer"),
+                               ("cq_brack_s_hammer", "cq_mid_brack_s_hammer")):
+            with self.subTest(granted):
+                self.assertEqual(self.conn.execute(select, (granted,)).fetchone(),
+                                 self.conn.execute(select, (realm,)).fetchone())
+
     def test_the_kept_items_delve_their_quest(self):
         # A delve's first line is the template's Description: upstream's plain templates read
         # "Classic quest reward ((quest item))".
