@@ -165,16 +165,18 @@ def unanswered(texts, replies):
 # The fork's replies that replace an upstream reply holding <Player> and still speak to the player, and how many
 # <Player> each keeps: Skorri's "Please <Player>, give Olvaerr his cloak", Thorgil's "You cannot use a bow,
 # <Player>." (the guide's "Spiritmaster": a class as a title, which the fork leaves as <Player>) and Grindan Halig's
-# "Best of luck <Player>!" (the fork changes only his class word).
+# "Best of luck <Player>!" (the fork changes only his class word), and Tethra's "Thank you, <Player>." and "Good day
+# to you, <Player>" (the fork cuts only the editor's "(sic)").
 SPEAKS_TO_THE_PLAYER = {("skorri", "a cloak"): 1, ("thorgil", "staff"): 1,
-                        ("grindan halig", "willing to bear the weight"): 1}
+                        ("grindan halig", "willing to bear the weight"): 1, ("tethra", "no more heads"): 2}
 
 # The class the guides' authors were called by, which upstream's Chat kept as plain text, so every class read the
 # author's (class-word scan, 2026-10-11). The fork's reply is upstream's with these words alone changed: the class, and
 # the guides' placeholders "(minstrel)" and "(class name)", become <Class>, which the server replaces with the player's
 # class (GetPersonalizedMessage; female names included). {(NPC, the fork's key, upstream's key): [(upstream's words, the
 # fork's)]}. Upstream's key for Gral Bermorn's reply keeps the guide's spaces, which no whisper sends: players get his
-# fork key's reply, which was upstream's word for word.
+# fork key's reply, which was upstream's word for word. Siv Alfevson's "Spiritmaster" came with the later lines of his
+# conversation that 0.37 gave his [our clan] (0.37 sync, #138).
 CHAT_CLASS_WORDS = {
     ("gral bermorn", "opened from the other side", " opened from the other side "): [
         ("take these instructions to aid you. Good luck to thee Theurgist.",
@@ -188,7 +190,24 @@ CHAT_CLASS_WORDS = {
         ("This is great (class name)!", "This is great <Class>!"), ("Good luck (class name)!", "Good luck <Class>!")],
     ("grindan halig", "willing to bear the weight", "willing to bear the weight"): [
         ("Ah! Very good (class name)!", "Ah! Very good <Class>!")],
+    ("siv alfevson", "our clan", "our clan"): [
+        ("I can assist you no more Spiritmaster.", "I can assist you no more <Class>.")],
 }
+
+# The guides' notes that came into upstream's Chat with the later lines of a recorded conversation (0.36 and 0.37; the
+# 0.37 sync, #138): a walkthrough's note after Elizabeth's last line, and an editor's "(sic)" in Tethra's and Cristin's
+# replies. The fork's reply is upstream's without them. {(NPC, keyword): (upstream's words, the fork's)}
+CHAT_NOTES = {
+    ("elizabeth", "other items"): ("you cannot change your mind. After turning in both items to Elizabeth, gain "
+                                   "62,914,560 experience as well Two Handed Conclusion:", "you cannot change your mind."),
+    ("tethra", "no more heads"): ("unusually villianous (sic), and", "unusually villianous, and"),
+    ("cristin", "three things"): ("around Connacht (sic) . The first", "around Connacht . The first"),
+}
+
+# The lines upstream's generator had lost, which the fork's Chat gave back (quest entry scan, 2026-10-11) and upstream
+# 0.37 restored, with the guides' typos fixed ("andhis", "stone" for "stole", "fromt he"): upstream's again.
+RESTORED_UPSTREAM = [("hugh gallen", "bit of information"), ("sugnhild", "loved one"), ("sugnhild", "gudlor"),
+                     ("sugnhild", "searched many weeks"), ("achae smith", "out here"), ("vadri pade", "druid tale")]
 
 
 # The web page upstream scraped with Mystemas's last line (Strange Bedfellows): the guide's reward, then the site's
@@ -225,8 +244,37 @@ class PeriodChatTests(unittest.TestCase):
         self.assertIn("[can be found]", reply)
         self.assertEqual(kaere["get it for me"], reply)
 
-    def test_hugh_gallen_names_durren(self):
-        self.assertIn("his son, Durren, [was slain]", self.chat["hugh gallen"]["bit of information"])
+    @unittest.skipUnless(UPSTREAM_QUESTS, "needs upstream's classic-quests.json (HDC_CLASSIC_QUESTS)")
+    def test_the_lines_upstream_restored_are_upstreams(self):
+        with open(UPSTREAM_QUESTS, encoding="utf-8") as f:
+            upstream = merged_chat(json.load(f).get("Chat"), {})
+        for npc, keyword in RESTORED_UPSTREAM:
+            with self.subTest(npc=npc, keyword=keyword):
+                self.assertNotIn(keyword, self.chat.get(npc, {}))
+                self.assertTrue(upstream[npc][keyword].strip())
+        self.assertIn("his son, Durren, [was slain]", upstream["hugh gallen"]["bit of information"])
+        self.assertIn("beset upon by this small sprite and his followers", upstream["sugnhild"]["searched many weeks"])
+        self.assertIn("Then from the northern shores came", upstream["vadri pade"]["druid tale"])
+        # Achae Smith's [another favor] stays the fork's: upstream's still asks for "<Player>'s remains".
+        self.assertIn("Will you please find Thulin's remains for me?", self.chat["achae smith"]["another favor"])
+
+    def test_the_guides_notes_are_cut_from_the_replies(self):
+        for (npc, key), (old, new) in CHAT_NOTES.items():
+            with self.subTest(npc=npc, keyword=key):
+                self.assertEqual(self.chat[npc][key].count(new), 1)
+                self.assertNotIn(old, self.chat[npc][key])
+        self.assertTrue(self.chat["elizabeth"]["other items"].endswith(
+            "Which do you desire - [one handed] or [two handed] or a [shield]. Choose carefully, for once your choice "
+            "is made; you cannot change your mind."))
+        self.assertNotIn("(sic)", self.chat["tethra"]["no more heads"] + self.chat["cristin"]["three things"])
+
+    @unittest.skipUnless(UPSTREAM_QUESTS, "needs upstream's classic-quests.json (HDC_CLASSIC_QUESTS)")
+    def test_the_replies_without_the_guides_notes_are_upstreams(self):
+        with open(UPSTREAM_QUESTS, encoding="utf-8") as f:
+            upstream = merged_chat(json.load(f).get("Chat"), {})
+        for (npc, key), words in CHAT_NOTES.items():
+            with self.subTest(npc=npc, keyword=key):
+                self.assertEqual(self.chat[npc][key], with_class_words(upstream[npc][key], [words]))
 
     def test_the_keywords_that_were_player_are_names(self):
         # Upstream's keys "<Player>" (and Rollo's "retrieve the <Player> item") never match: the player clicks their
