@@ -122,39 +122,65 @@ class ExtraQuestFileTests(unittest.TestCase):
         self.assertIn("COPY deploy/hearthdaoc-quests.json /app/server/hearthdaoc-quests.json\n", read(DOCKERFILE))
 
 
-# Each level-50 quest looks its NPC up at a spot and creates it at another when none is found there, so a copy a GM
-# saved shows up as a second NPC at every start (spec 3.3). (file, NPC name, variable the quest creates it in)
+# Each level-50 quest looks its NPC up and creates it when none is found, so a copy a GM saved showed up as a second NPC
+# at every start (spec 3.3). Upstream 0.36's QuestNpcPlacement.IsAt accepts one within SearchRadius (X and Y) of the
+# lookup spot; Mystic50 also accepts Danica within it of the spot where it creates her, since the world's Danica stands
+# outside upstream's box. (file, NPC name, variable the quest creates it in)
 LOOKUPS = (
     ("scripts/quests/Albion/epic/Academy50.cs", "Master Ferowl", "Ferowl"),
     ("scripts/quests/Hibernia/epic/Essence50.cs", "Brigit", "Brigit"),
     ("scripts/quests/Midgard/epic/Mystic50.cs", "Danica", "Danica"),
     ("scripts/quests/Midgard/epic/Viking50.cs", "Elizabeth", "Elizabeth"),
 )
+PLACEMENT = os.path.join(GAME_SERVER, "quests", "QuestsMgr", "QuestNpcPlacement.cs")
+DANICA_UPSTREAM = (100, 802818, 727413)  # upstream's lookup spot in Mystic50
 
 
-def lookup_and_creation(text, name, var):
-    """((lookup X, Y), (creation X, Y), (radius X, Y)) of the NPC's block in a level-50 quest."""
+def search_radius():
+    """QuestNpcPlacement.SearchRadius: IsAt's box reaches this far from its spot in X and in Y."""
+    return int(re.search(r"public const int SearchRadius = (\d+);", read(PLACEMENT)).group(1))
+
+
+def lookup(text, name, var):
+    """(the line above the NPC's lookup test, the test line, its IsAt boxes as (region, X, Y), the spot where the
+    quest creates the NPC as (region, X, Y)) in a level-50 quest."""
     block = text[text.index(f'GetNPCsByName("{name}"'):]
-    found = re.search(r"Math\.Abs\(npc\.X - (\d+)\) <= (\d+) && Math\.Abs\(npc\.Y - (\d+)\) <= (\d+)", block)
-    x = re.search(rf"\b{var}\.X = (\d+);", block)
-    y = re.search(rf"\b{var}\.Y = (\d+);", block)
-    return (found.group(1), found.group(3)), (x.group(1), y.group(1)), (found.group(2), found.group(4))
+    lines = block[block.index("foreach (GameNPC npc in npcs)"):].split("\n")
+    at = next(i for i, line in enumerate(lines) if line.strip().startswith("if ("))
+    boxes = [tuple(int(v) for v in m.groups())
+             for m in re.finditer(r"QuestNpcPlacement\.IsAt\(npc, (\d+), (\d+), (\d+)\)", lines[at])]
+    made = tuple(int(re.search(rf"\b{var}\.{field} = (\d+);", block).group(1)) for field in ("CurrentRegionID", "X", "Y"))
+    return lines[at - 1], lines[at], boxes, made
+
+
+def in_a_box(boxes, region, x, y):
+    return any(r == region and abs(x - bx) <= search_radius() and abs(y - by) <= search_radius() for r, bx, by in boxes)
 
 
 @unittest.skipUnless(TEST_WORLD, "needs HDC_TEST_WORLD (a clean classic world database)")
 class EpicLookupWorldTests(unittest.TestCase):
-    # The world's own copies of the level-50 NPCs are within the quests' lookup box, so the quests use them.
+    # The world's own copies of the level-50 NPCs are within one of their quest's lookup boxes, so the quests use them.
     def test_the_worlds_npcs_are_found_by_their_quests(self):
         conn = sqlite3.connect(f"file:{TEST_WORLD}?mode=ro", uri=True)
         try:
             for rel, name, var in LOOKUPS:
-                (cx, cy), _made, (rx, ry) = lookup_and_creation(read(os.path.join(GAME_SERVER, rel)), name, var)
-                for x, y in conn.execute("SELECT X, Y FROM Mob WHERE Name=?", (name,)):
-                    with self.subTest(name=name):
-                        self.assertLessEqual(abs(x - int(cx)), int(rx))
-                        self.assertLessEqual(abs(y - int(cy)), int(ry))
+                _above, _test, boxes, _made = lookup(read(os.path.join(GAME_SERVER, rel)), name, var)
+                for region, x, y in conn.execute("SELECT Region, X, Y FROM Mob WHERE Name=?", (name,)):
+                    with self.subTest(name=name, x=x, y=y):
+                        self.assertTrue(in_a_box(boxes, region, x, y), boxes)
         finally:
             conn.close()
+
+    def test_upstreams_box_alone_misses_the_worlds_danica(self):
+        # Why Mystic50 keeps the second box; once a world has her inside upstream's, the box can go.
+        conn = sqlite3.connect(f"file:{TEST_WORLD}?mode=ro", uri=True)
+        try:
+            spots = conn.execute("SELECT Region, X, Y FROM Mob WHERE Name='Danica'").fetchall()
+        finally:
+            conn.close()
+        self.assertTrue(spots)
+        for region, x, y in spots:
+            self.assertFalse(in_a_box([DANICA_UPSTREAM], region, x, y), (region, x, y))
 
 
 class EpicSourceTests(unittest.TestCase):
@@ -164,11 +190,29 @@ class EpicSourceTests(unittest.TestCase):
             self.assertNotIn("class Shadows_50", read(str(path)), str(path))
 
     def test_each_level_50_quest_finds_its_npc_near_where_it_creates_it(self):
+        # A copy a GM saved of the NPC the quest made stands where it made it: one of the lookup's boxes holds it.
         for rel, name, var in LOOKUPS:
             with self.subTest(rel):
-                found, made, radius = lookup_and_creation(read(os.path.join(GAME_SERVER, rel)), name, var)
-                self.assertEqual(found, made)
-                self.assertEqual(radius, ("2000", "2000"))
+                _above, test, boxes, made = lookup(read(os.path.join(GAME_SERVER, rel)), name, var)
+                self.assertNotIn("Math.Abs", test)  # the fork's own 2,000 box is gone
+                self.assertTrue(in_a_box(boxes, *made), (boxes, made))
+
+    def test_the_lookups_are_upstreams_but_danicas_second_box(self):
+        for rel, name, var in LOOKUPS:
+            with self.subTest(rel):
+                above, test, boxes, made = lookup(read(os.path.join(GAME_SERVER, rel)), name, var)
+                if name == "Danica":
+                    self.assertEqual(boxes, [DANICA_UPSTREAM, made])
+                    self.assertTrue(above.strip().startswith("// HearthDAoC:"), above)
+                else:
+                    self.assertEqual(len(boxes), 1)
+                    self.assertNotIn("HearthDAoC", above + test)
+
+    def test_is_at_is_a_box_of_search_radius_in_the_region(self):
+        # What in_a_box copies.
+        text = read(PLACEMENT)
+        self.assertIn("npc != null && npc.CurrentRegionID == region &&", text)
+        self.assertIn("Math.Abs(npc.X - x) <= SearchRadius && Math.Abs(npc.Y - y) <= SearchRadius;", text)
 
     def test_the_four_files_keep_their_crlf_endings(self):
         for rel, _name, _var in LOOKUPS:
