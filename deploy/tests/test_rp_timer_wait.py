@@ -36,6 +36,8 @@ GC = os.path.join(BOTS, "AutonomousBotGroupCoordinator.cs")
 KEEP_TRAVEL = os.path.join(BOTS, "AutonomousWorldBotController.KeepTravel.cs")
 SIEGE = os.path.join(BOTS, "AutonomousWorldBotController.Siege.cs")
 ARPR = os.path.join(BOTS, "AutonomousBotRealmPointRewards.cs")
+EVENT_LAYER = os.path.join(BOTS, "AutonomousRvrEventLayer.cs")
+GAME_BOT = os.path.join(GAME_SERVER, "bots", "GameBot.cs")
 
 
 def read(name):
@@ -248,6 +250,18 @@ class UpstreamFactTests(unittest.TestCase):
         self.assertIn("public static Vector3 RendezvousFormationPoint(GameBot bot, string groupId, Vector3 center, bool tight)",
                       source(GC))
 
+    def test_a_released_siege_attacker_comes_back_at_its_frontier_muster(self):
+        # Since upstream 0.37 an attacker of a running siege with no bind of its realm nearby releases at its realm's
+        # muster for the keep's frontier, not in its capital, so its first look is in the region of its fight (spec 1,
+        # departures; the in-game guide's check 7).
+        release = between(source(GAME_BOT), "Point3D release = FindNearestBindPoint();",
+                          "release = new Point3D(capital.X, capital.Y, capital.Z);")
+        self.assertIn("AutonomousRvrEventLayer.TrySiegeRelease(AutonomousBotGroupCoordinator.RvrForceId(this), Realm,", release)
+        self.assertLess(release.index("TrySiegeRelease("), release.index("SafeCapitalFor(Realm)"))
+        siege = between(source(EVENT_LAYER), "public static bool TrySiegeRelease(", "\n    }")
+        self.assertIn("realm == entry.AttackerRealm && entry.Attackers.ContainsKey(forceId)", siege)
+        self.assertIn("AutonomousRvrStaging.TryGetSiegeMuster(realm, target.RegionId, out", siege)
+
 
 class ControllerHookTests(unittest.TestCase):
     def test_the_battleground_wait_comes_after_the_region_check_and_before_every_role(self):
@@ -345,6 +359,15 @@ class GuideTests(unittest.TestCase):
         reads = guide.count("docker exec hearthdaoc-server")
         self.assertEqual(guide.count(self.EVERY_LOG), reads - 1)  # all but `ls /data/logs`
         self.assertIn("docker exec hearthdaoc-server ls /data/logs", guide)
+
+    def test_check_7_has_siege_attackers_wait_at_their_frontier_muster(self):
+        # A released siege attacker comes back at its realm's portal outpost in the keep's frontier (UpstreamFactTests):
+        # it waits there or goes at once; only other invaders release in their capital (ruling R8).
+        seven = between(source(self.GUIDE), "### 7. Frontier, over a day of play", "### 8. ")
+        self.assertIn("portal outpost", seven)
+        self.assertIn("`start case=siege`", seven)
+        self.assertIn("`skip … reason=trip`", seven)
+        self.assertNotIn("for invaders, who release in their capital", seven)
 
 
 if __name__ == "__main__":
