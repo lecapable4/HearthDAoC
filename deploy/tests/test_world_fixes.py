@@ -209,42 +209,26 @@ class DuplicateRowTests(unittest.TestCase):
         self.assertEqual(self.q("SELECT COUNT(*) FROM Mob"), [(2,)])
 
 
-COMMANDER_GOES, COMMANDER_STAYS = "4609f55b-83dd-5958-99dc-b24f969cabda", "62348415-4e5e-482f-a804-c504e29c20f3"
-COMMANDER_LINE = "Duplicate townspeople removed, archived in fork_removed_mobs: commander"
+COMMANDER_STAYS = "62348415-4e5e-482f-a804-c504e29c20f3"
 
 
 class HostileCommanderTests(unittest.TestCase):
     """The outpost by Camelot's north gate: upstream's bestiary import put a realm-0 level-49 "commander" on the
-    friendly Albion Commander's spot, and it attacked and killed the owner (2026-10-13). It goes; the Commander stays."""
+    friendly Albion Commander's spot, and it attacked and killed the owner (2026-10-13). The fork removed it until
+    upstream did, in 0.36 ("Removed the hostile copies of friendly NPCs that 0.35's classic bestiary spawns added",
+    CHANGELOG.md); the fork's own removal went with the 0.37b sync, as a copy of upstream's fix."""
 
-    def setUp(self):
-        self.tmp = tempfile.TemporaryDirectory()
-        self.db = os.path.join(self.tmp.name, "world.db")
-        with sqlite3.connect(self.db) as c:
-            for stmt in SCHEMA:
-                c.execute(stmt)
-            c.execute(MOB)
-            self.add(c, COMMANDER_STAYS, "DOL.GS.GameNPC", "Commander", None, 1, 516726, 495717, 3352)
-            self.add(c, COMMANDER_GOES, "DOL.GS.GameNPC", "commander", None, 1, 516726, 495717, 3353)
+    def test_the_fork_lists_only_master_graent(self):
+        self.assertEqual([kept for _row, kept in wf.DUPLICATE_ROWS], [GRAENT_STAYS])
 
-    def tearDown(self):
-        self.tmp.cleanup()
-
-    add = staticmethod(DuplicateTownspeopleTests.add)
-    q = DuplicateTownspeopleTests.q
-
-    def test_the_hostile_copy_goes_and_the_commander_stays(self):
-        self.assertEqual(wf.apply(self.db), [COMMANDER_LINE])
-        self.assertEqual(self.q("SELECT Mob_ID, Name FROM Mob"), [(COMMANDER_STAYS, "Commander")])
-        self.assertEqual(self.q("SELECT Mob_ID, Name, X, Y, Z, FixId FROM fork_removed_mobs"),
-                         [(COMMANDER_GOES, "commander", 516726, 495717, 3353, "duplicate-townspeople")])
-        self.assertEqual(wf.apply(self.db), [])
-
-    def test_without_the_commander_the_copy_stays(self):
-        with sqlite3.connect(self.db) as c:
-            c.execute("DELETE FROM Mob WHERE Mob_ID=?", (COMMANDER_STAYS,))
-        self.assertEqual(wf.apply(self.db), [])
-        self.assertEqual(self.q("SELECT Mob_ID FROM Mob"), [(COMMANDER_GOES,)])
+    @unittest.skipUnless(TEST_WORLD, "needs HDC_TEST_WORLD (a clean classic world database)")
+    def test_the_world_has_only_the_albion_commander_there(self):
+        conn = sqlite3.connect(f"file:{TEST_WORLD}?mode=ro", uri=True)
+        try:
+            spot = conn.execute("SELECT Mob_ID, Name, Realm FROM Mob WHERE Region=1 AND X=516726 AND Y=495717").fetchall()
+        finally:
+            conn.close()
+        self.assertEqual(spot, [(COMMANDER_STAYS, "Commander", 1)])
 
 
 class FixesTests(unittest.TestCase):
@@ -313,8 +297,7 @@ class FixesTests(unittest.TestCase):
             "Disciple (Necromancer's base class) enabled: disabled_classes 20;33;34;39;58-62 -> 33;34;39;58-62",
             "Saracen Disciples get a starting location (with the Inconnu Disciples, region 51)",
             "Welcome messages now name HearthDAoC (motd, starting_msg)",
-            "Duplicate townspeople removed, archived in fork_removed_mobs: Ley Manton, Master Graent, Tria Ellowis, "
-            "commander",
+            "Duplicate townspeople removed, archived in fork_removed_mobs: Ley Manton, Master Graent, Tria Ellowis",
             "Battlegrounds: classic level and realm rank limits for Abermenai, Thidranki, Murdaigean, Caledonia",
             "Battlegrounds: Caledon is shown as Caledonia; no zone XP bonus in Thidranki, Caledonia",
             "Battlegrounds: keep levels for the ranges (Dun Abermenai base level 19, Thidranki Faste base level 24, "
@@ -352,7 +335,7 @@ class FixesTests(unittest.TestCase):
             "Norseman Healer to Fort Atla (Gotar)",
         ])
         self.assertEqual(self.q("SELECT Mob_ID FROM fork_removed_mobs WHERE FixId='duplicate-townspeople' ORDER BY Mob_ID"),
-                         [(GRAENT_GOES,), ("231313cf-eb6a-408f-9811-f697c705ffb7",), (COMMANDER_GOES,),
+                         [(GRAENT_GOES,), ("231313cf-eb6a-408f-9811-f697c705ffb7",),
                           ("cc83cc14-e5ff-4eb1-b35c-8ad140793909",)])
         self.assertEqual(self.q("SELECT Mob_ID FROM Mob WHERE Name IN ('Ley Manton', 'Tria Ellowis') ORDER BY Mob_ID"),
                          [("2b478cbe-cb3f-44e3-bc86-c5f05ad4714d",), ("a4de3772-723f-452f-9c1a-a00a64e50922",)])
@@ -377,39 +360,24 @@ class FixesTests(unittest.TestCase):
             self.assertIn("Duplicate townspeople removed, archived in fork_removed_mobs: Ley Manton, Tria Ellowis",
                           wf.apply(self.db))
         self.assertEqual(self.q("SELECT COUNT(*) FROM Mob WHERE Name='Master Graent'"), [(2,)])
-        self.assertEqual(wf.apply(self.db), [GRAENT_LINE + ", commander"])
+        self.assertEqual(wf.apply(self.db), [GRAENT_LINE])
         self.assertEqual(self.q("SELECT Mob_ID FROM Mob WHERE Name='Master Graent'"), [(GRAENT_STAYS,)])
         self.assertEqual(self.q(f"SELECT Name, NPCTemplateID, X, Y FROM fork_removed_mobs WHERE Mob_ID='{GRAENT_GOES}'"),
                          [("Master Graent", -1, 574886, 530169)])
         self.assertEqual(wf.apply(self.db), [])
 
     @unittest.skipUnless(TEST_WORLD, "needs HDC_TEST_WORLD (a clean classic world database)")
-    def test_shipped_world_started_before_the_commander_was_listed(self):
-        # A world that hearth.12 to hearth.16 started had every other fix: its next start removes only the commander by
-        # Camelot's north gate, and the next nothing.
-        shutil.copyfile(TEST_WORLD, self.db)
-        with mock.patch.object(wf, "DUPLICATE_ROWS", wf.DUPLICATE_ROWS[:1]):
-            wf.apply(self.db)
-        self.assertEqual(self.q("SELECT Name, Realm FROM Mob WHERE Region=1 AND X=516726 AND Y=495717 ORDER BY Name"),
-                         [("Commander", 1), ("commander", 0)])
-        self.assertEqual(wf.apply(self.db), [COMMANDER_LINE])
-        self.assertEqual(self.q("SELECT Mob_ID, Name, Realm FROM Mob WHERE Region=1 AND X=516726 AND Y=495717"),
-                         [(COMMANDER_STAYS, "Commander", 1)])
-        self.assertEqual(wf.apply(self.db), [])
-
-    @unittest.skipUnless(TEST_WORLD, "needs HDC_TEST_WORLD (a clean classic world database)")
     def test_no_monster_stands_by_a_realm_npc_of_its_name(self):
         # The commander's defect: upstream's bestiary import (PackageID BestiaryG9, "placed where 1.65 radar logs saw
-        # them, never inside towns") made realm-0 monsters of names its logs saw, and one was the Albion Commander. After
-        # the fixes no realm-0 row stands within 3,000 units of a realm NPC of its name, but for Dodens Gruva's six
-        # "innocent" (region 246, by Midgard's own innocents), whose period realm is not checked yet.
+        # them, never inside towns") made realm-0 monsters of names its logs saw, and one was the Albion Commander.
+        # Upstream 0.36 removed it and Dodens Gruva's six realm-0 "innocent": after the fixes no realm-0 row stands
+        # within 3,000 units of a realm NPC of its name.
         shutil.copyfile(TEST_WORLD, self.db)
         wf.apply(self.db)
         rows = self.q("""SELECT DISTINCT h.Mob_ID, lower(h.Name), h.Region FROM Mob h JOIN Mob f
                          ON f.Region = h.Region AND lower(f.Name) = lower(h.Name) AND f.Realm <> 0 AND f.Mob_ID <> h.Mob_ID
                          WHERE h.Realm = 0 AND abs(h.X - f.X) < 3000 AND abs(h.Y - f.Y) < 3000""")
-        self.assertEqual(sorted({(name, region) for _, name, region in rows}), [("innocent", 246)])
-        self.assertEqual(len(rows), 6)
+        self.assertEqual(rows, [])
 
     @unittest.skipUnless(TEST_WORLD, "needs HDC_TEST_WORLD (a clean classic world database)")
     def test_shipped_world_started_before_the_classic_quests_texts(self):
