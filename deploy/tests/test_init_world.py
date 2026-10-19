@@ -327,6 +327,33 @@ class PatchedReleaseTests(unittest.TestCase):
             self.assertEqual(init_world.init(self.release(srv), self.data, "classic", log=QUIET), 0)
             self.assertEqual(len(srv.requests), before)
 
+    def test_the_start_after_an_upgrade_adds_the_patchs_navmesh_files_and_keeps_the_zone_meshes(self):
+        # The owner's data after ./hdc update: a world on this release, which upgrade-world marks as having no
+        # navmeshes yet, and the navmesh folder of the release before, with the same zone meshes and an older pocket
+        # list. The next start must put the patch's pocket list there (without it upstream's pocket fixes are
+        # silently off) and must not download the zone meshes again.
+        with fx.RangeServer(self.dir) as srv:
+            init_world.init(self.release(srv), self.data, "classic", skip_navmesh=True, log=QUIET)
+        navmesh = init_world.world_paths(self.data)["navmesh"]
+        os.makedirs(navmesh, exist_ok=True)
+        zones = {}
+        for name in ("zone001.nav", "zone002.nav"):
+            with open(os.path.join(navmesh, name), "wb") as f:
+                f.write(self.files["runtime/server/navmesh/" + name])
+            zones[name] = os.stat(os.path.join(navmesh, name)).st_mtime_ns
+        with open(os.path.join(navmesh, "pockets.json"), "wb") as f:
+            f.write(b'{"pockets": ["the release before"]}')
+        meta = init_world.world_paths(self.data)["meta"]
+        with open(meta, encoding="utf-8") as f:
+            init_world.write_meta(meta, dict(json.load(f), navmesh=False))  # as upgrade_world leaves it
+        with fx.RangeServer(self.dir) as srv:
+            self.assertEqual(init_world.init(self.release(srv), self.data, "classic", log=QUIET), 0)
+        self.assertEqual(self.read(os.path.join(navmesh, "pockets.json")),
+                         self.patch_files["runtime/server/navmesh/pockets.json"])
+        self.assertEqual({name: os.stat(os.path.join(navmesh, name)).st_mtime_ns for name in zones}, zones)
+        with open(meta, encoding="utf-8") as f:
+            self.assertTrue(json.load(f)["navmesh"])
+
     def main(self, srv):
         lock_path = os.path.join(self.dir, "upstream.lock")
         with open(lock_path, "w", encoding="utf-8") as f:
