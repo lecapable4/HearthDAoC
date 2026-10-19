@@ -1,5 +1,5 @@
 {
- "_about": "Period corrections to upstream's monsters, items and quests (levels, spots, prices, rewards), applied at every start by deploy/bin/mob_fixes.py (run by world_fixes.py). Each entry names a Mob row by Mob_ID, the NpcTemplate rows of a TemplateId, an ItemTemplate row by Id_nb or a DataQuest row by ID; the row changes only while it holds every expect value (upstream's), so the owner's own changes stay. Every entry says why, with its source.",
+ "_about": "Period corrections to upstream's monsters, items and quests (levels, spots, prices, rewards), applied at every start by deploy/bin/mob_fixes.py (run by world_fixes.py). Each entry names a Mob row by Mob_ID, the NpcTemplate rows of a TemplateId, an ItemTemplate row by Id_nb or a DataQuest row by ID; the row changes only while it holds every expect value (upstream's), so the owner's own changes stay. The entries of one decision that depend on each other (a quest's rewards) share a group, which changes whole or not at all. Every entry says why, with its source.",
  "fixes": [
   {
    "name": "Agisthil",
@@ -37,6 +37,7 @@
    "name": "Cloudy Green Stone",
    "table": "ItemTemplate",
    "id": "cq_alb_cloudy_green_stone",
+   "group": "Zombie Problem's stone",
    "expect": {"Price": 0},
    "set": {"Price": 100},
    "why": "\"Zombie Problem\" (level 4, Gronyr Gloyw outside Prydwen Keep): the Allakhazam page as archived 2004-11-01 says he gives \"a cloudy green stone (worth about 50 copper)\" for each rotting hog tail; upstream's reward has price 0, so a merchant pays nothing. Price 100 sells for 50 copper at item_sell_ratio 50 (owner 2026-10-11)."
@@ -45,6 +46,7 @@
    "name": "Cloudy Green Stone",
    "table": "ItemTemplate",
    "id": "cq_cloudy_green_stone",
+   "group": "Zombie Problem's stone",
    "expect": {"Price": 0, "Model": 229, "Level": 1, "Weight": 1, "Realm": 0, "Description": null},
    "set": {"Price": 100, "Model": 113, "Level": 4, "Weight": 0, "Realm": 1, "Description": "Classic quest reward (Zombie Problem)"},
    "why": "The stone Gronyr Gloyw trades for each rotting hog tail in \"Zombie Problem\" (the other stone entry is the copy upstream's final reward handed too, which players may still carry). Allakhazam's item page (archived 2003-02-12 to 2004-12-26): \"Stone is worth 50 copper when you sell it.\", Albion, 0.00 lbs, level 4; price 100 sells for 50 copper at item_sell_ratio 50 (owner 2026-10-11: only one of his two stones sold). Model 113 is the client's \"Green Gem\" (objects.csv); upstream's 229 is the cloth dyes' bottle. Its delve names the quest, as the other quest rewards' do."
@@ -141,6 +143,7 @@
    "name": "Zombie Problem",
    "table": "DataQuest",
    "id": 20515,
+   "group": "Zombie Problem's stone",
    "expect": {"FinalRewardItemTemplates": "cq_alb_cloudy_green_stone"},
    "set": {"FinalRewardItemTemplates": ""},
    "why": "Allakhazam (archived 2004-11-01): \"Give the tails back to Gronyr and he will give you a cloudy green stone (worth about 50 copper) for each one.\" Upstream's trade (classic-quests.json) gives that stone, then the final reward handed a second one (owner 2026-10-11: two stones, slightly different, only one sold). The trade's stone is kept (Cloudy Green Stone entry); the final reward goes."
@@ -283,7 +286,7 @@
    "set": {"StepItemTemplates": "|||||cq_alb_yog_s_iron_fist|", "FinalRewardItemTemplates": ""},
    "why": "Allakhazam cquest 349 (Wayback capture 2003-10-09): \"Look in your pack nice weapon: Yog's Iron Fist\". Upstream hands a carried-only copy (cq_yog_s_iron_fist, Item_Type 40, level 1, no bonuses) on the kill (step 6, StepItemTemplates) and the weapon itself, cq_alb_yog_s_iron_fist, which 0.36 added, as the final reward, so the quest gave two. Kept: the kill's copy, as the period's monster dropped it, under the realm template; the final reward goes (as Minx Wiley's boots, owner 2026-10-11)."
   },
-  {"name": "Ogre's Might", "table": "DataQuest", "id": 21371,
+  {"name": "Ogre's Might", "table": "DataQuest", "id": 21371, "group": "Ogre's Might's rewards",
    "expect": {"StepItemTemplates": "|cq_citadel_map||cq_first_key_piece|cq_puzzler_s_globe|cq_channeler_s_orb", "FinalRewardItemTemplates": "cq_alb_puzzler_s_globe|cq_alb_scurceol_s_bracer"},
    "set": {"StepItemTemplates": "|cq_citadel_map||cq_first_key_piece|cq_alb_puzzler_s_globe|cq_channeler_s_orb", "FinalRewardItemTemplates": ""},
    "why": "Allakhazam cquest 699 (Wayback capture 2003-08-18), killing Scurceol Hyrde: \"You receive a Puzzler's Globe! You receive a Channeler's Orb! You receive a Scurceol's Bracer!\"; then \"You give the Channeler's Orb to Master Xavier.\" for gold and experience. Upstream hands carried-only copies of the globe (cq_puzzler_s_globe, on the kill, step 5, StepItemTemplates) and of the bracer (cq_scurceol_s_bracer, its grant at step 6 in classic-quests.json), then both again as the final reward (cq_alb_puzzler_s_globe and cq_alb_scurceol_s_bracer, which 0.36 added), so the quest gave two of each. Kept: the kill's globe, as the period's monster dropped it, under the realm template (as Minx Wiley's boots, owner 2026-10-11), and the grant's bracer, which the Scurceol's Bracer entry makes the bracer; the final reward goes."
@@ -308,27 +311,27 @@
    "set": {"FinalRewardItemTemplates": ""},
    "why": "Allakhazam cquest 4 (Wayback capture 2003-10-26): kill rock imps, and for every part \"you get a gem\"; \"You receive a yellow quartz from Crep Pew!\" Upstream's trade (classic-quests.json) gives that quartz for a rock imp part, then the final reward handed a second one, cq_alb_yellow_quartz, which 0.36 added. The trade's own output is kept, as in Zombie Problem (owner 2026-10-11); the final reward goes."
   },
-  {"name": "Strange Bedfellows", "table": "DataQuest", "id": 20975,
+  {"name": "Strange Bedfellows", "table": "DataQuest", "id": 20975, "group": "Strange Bedfellows' reward",
    "expect": {"FinalRewardItemTemplates": "cq_hib_perfect_life_stone"},
    "set": {"FinalRewardItemTemplates": ""},
    "why": "Allakhazam cquest 2007, Strange Bedfellows (Hib) (Wayback capture 2004-04-19): \"Deliver Caisha's soul stone to Mystemas and he will reward you with a Perfect Life Stone (Necklace item with 118hp).\" \"Then report back to Waljan in TNN and give him the diplomatic documents.\" Midgard's version (cquest 1801, capture 2003-12-28): \"Return a gem to Mystenas and recieve a jewel imbued with 118 hits and large heal charge.\" Mystemas's hand-over is upstream's grant at step 8 (classic-quests.json, cq_perfect_life_stone); Waljan's final reward handed the necklace again, cq_hib_perfect_life_stone, which 0.36 added. The grant is kept: the Perfect Life Stone entry makes its template the necklace, and the final reward goes (as Zombie Problem keeps its trade's stone, owner 2026-10-11)."
   },
-  {"name": "Perfect Life Stone", "table": "ItemTemplate", "id": "cq_perfect_life_stone",
+  {"name": "Perfect Life Stone", "table": "ItemTemplate", "id": "cq_perfect_life_stone", "group": "Strange Bedfellows' reward",
    "expect": {"Level": 1, "Object_Type": 0, "Item_Type": 40, "Model": 116, "Bonus1": 0, "Bonus1Type": 0, "SpellID": 0, "Charges": 0, "MaxCharges": 0},
    "set": {"Level": 47, "Object_Type": 41, "Item_Type": 29, "Model": 623, "Bonus1": 118, "Bonus1Type": 10, "SpellID": 33033, "Charges": 1, "MaxCharges": 1},
    "why": "The Perfect Life Stone Mystemas gives in \"Strange Bedfellows\" (Hibernia, level 45), which upstream's grant at step 8 hands: \"he will reward you with a Perfect Life Stone (Necklace item with 118hp)\" (Allakhazam cquest 2007, Wayback capture 2004-04-19). Upstream's template is a carried-only copy (Item_Type 40, level 1, no bonuses); it takes the values of cq_hib_perfect_life_stone, the necklace 0.36 added, which the quest no longer hands (Strange Bedfellows entry). A copy players already carry becomes the necklace too."
   },
-  {"name": "Darksong's Dirge, Healer", "table": "DataQuest", "id": 21021,
+  {"name": "Darksong's Dirge, Healer", "table": "DataQuest", "id": 21021, "group": "Darksong's Dirge's ring",
    "expect": {"FinalRewardItemTemplates": "cq_mid_pious_ring"},
    "set": {"FinalRewardItemTemplates": ""},
    "why": "Allakhazam cquest 71 (Wayback capture 2003-11-15): \"I gave the lock of hair to Lilib ... I was given a ring and instructions to return to the trainer ... On speaking to the trainer I was given experience and told to keep the Pious Ring.\" Lilib's ring is upstream's grant at step 3 (classic-quests.json, cq_pious_ring); the trainer's final reward handed a second ring, cq_mid_pious_ring, which 0.36 added. The grant is kept: the Pious Ring entry makes its template the ring, and the final reward goes (as Zombie Problem keeps its trade's stone, owner 2026-10-11)."
   },
-  {"name": "Darksong's Dirge, Shaman", "table": "DataQuest", "id": 21022,
+  {"name": "Darksong's Dirge, Shaman", "table": "DataQuest", "id": 21022, "group": "Darksong's Dirge's ring",
    "expect": {"FinalRewardItemTemplates": "cq_mid_pious_ring"},
    "set": {"FinalRewardItemTemplates": ""},
    "why": "Allakhazam cquest 71 (Wayback capture 2003-11-15): \"I gave the lock of hair to Lilib ... I was given a ring and instructions to return to the trainer ... On speaking to the trainer I was given experience and told to keep the Pious Ring.\" Lilib's ring is upstream's grant at step 3 (classic-quests.json, cq_pious_ring); the trainer's final reward handed a second ring, cq_mid_pious_ring, which 0.36 added. The grant is kept: the Pious Ring entry makes its template the ring, and the final reward goes (as Zombie Problem keeps its trade's stone, owner 2026-10-11)."
   },
-  {"name": "Pious Ring", "table": "ItemTemplate", "id": "cq_pious_ring",
+  {"name": "Pious Ring", "table": "ItemTemplate", "id": "cq_pious_ring", "group": "Darksong's Dirge's ring",
    "expect": {"Level": 1, "Object_Type": 0, "Item_Type": 40, "Weight": 1, "Model": 1888, "Bonus": 0, "Bonus1": 0, "Bonus2": 0, "Bonus3": 0, "Bonus4": 0, "Bonus1Type": 0, "Bonus2Type": 0, "Bonus3Type": 0, "Bonus4Type": 0, "Realm": 0, "AllowedClasses": "0"},
    "set": {"Level": 11, "Object_Type": 41, "Item_Type": 35, "Weight": 0, "Model": 103, "Bonus": 5, "Bonus1": 4, "Bonus2": 6, "Bonus3": 1, "Bonus4": 1, "Bonus1Type": 2, "Bonus2Type": 6, "Bonus3Type": 13, "Bonus4Type": 9, "Realm": 2, "AllowedClasses": "26;28"},
    "why": "The Pious Ring Lilib gives in \"Darksong's Dirge\" (Healer and Shaman, level 11), which upstream's grant at step 3 hands: \"I gave the lock of hair to Lilib ... I was given a ring\" (Allakhazam cquest 71, Wayback capture 2003-11-15). Upstream's template is a carried-only copy (Item_Type 40, level 1, no bonuses); it takes the values of cq_mid_pious_ring, the ring 0.36 added, which the quest no longer hands (Darksong's Dirge entries). A copy players already carry becomes the ring too."
@@ -338,22 +341,22 @@
    "set": {"StepItemTemplates": "|||||||", "StepText": "Kill Director Kobil.|Return to Mystemas.|Kill Prince Abdin.|Return to Mystemas.|Mystemas sends you to kill Legion.|Return to Mystemas for your rewards.|Choose your reward: whisper Mystemas the name of the item you want (Mithothyn's Crown of Song, Mithothyn's Crown of Piety, Mithothyn's Crown of Rage, Mithothyn's Crown of Might).|Choose your reward: whisper Mystemas the name of the item you want (Vigdis's Protector, Vigdis's Singing Protector, Vigdis's Heroic Protector)."},
    "why": "Allakhazam cquest 1802, Breaking the Blade (Mid) (Wayback capture 2003-12-28): \"4)You are then told to go kill Prince Abdin. 5)Return to Mysteras. 6) Receive a reward (belt).\"; the rewards it lists (capture 2005-04-28) are Vigdis's Protector and Vigdis's Singing Protector. Upstream hands a carried-only copy of one belt (cq_vigdis_s_protector, Item_Type 40) when Mystemas is spoken to at step 4, and its choice at step 8 (classic-quests.json) hands the belt the player picks, Vigdis's Protector, Singing Protector or Heroic Protector (realm templates), so a player who picked Vigdis's Protector got two. Kept: the choice and its realm templates, upstream's three belts, of which the 2005-04-28 capture names two; the copy at step 4 goes. The belt now comes at the quest's end, not after Prince Abdin, so the journal says so: stage 4, after Prince Abdin, is the period's \"Return to Mysteras.\" (\"Return to Mystemas.\", as the NPC is named in the world, not \"for a belt\"), and stage 6, after Legion, \"for your rewards\" (the crown and the belt; the 2005-04-28 capture: \"Upon the Legions death go back to Mystemas to receive another reward (helm).\"), not \"for another reward\"."
   },
-  {"name": "Dark Places of the Soul", "table": "DataQuest", "id": 21264,
+  {"name": "Dark Places of the Soul", "table": "DataQuest", "id": 21264, "group": "Dark Places of the Soul's rewards",
    "expect": {"FinalRewardItemTemplates": "cq_mid_ring_of_spun_silk|cq_mid_herbalist_s_hauberk_of_ivy"},
    "set": {"FinalRewardItemTemplates": ""},
    "why": "Allakhazam cquest 713 (Wayback capture 2003-12-28): \"Return to Gna Faste and hand head to Jytal. You will receive the Ring of Spun Silk\" and \"Take the bowl to Besje in Huginfell. You will get a Herbalists' Hauberk of Ivy\". Those are upstream's grants at steps 6 (Jytal) and 17 (Besje) in classic-quests.json; the final reward handed both again, cq_mid_ring_of_spun_silk and cq_mid_herbalist_s_hauberk_of_ivy, which 0.36 added. The grants are kept: the Ring of Spun Silk and Herbalist's Hauberk of Ivy entries make their templates the items, and the final reward goes (as Zombie Problem keeps its trade's stone, owner 2026-10-11)."
   },
-  {"name": "Ring of Spun Silk", "table": "ItemTemplate", "id": "cq_ring_of_spun_silk",
+  {"name": "Ring of Spun Silk", "table": "ItemTemplate", "id": "cq_ring_of_spun_silk", "group": "Dark Places of the Soul's rewards",
    "expect": {"Level": 1, "Object_Type": 0, "Item_Type": 40, "Weight": 1, "Model": 1888, "Bonus": 0, "Bonus1": 0, "Bonus2": 0, "Bonus3": 0, "Bonus4": 0, "Bonus1Type": 0, "Bonus2Type": 0, "Bonus3Type": 0, "Bonus4Type": 0, "Realm": 0},
    "set": {"Level": 48, "Object_Type": 41, "Item_Type": 35, "Weight": 5, "Model": 103, "Bonus": 35, "Bonus1": 3, "Bonus2": 21, "Bonus3": 10, "Bonus4": 10, "Bonus1Type": 3, "Bonus2Type": 10, "Bonus3Type": 13, "Bonus4Type": 16, "Realm": 2},
    "why": "The Ring of Spun Silk Jytal gives in \"Dark Places of the Soul\" (Midgard, level 49), which upstream's grant at step 6 hands: \"hand head to Jytal. You will receive the Ring of Spun Silk\" (Allakhazam cquest 713, Wayback capture 2003-12-28). Upstream's template is a carried-only copy (Item_Type 40, level 1, no bonuses); it takes the values of cq_mid_ring_of_spun_silk, the ring 0.36 added, which the quest no longer hands (Dark Places of the Soul entry). A copy players already carry becomes the ring too."
   },
-  {"name": "Herbalist's Hauberk of Ivy", "table": "ItemTemplate", "id": "cq_herbalist_s_hauberk_of_ivy",
+  {"name": "Herbalist's Hauberk of Ivy", "table": "ItemTemplate", "id": "cq_herbalist_s_hauberk_of_ivy", "group": "Dark Places of the Soul's rewards",
    "expect": {"Level": 1, "DPS_AF": 0, "SPD_ABS": 0, "Object_Type": 0, "Item_Type": 40, "Weight": 1, "Model": 2226, "Bonus": 0, "Bonus1": 0, "Bonus2": 0, "Bonus3": 0, "Bonus4": 0, "Bonus1Type": 0, "Bonus2Type": 0, "Bonus3Type": 0, "Bonus4Type": 0, "Realm": 0},
    "set": {"Level": 50, "DPS_AF": 80, "SPD_ABS": 27, "Object_Type": 35, "Item_Type": 25, "Weight": 55, "Model": 235, "Bonus": 30, "Bonus1": 7, "Bonus2": 7, "Bonus3": 10, "Bonus4": 10, "Bonus1Type": 1, "Bonus2Type": 3, "Bonus3Type": 18, "Bonus4Type": 15, "Realm": 2},
    "why": "The Herbalist's Hauberk of Ivy Besje gives in \"Dark Places of the Soul\" (Midgard, level 49), which upstream's grant at step 17 hands: \"Take the bowl to Besje in Huginfell. You will get a Herbalists' Hauberk of Ivy\" (Allakhazam cquest 713, Wayback capture 2003-12-28). Upstream's template is a carried-only copy (Item_Type 40, level 1, no bonuses); it takes the values of cq_mid_herbalist_s_hauberk_of_ivy, the hauberk 0.36 added, which the quest no longer hands (Dark Places of the Soul entry). A copy players already carry becomes the hauberk too."
   },
-  {"name": "Scurceol's Bracer", "table": "ItemTemplate", "id": "cq_scurceol_s_bracer",
+  {"name": "Scurceol's Bracer", "table": "ItemTemplate", "id": "cq_scurceol_s_bracer", "group": "Ogre's Might's rewards",
    "expect": {"Level": 1, "Object_Type": 0, "Item_Type": 40, "Weight": 1, "Bonus": 0, "Bonus1": 0, "Bonus2": 0, "Bonus3": 0, "Bonus1Type": 0, "Bonus2Type": 0, "Bonus3Type": 0, "Realm": 0, "BonusLevel": 0},
    "set": {"Level": 50, "Object_Type": 41, "Item_Type": 33, "Weight": 7, "Bonus": 25, "Bonus1": 10, "Bonus2": 10, "Bonus3": 30, "Bonus1Type": 13, "Bonus2Type": 17, "Bonus3Type": 10, "Realm": 1, "BonusLevel": 30},
    "why": "The bracer Scurceol Hyrde drops in \"Ogre's Might\" (Albion, level 49): \"You receive a Puzzler's Globe! You receive a Channeler's Orb! You receive a Scurceol's Bracer!\" (Allakhazam cquest 699, Wayback capture 2003-08-18), which upstream's grant at step 6 hands after the kill. Upstream's template is a carried-only copy (Item_Type 40, level 1, no bonuses); it takes the values of cq_alb_scurceol_s_bracer, the bracer 0.36 added, which the quest no longer hands (Ogre's Might entry). A copy players already carry becomes the bracer too."

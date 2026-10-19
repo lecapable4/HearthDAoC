@@ -201,7 +201,11 @@ entry says why, with its source). After each start, `./hdc fixes` shows `Mob fix
 changed, and nothing when they are up to date. There is no marker: a row (a `Mob` row, the `NpcTemplate` rows of
 a template, an `ItemTemplate` row or a `DataQuest` row) changes only while it still holds every value upstream shipped, so a monster you changed yourself is
 kept; kept rows are named at every start (`M left as they are (they hold neither upstream's values nor this
-file's): Frund (Mob 3ce2...)`). If it fails (for example, a column the file names is not in the table), the start
+file's): Frund (Mob 3ce2...)`). The entries that together decide one quest's rewards (say, a carried-only copy
+made the reward and the quest's second copy dropped) form a group, which changes only whole: if one of its rows
+holds neither value, none of them changes, so a quest never hands two real rewards, or none, and the start log
+names the group at every start (`1 group left as it is (...): Strange Bedfellows' reward (Perfect Life Stone
+(ItemTemplate cq_perfect_life_stone))`). If it fails (for example, a column the file names is not in the table), the start
 log says `Mob fixes: not applied (...)`, the monsters keep the values they have, and it tries again at the next
 start.
 

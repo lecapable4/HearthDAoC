@@ -112,6 +112,60 @@ class SyntheticTests(unittest.TestCase):
         self.assertEqual(line, "Mob fixes: not applied (fix 2 (Mulgrut reward): another entry of its row also has Name); "
                                "the monsters, items and quests keep the values they have")
 
+    # The 0.37 sync: a decision made of entries that depend on each other (a carried-only copy made the reward, and the
+    # quest's second copy dropped) applies whole or not at all, so it never leaves two real rewards, or none.
+    GROUP = "Cleric Mulgrut's belt"
+    GROUPED = {"fixes": [
+        {"name": "Belt of Animation", "table": "ItemTemplate", "id": "stone", "group": GROUP, "expect": {"Price": 0},
+         "set": {"Price": 100}, "why": "2026"},
+        {"name": "Agisthil", "table": "Mob", "id": "agisthil", "expect": {"Level": 12}, "set": {"Level": 10}, "why": "2026"},
+        {"name": "Cleric Mulgrut", "table": "DataQuest", "id": 20207, "group": GROUP,
+         "expect": {"FinalRewardItemTemplates": "belt|alb_belt"}, "set": {"FinalRewardItemTemplates": "belt"},
+         "why": "2026"},
+    ]}
+    HELD = ("1 group left as it is (an entry's row holds neither upstream's values nor this file's, or is missing, so no "
+            "row of the group changes): Cleric Mulgrut's belt ({})")
+
+    def grouped_rows(self):
+        return (self.conn.execute("SELECT Price, LastTimeRowUpdated FROM ItemTemplate WHERE Id_nb='stone'").fetchall(),
+                self.conn.execute("SELECT FinalRewardItemTemplates, LastTimeRowUpdated FROM DataQuest").fetchall())
+
+    def test_a_whole_group_applies_and_a_second_run_is_silent(self):
+        self.assertEqual(self.run_fix(self.GROUPED), ["Mob fixes: 3 corrected: Belt of Animation (ItemTemplate stone), "
+                                                      "Agisthil (Mob agisthil), Cleric Mulgrut (DataQuest 20207)"])
+        self.assertEqual(self.grouped_rows(), ([(100, NOW)], [("belt", NOW)]))
+        self.assertEqual(self.run_fix(self.GROUPED), [])
+
+    def test_a_group_half_matching_changes_none_of_its_rows_and_is_named_at_every_start(self):
+        self.conn.execute("UPDATE DataQuest SET FinalRewardItemTemplates='alb_belt'")  # the owner's own change
+        self.conn.commit()
+        before = self.grouped_rows()
+        line = "Mob fixes: 1 corrected: Agisthil (Mob agisthil); " + self.HELD.format("Cleric Mulgrut (DataQuest 20207)")
+        self.assertEqual(self.run_fix(self.GROUPED), [line])
+        self.assertEqual(self.grouped_rows(), before)  # the belt is not made the reward while the quest still hands two
+        self.assertEqual(self.run_fix(self.GROUPED), ["Mob fixes: " + self.HELD.format("Cleric Mulgrut (DataQuest 20207)")])
+        self.assertEqual(self.grouped_rows(), before)
+
+    def test_a_group_whose_row_is_missing_changes_none_of_its_rows(self):
+        self.conn.execute("DELETE FROM ItemTemplate WHERE Id_nb='stone'")
+        self.conn.commit()
+        self.assertEqual(self.run_fix(self.GROUPED), [
+            "Mob fixes: 1 corrected: Agisthil (Mob agisthil); " + self.HELD.format("Belt of Animation (ItemTemplate stone)")])
+        self.assertEqual(self.grouped_rows()[1], [("belt|alb_belt", OLD)])
+
+    def test_a_group_entry_already_at_its_values_lets_the_others_apply(self):
+        self.conn.execute("UPDATE ItemTemplate SET Price=100 WHERE Id_nb='stone'")  # an earlier release had that entry
+        self.conn.commit()
+        self.assertEqual(self.run_fix(self.GROUPED), ["Mob fixes: 2 corrected: Agisthil (Mob agisthil), "
+                                                      "Cleric Mulgrut (DataQuest 20207)"])
+        self.assertEqual(self.grouped_rows(), ([(100, OLD)], [("belt", NOW)]))
+
+    def test_a_group_none_of_whose_rows_is_in_the_world_is_skipped(self):
+        self.conn.execute("DELETE FROM ItemTemplate")
+        self.conn.execute("DELETE FROM DataQuest")
+        self.conn.commit()
+        self.assertEqual(self.run_fix(self.GROUPED), ["Mob fixes: 1 corrected: Agisthil (Mob agisthil)"])
+
     def test_a_second_run_changes_nothing_and_prints_nothing(self):
         self.run_fix()
         self.conn.execute("UPDATE Mob SET LastTimeRowUpdated=?", (OLD,))
@@ -219,6 +273,9 @@ class SyntheticTests(unittest.TestCase):
             "a value that is a list": changed(set={"X": [1]}, expect={"X": 100}),
             "a value that is a boolean": changed(set={"X": True}, expect={"X": 100}),
             "a row twice": {"fixes": fixes()["fixes"] + [fixes()["fixes"][0]]},
+            "a group of one entry": changed(group="Frund"),
+            "a group that is not a name": {"fixes": [dict(entry, group=3) for entry in fixes()["fixes"]]},
+            "an empty group name": {"fixes": [dict(entry, group=" ") for entry in fixes()["fixes"]]},
         }
         for what, data in bad.items():
             with self.subTest(what):
@@ -297,6 +354,30 @@ class DataFileTests(unittest.TestCase):
 
 AGISTHIL = "fe76247d-ab9e-5a21-b66a-f629e577c87b"
 FRUND = "3ce2271f-b9f6-4504-b55a-250da35504ba"
+# The reward decisions made of entries that depend on each other (the 0.37 sync; test_quest_rewards finds them): a
+# carried-only copy made the reward, or priced, and the quest's other copy dropped. Each applies whole or not at all.
+GROUPS = {
+    "Zombie Problem's stone": ["Cloudy Green Stone (ItemTemplate cq_alb_cloudy_green_stone)",
+                               "Cloudy Green Stone (ItemTemplate cq_cloudy_green_stone)",
+                               "Zombie Problem (DataQuest 20515)"],
+    "Ogre's Might's rewards": ["Ogre's Might (DataQuest 21371)", "Scurceol's Bracer (ItemTemplate cq_scurceol_s_bracer)"],
+    "Strange Bedfellows' reward": ["Strange Bedfellows (DataQuest 20975)",
+                                   "Perfect Life Stone (ItemTemplate cq_perfect_life_stone)"],
+    "Darksong's Dirge's ring": ["Darksong's Dirge, Healer (DataQuest 21021)", "Darksong's Dirge, Shaman (DataQuest 21022)",
+                                "Pious Ring (ItemTemplate cq_pious_ring)"],
+    "Dark Places of the Soul's rewards": ["Dark Places of the Soul (DataQuest 21264)",
+                                          "Ring of Spun Silk (ItemTemplate cq_ring_of_spun_silk)",
+                                          "Herbalist's Hauberk of Ivy (ItemTemplate cq_herbalist_s_hauberk_of_ivy)"],
+}
+
+
+def groups(data):
+    """{group: [entry label]} of the data file, in its order."""
+    found = {}
+    for entry in data["fixes"]:
+        if "group" in entry:
+            found.setdefault(entry["group"], []).append(f"{entry['name']} ({entry['table']} {entry['id']})")
+    return found
 
 
 @unittest.skipUnless(TEST_WORLD, "needs HDC_TEST_WORLD (a clean classic world database)")
@@ -322,6 +403,10 @@ class RealFileTests(unittest.TestCase):
         self.assertEqual(len(lines), 1, self.first)
         self.assertTrue(lines[0].startswith(f"Mob fixes: {len(self.data['fixes'])} corrected: "), lines[0])
         self.assertNotIn("left as they are", lines[0])
+        self.assertNotIn("group", lines[0])
+
+    def test_the_groups_are_the_reward_decisions_of_several_entries(self):
+        self.assertEqual(groups(self.data), GROUPS)
 
     def test_every_row_holds_the_files_values(self):
         for entry in self.data["fixes"]:
@@ -382,6 +467,32 @@ class RealFileTests(unittest.TestCase):
         self.assertEqual(nearest[0], "Shaman Aslis")
         self.assertEqual(frund[3], nearest[3])  # on the camp's ground: the nearest camp mob's Z
         self.assertGreaterEqual(math.dist(nearest[1:3], frund[1:3]), 75)  # not on top of anyone
+
+
+@unittest.skipUnless(TEST_WORLD, "needs HDC_TEST_WORLD (a clean classic world database)")
+class HalfGroupTests(unittest.TestCase):
+    """A group of the real file on a clean world where one of its rows no longer holds upstream's values."""
+
+    def test_a_group_half_matching_changes_none_of_its_rows(self):
+        # Say the owner changed the Perfect Life Stone: the necklace must not lose Strange Bedfellows' second copy
+        # (cq_hib_perfect_life_stone, the final reward) while the grant's copy stays a token, nor the other way round.
+        with tempfile.TemporaryDirectory() as tmp:
+            db = os.path.join(tmp, "world.db")
+            shutil.copyfile(TEST_WORLD, db)
+            os.chmod(db, 0o644)
+            with sqlite3.connect(db) as c:
+                c.execute("UPDATE ItemTemplate SET Level=2 WHERE Id_nb='cq_perfect_life_stone'")
+            line, = [line for line in wf.apply(db) if line.startswith("Mob fixes:")]
+            with sqlite3.connect(db) as c:
+                self.assertEqual(c.execute("SELECT FinalRewardItemTemplates FROM DataQuest WHERE ID=20975").fetchone(),
+                                 ("cq_hib_perfect_life_stone",))
+                self.assertEqual(c.execute("SELECT Level, Item_Type FROM ItemTemplate WHERE Id_nb='cq_perfect_life_stone'")
+                                 .fetchone(), (2, 40))
+        fixes = len(mf.load_data()["fixes"])
+        self.assertTrue(line.startswith(f"Mob fixes: {fixes - 2} corrected: "), line)
+        self.assertTrue(line.endswith("; 1 group left as it is (an entry's row holds neither upstream's values nor this "
+                                      "file's, or is missing, so no row of the group changes): Strange Bedfellows' reward "
+                                      "(Perfect Life Stone (ItemTemplate cq_perfect_life_stone))"), line)
 
 
 if __name__ == "__main__":

@@ -26,6 +26,7 @@ DEPLOY = os.path.dirname(HERE)
 CLASSIC_QUESTS = os.path.join(DEPLOY, "..", "source", "server", "GameServer", "quests", "QuestsMgr", "ClassicQuests.cs")
 sys.path.insert(0, os.path.join(DEPLOY, "bin"))
 
+import mob_fixes  # noqa: E402
 import world_fixes as wf  # noqa: E402
 from tests.test_quest_reachability import EXTRA_QUESTS, TEST_WORLD, UPSTREAM_QUESTS, merge_quests  # noqa: E402
 
@@ -169,6 +170,41 @@ def handed_again(conn, steps_of):
     return found
 
 
+# The DataQuest columns that hand items, and the ItemTemplate columns that change only how an item looks or reads.
+REWARD_COLUMNS = ("StepItemTemplates", "CollectItemTemplate", "FinalRewardItemTemplates", "OptionalRewardItemTemplates")
+LOOKS = {"model", "color", "description", "extension", "emblem", "effect", "name"}
+
+
+def reward_entries(clean, steps_of, fixes):
+    """{quest ID: [mob_fixes entry number]} of the entries that decide what each quest hands: its own reward columns, and
+    the worth (any column but how it looks) of a template it hands, on upstream's world (`clean`) or by an entry."""
+    hands = defaultdict(set)
+    for qid, *columns in clean.execute(f"SELECT ID, {', '.join(REWARD_COLUMNS)} FROM DataQuest"):
+        for column in columns:
+            hands[qid].update(t for t in templates(column) if t)
+    for qid, steps in steps_of.items():
+        for step in steps:
+            if not step:
+                continue
+            extra = step.get("Custom") or {}
+            given = [*(step.get("Grant") or []), step.get("NeedsItem"), extra.get("Item"),
+                     *(extra.get("Trades") or {}).values(), *(extra.get("Choices") or {}).values(),
+                     *(d.get("Item") for d in extra.get("Drops") or [] if d)]
+            hands[int(qid)].update(item.lower() for item in given if item)
+    decides = defaultdict(list)
+    for n, entry in enumerate(fixes, 1):
+        if entry["table"] == "DataQuest" and set(entry["set"]) & set(REWARD_COLUMNS):
+            decides[int(entry["id"])].append(n)
+            for values in (entry["expect"], entry["set"]):
+                hands[int(entry["id"])].update(t for c in REWARD_COLUMNS for t in templates(values.get(c)) if t)
+    for n, entry in enumerate(fixes, 1):
+        if entry["table"] == "ItemTemplate" and {c.lower() for c in entry["set"]} - LOOKS:
+            for qid, items in hands.items():
+                if entry["id"].lower() in items:
+                    decides[qid].append(n)
+    return {qid: sorted(ns) for qid, ns in decides.items()}
+
+
 def real_items(conn):
     """The templates worth having: worn (any Item_Type but 40, the backpack) or sold (a Price). QuestGrants.IsToken."""
     return {template.lower() for template, slot, price in conn.execute("SELECT Id_nb, Item_Type, Price FROM ItemTemplate")
@@ -295,6 +331,25 @@ class QuestRewardTests(unittest.TestCase):
         real = real_items(self.conn)
         grants = {(qid, n, item) for qid, n, how, item in handed_again(self.conn, self.steps) if how == "grant" and item in real}
         self.assertEqual(grants, ONCE_GRANTS)
+
+    def test_the_entries_that_decide_one_quests_rewards_are_one_group(self):
+        # mob_fixes applies each entry under its own guard: a decision of two (a carried-only copy made the reward, and
+        # the quest's other copy dropped) applied half would leave two real rewards, or none. Its entries share a group,
+        # which changes whole or not at all (0.37 sync).
+        fixes = mob_fixes.load_data()["fixes"]
+        clean = sqlite3.connect(f"file:{TEST_WORLD}?mode=ro", uri=True)
+        try:
+            decides = reward_entries(clean, self.steps, fixes)
+        finally:
+            clean.close()
+        apart = {}
+        for qid, numbers in sorted(decides.items()):
+            names = {fixes[n - 1].get("group") for n in numbers}
+            if len(numbers) > 1 and (len(names) > 1 or None in names):
+                apart[qid] = [f"{fixes[n - 1]['name']} ({fixes[n - 1]['table']} {fixes[n - 1]['id']}): "
+                              f"{fixes[n - 1].get('group')}" for n in numbers]
+        self.assertEqual(apart, {}, "\n".join(f"{qid}: {entries}" for qid, entries in apart.items()))
+        self.assertGreaterEqual(len([numbers for numbers in decides.values() if len(numbers) > 1]), 6)
 
     def test_the_ten_hand_their_item_once(self):
         # Once, not twice and not never: Flint Weapons hands the weapon of the chert's shape.
