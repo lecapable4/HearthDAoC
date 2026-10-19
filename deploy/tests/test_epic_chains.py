@@ -42,6 +42,9 @@ PERIOD_IDS = [21304, 21305, 21306, 21307, 21308, 21309, 21489, 21490, 21491, 214
 SHARE_IDS = [21500, 21498, 21499, 20497, 21501, 21324, 21322, 21323, 21325, 20188, 20186, 20187, 20190, 20189,
              20455, 20453, 20454, 20457, 20456, 20171, 20169, 20170, 20173, 20172, 20435, 20433, 20434, 20437, 20436,
              21482, 21480, 21481, 21484, 21483]
+# Upstream's entry with one grant changed (0.37 sync, deploy/tests/test_quest_rewards.py): level 16 "Brack: Rollo's
+# Story", whose Hilde hands the hammer itself.
+REWARD_IDS = [21465]
 
 
 def read(path):
@@ -59,7 +62,7 @@ class ExtraQuestFileTests(unittest.TestCase):
 
     def test_it_marks_the_level_50_stages_and_lord_elidyn(self):
         self.assertEqual(sorted(int(k) for k in self.extra["Quests"]),
-                         sorted(LEVEL_50_IDS + LEVEL_11_IDS + PERIOD_IDS + SHARE_IDS))
+                         sorted(LEVEL_50_IDS + LEVEL_11_IDS + PERIOD_IDS + SHARE_IDS + REWARD_IDS))
         for qid in LEVEL_50_IDS:
             quest = self.extra["Quests"][str(qid)]
             self.assertNotIn("Replace", quest)  # upstream has no entry for them
@@ -655,7 +658,8 @@ class EpicWorldTests(unittest.TestCase):
                        if not quest.get("Replace") and int(k) not in SHARE_IDS)
         self.assertEqual(added, sorted(self.data["steps"]["50"]["ids"]))
         replaced = sorted(int(k) for k, quest in extra["Quests"].items() if quest.get("Replace"))  # the rebuilt level 11
-        self.assertEqual(replaced, sorted([qid for qid in self.data["steps"]["11"]["ids"] if qid is not None] + PERIOD_IDS))
+        self.assertEqual(replaced, sorted([qid for qid in self.data["steps"]["11"]["ids"] if qid is not None] + PERIOD_IDS
+                                          + REWARD_IDS))
         self.assertTrue(self.conn.execute("SELECT 1 FROM Mob WHERE Mob_ID=?", (extra["QuestMonsterIds"][0],)).fetchone())
 
 

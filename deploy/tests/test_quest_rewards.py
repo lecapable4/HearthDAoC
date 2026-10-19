@@ -56,6 +56,17 @@ CALLED_REWARDS = {20512: ["yellow quartz"], 20975: ["perfect life stone"], 21021
                   21263: ["vigdis's protector"], 21264: ["herbalist's hauberk of ivy", "ring of spun silk"],
                   21371: ["scurceol's bracer"], 21465: ["brack's hammer"]}
 DOUBLED = set(REWARDS) | set(REALM_REWARDS) | set(CALLED_REWARDS)
+# The real items upstream's grants hand on the fixed world (classic-quests.json, merged with ours): ClassicQuests'
+# GrantItems hands a lost one again, so QuestGrants hands each once per character and quest (0.37 sync, review finding
+# data-1). (quest ID, stage, template)
+ONCE_GRANTS = {(20975, 8, "cq_perfect_life_stone"), (21021, 3, "cq_pious_ring"), (21022, 3, "cq_pious_ring"),
+               (21264, 6, "cq_ring_of_spun_silk"), (21264, 17, "cq_herbalist_s_hauberk_of_ivy"),
+               (21371, 6, "cq_scurceol_s_bracer"), (21465, 3, "cq_mid_brack_s_hammer")}
+# Upstream's own: two delivery items of the 0.35b and 0.37b worlds that are worn (a level-4 ring, a level-7 jewel),
+# which 0.36's refresh hands again on the delivery step (the needed item, the delivery). Their quests' final rewards
+# are the real items (cq_alb_slith_s_tailpiece, cq_alb_demon_soul_gem). Left as upstream has them: a later decision.
+UPSTREAM_REISSUED = {(20021, 2, "needed", "cq_slith_s_tail"), (20021, 2, "delivery", "cq_slith_s_tail")} | {
+    (qid, 3, how, "cq_demon_soul_gem") for qid in (21502, 21503, 21504) for how in ("needed", "delivery")}
 
 
 def custom_steps():
@@ -126,6 +137,42 @@ def handed(conn, steps_of):
                 by_name[names[item]].append(f"{how}: {item}")
         quests[qid] = by_name
     return quests
+
+
+def handed_again(conn, steps_of):
+    """[(quest ID, stage, how, template)]: each item ClassicQuests hands a player on a step again while the player has
+    none (its 5 s refresh, or talking to the step's issuer): a step's "grant" (GrantItems), a custom step's "given"
+    item (CheckCustomStep), a "needed" item (OnInteract, ReissueWithoutIssuer) and a "delivery" step's item
+    (GiveDeliveryItem, but a first delivery back to the giver: QuestDeliveryItems.BringsToGiver); and a kill task's
+    "drop" at every kill of its monster (DropForSteps)."""
+    found = []
+    for qid, types, items, start, targets in conn.execute(
+            "SELECT ID, StepType, StepItemTemplates, StartName, TargetName FROM DataQuest"):
+        types, items = (types or "").split("|"), templates(items)
+        targets = [t.split(";")[0].strip().lower() for t in (targets or "").split("|")]
+        for n, step_type in enumerate(types, 1):
+            item = items[n - 1] if n - 1 < len(items) else ""
+            back_to_giver = n == 1 and n - 1 < len(targets) and targets[0] == (start or "").strip().lower()
+            if step_type.strip() in ("2", "3") and item and not back_to_giver:
+                found.append((qid, n, "delivery", item))
+        steps = steps_of.get(str(qid), [])
+        for n, step in enumerate(steps):
+            if not step:
+                continue
+            extra = step.get("Custom") or {}
+            found += [(qid, n, "grant", g.lower()) for g in step.get("Grant") or [] if g]
+            if extra.get("Give") and extra.get("Item"):
+                found.append((qid, n, "given", extra["Item"].lower()))
+            if step.get("NeedsItem"):
+                found.append((qid, n, "needed", step["NeedsItem"].lower()))
+            found += [(qid, n, "drop", d["Item"].lower()) for d in extra.get("Drops") or [] if d and d.get("Item")]
+    return found
+
+
+def real_items(conn):
+    """The templates worth having: worn (any Item_Type but 40, the backpack) or sold (a Price). QuestGrants.IsToken."""
+    return {template.lower() for template, slot, price in conn.execute("SELECT Id_nb, Item_Type, Price FROM ItemTemplate")
+            if slot != 40 or price > 0}
 
 
 def doubled(conn, steps_of):
@@ -236,6 +283,19 @@ class QuestRewardTests(unittest.TestCase):
     def test_no_quest_hands_one_reward_twice(self):
         self.assertEqual(doubled(self.conn, self.steps), [])
 
+    def test_an_item_handed_again_is_a_quest_token(self):
+        # A real item that comes back while the player has none can be had without limit: put in the account vault
+        # (outside slots 7-249), sold or destroyed, it is handed again. Only grants hand one once (QuestGrants).
+        real = real_items(self.conn)
+        again = {(qid, n, how, item) for qid, n, how, item in handed_again(self.conn, self.steps)
+                 if how != "grant" and item in real}
+        self.assertEqual(again, UPSTREAM_REISSUED)
+
+    def test_the_real_items_grants_hand_are_the_ones_quest_grants_hands_once(self):
+        real = real_items(self.conn)
+        grants = {(qid, n, item) for qid, n, how, item in handed_again(self.conn, self.steps) if how == "grant" and item in real}
+        self.assertEqual(grants, ONCE_GRANTS)
+
     def test_the_ten_hand_their_item_once(self):
         # Once, not twice and not never: Flint Weapons hands the weapon of the chert's shape.
         quests = handed(self.conn, self.steps)
@@ -277,7 +337,7 @@ class QuestRewardTests(unittest.TestCase):
                                 (21264, "ring of spun silk", "grant at step 6: cq_ring_of_spun_silk"),
                                 (21264, "herbalist's hauberk of ivy", "grant at step 17: cq_herbalist_s_hauberk_of_ivy"),
                                 (21371, "scurceol's bracer", "grant at step 6: cq_scurceol_s_bracer"),
-                                (21465, "brack's hammer", "grant at step 3: cq_brack_s_hammer")):
+                                (21465, "brack's hammer", "grant at step 3: cq_mid_brack_s_hammer")):
             with self.subTest(qid, item=item):
                 self.assertEqual(quests[qid][item], [copy])
 
@@ -291,11 +351,26 @@ class QuestRewardTests(unittest.TestCase):
                                ("cq_pious_ring", "cq_mid_pious_ring"),
                                ("cq_ring_of_spun_silk", "cq_mid_ring_of_spun_silk"),
                                ("cq_herbalist_s_hauberk_of_ivy", "cq_mid_herbalist_s_hauberk_of_ivy"),
-                               ("cq_scurceol_s_bracer", "cq_alb_scurceol_s_bracer"),
-                               ("cq_brack_s_hammer", "cq_mid_brack_s_hammer")):
+                               ("cq_scurceol_s_bracer", "cq_alb_scurceol_s_bracer")):
             with self.subTest(granted):
                 self.assertEqual(self.conn.execute(select, (granted,)).fetchone(),
                                  self.conn.execute(select, (realm,)).fetchone())
+
+    def test_hilde_hands_the_hammer_itself_and_the_delivery_keeps_upstreams_copy(self):
+        # "He drops a Brack's {something}. You have to return to Haggerfel and talk to Hilde. She says keep the hammer"
+        # (Allakhazam cquest 114, Wayback capture 2003-12-28). Upstream's carried-only copy is also the item stage 2
+        # delivers to Hilde, which a lost one is handed again for, so it stays a token, and Hilde's grant hands the
+        # realm template: our Replace entry is upstream's but for that grant.
+        with open(UPSTREAM_QUESTS, encoding="utf-8") as f:
+            upstream = json.load(f)["Quests"]["21465"]
+        with open(EXTRA_QUESTS, encoding="utf-8") as f:
+            ours = json.load(f)["Quests"]["21465"]
+        upstream["Steps"][3]["Grant"] = ["cq_mid_brack_s_hammer"]
+        self.assertEqual(ours, {"Replace": True, **upstream})
+        self.assertEqual(self.conn.execute("SELECT Item_Type, Level, Price FROM ItemTemplate WHERE Id_nb='cq_brack_s_hammer'")
+                         .fetchone(), (40, 1, 0))
+        self.assertEqual(self.conn.execute("SELECT Item_Type, Level FROM ItemTemplate WHERE Id_nb='cq_mid_brack_s_hammer'")
+                         .fetchone(), (10, 16))
 
     def test_the_kept_items_delve_their_quest(self):
         # A delve's first line is the template's Description: upstream's plain templates read
