@@ -16,6 +16,8 @@ import os
 import re
 import unittest
 
+from tests import endings
+
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 GAME_SERVER = os.path.join(ROOT, "source", "server", "GameServer")
 RP = os.path.join(GAME_SERVER, "commands", "playercommands", "rp.cs")
@@ -32,10 +34,8 @@ class RpCommandTests(unittest.TestCase):
         self.assertIn("client.Player.GainRP = false;", self.text)
         self.assertIn("// HearthDAoC:", self.text)
 
-    def test_the_file_keeps_its_crlf_endings(self):
-        with open(RP, "rb") as f:
-            raw = f.read()
-        self.assertEqual(raw.count(b"\r\n"), raw.count(b"\n"))
+    def test_the_file_keeps_upstreams_endings(self):
+        endings.check(self, RP)
 
 
 def read(path):
@@ -60,10 +60,8 @@ class HarmCommandTests(unittest.TestCase):
         self.assertIn("ad.Target.attackComponent.AddAttacker(ad);",
                       read(os.path.join(GAME_SERVER, "ECS-Components", "AttackComponent.cs")))
 
-    def test_the_file_keeps_its_crlf_endings(self):
-        with open(HARM, "rb") as f:
-            raw = f.read()
-        self.assertEqual(raw.count(b"\r\n"), raw.count(b"\n"))
+    def test_the_file_keeps_upstreams_endings(self):
+        endings.check(self, HARM)
 
 
 class IndicatorCommandTests(unittest.TestCase):
@@ -141,10 +139,8 @@ class DialogAnswerTests(unittest.TestCase):
         send = lib[lib.index("public virtual void SendCustomDialog(string msg, CustomDialogResponse callback)"):]
         self.assertIn("lock (m_gameClient.Player)", send[:400])
 
-    def test_the_file_keeps_its_crlf_endings(self):
-        with open(DIALOG, "rb") as f:
-            raw = f.read()
-        self.assertEqual(raw.count(b"\r\n"), raw.count(b"\n"))
+    def test_the_file_keeps_upstreams_endings(self):
+        endings.check(self, DIALOG)
 
 
 if __name__ == "__main__":

@@ -23,6 +23,7 @@ BIN = os.path.join(HERE, "..", "bin")
 sys.path.insert(0, BIN)
 
 import world_fixes as wf  # noqa: E402
+from tests import endings  # noqa: E402
 from tests.test_quest_reachability import UPSTREAM_QUESTS  # noqa: E402
 
 TEST_WORLD = os.environ.get("HDC_TEST_WORLD")
@@ -189,11 +190,13 @@ class SourceTests(unittest.TestCase):
                 self.assertIsNone(re.search(r"TargetName\s*[!=]=|[!=]=\s*TargetName", text))
 
     def test_the_files_keep_their_endings(self):
+        # Upstream's, line by line (tests/endings.py). ClassicQuests.cs, which the fork edits most, is an LF file with
+        # upstream's 14 CRLF lines (ScaleXP): a fork line must not be CRLF in its LF part, nor the file normalised.
         for path in (os.path.join(QUESTS, "DataQuest.cs"), os.path.join(GAME_OBJECTS, "GameNPC.cs"),
-                     os.path.join(GAME_OBJECTS, "GameObject.cs"), os.path.join(QUESTS, "QuestTalkTruce.cs")):
-            with open(path, "rb") as f:
-                raw = f.read()
-            self.assertEqual(raw.count(b"\r\n"), raw.count(b"\n"), path)
+                     os.path.join(GAME_OBJECTS, "GameObject.cs"), os.path.join(QUESTS, "QuestTalkTruce.cs"),
+                     os.path.join(QUESTS, "ClassicQuests.cs")):
+            with self.subTest(path=path):
+                endings.check(self, path)
         with open(os.path.join(QUESTS, "DataQuest.cs"), "rb") as f:
             self.assertTrue(f.read().startswith(b"\xef\xbb\xbf"))
 

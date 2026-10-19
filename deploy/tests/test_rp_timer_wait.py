@@ -21,6 +21,7 @@ BIN = os.path.join(DEPLOY, "bin")
 sys.path.insert(0, BIN)
 
 import server_properties as sp  # noqa: E402
+from tests import endings  # noqa: E402
 from tests.test_server_properties import SCHEMA, row  # noqa: E402
 
 GAME_SERVER = os.path.join(ROOT, "source", "server", "GameServer")
@@ -62,16 +63,6 @@ def marked(test, body, call):
     test.assertEqual(body.count(call), 1, call)
     above = body[:body.index(call)].rsplit("\n", 2)[-2]
     test.assertIn("// HearthDAoC:", above, call)
-
-
-def ending(raw):
-    """A file's line ending, "CRLF" or "LF" (also for a file of one line), or None for a file of both or a lone CR."""
-    lf, crlf = raw.count(b"\n"), raw.count(b"\r\n")
-    if raw.count(b"\r") != crlf:
-        return None
-    if crlf == 0:
-        return "LF"
-    return "CRLF" if crlf == lf else None
 
 
 def cs_files(top):
@@ -319,22 +310,14 @@ class ControllerHookTests(unittest.TestCase):
 
 
 class EndingsTests(unittest.TestCase):
-    def test_the_upstream_files_keep_one_ending(self):
-        # Upstream's endings, whichever they are (it turned GC to CRLF in 0.36), but one per file: a fork line in the
-        # other ending makes a file of both.
+    def test_the_upstream_files_keep_upstreams_endings(self):
+        # Upstream's endings, whichever they are (it turned GC to CRLF in 0.36), line by line: the fork's lines take
+        # those of the upstream lines beside them (tests/endings.py).
         for path in (BG, WBC, GC, FT):
-            with open(path, "rb") as f:
-                raw = f.read()
-            self.assertIsNotNone(ending(raw), path)
-            self.assertFalse(raw.startswith(b"\xef\xbb\xbf"), path)
-
-    def test_a_file_of_both_endings_fails(self):
-        self.assertEqual(ending(b"a\r\nb\r\n"), "CRLF")
-        self.assertEqual(ending(b"a\nb\n"), "LF")
-        self.assertEqual(ending(b"a"), "LF")
-        self.assertIsNone(ending(b"a\r\nb\n"))
-        self.assertIsNone(ending(b"a\nb\r\n"))
-        self.assertIsNone(ending(b"a\rb\r\n"))
+            with self.subTest(path=path):
+                endings.check(self, path)
+                with open(path, "rb") as f:
+                    self.assertFalse(f.read().startswith(b"\xef\xbb\xbf"), path)
 
     def test_the_fork_files_are_lf_without_bom(self):
         tests = os.path.join(ROOT, "source", "server", "Tests", "UnitTests")

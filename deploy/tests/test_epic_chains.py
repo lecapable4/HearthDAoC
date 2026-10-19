@@ -22,6 +22,7 @@ BIN = os.path.join(DEPLOY, "bin")
 sys.path.insert(0, BIN)
 import epic_chains  # noqa: E402
 import mob_fixes  # noqa: E402
+from tests import endings  # noqa: E402
 
 TEST_WORLD = os.environ.get("HDC_TEST_WORLD")
 GAME_SERVER = os.path.join(ROOT, "source", "server", "GameServer")
@@ -225,12 +226,12 @@ class EpicSourceTests(unittest.TestCase):
         self.assertIn("npc != null && npc.CurrentRegionID == region &&", text)
         self.assertIn("Math.Abs(npc.X - x) <= SearchRadius && Math.Abs(npc.Y - y) <= SearchRadius;", text)
 
-    def test_the_four_files_keep_their_crlf_endings(self):
+    def test_the_four_files_keep_upstreams_endings(self):
         for rel, _name, _var in LOOKUPS:
-            with open(os.path.join(GAME_SERVER, rel), "rb") as f:
-                raw = f.read()
-            self.assertEqual(raw.count(b"\r\n"), raw.count(b"\n"), rel)
-            self.assertFalse(raw.startswith(b"\xef\xbb\xbf"), rel)
+            with self.subTest(rel=rel):
+                endings.check(self, os.path.join(GAME_SERVER, rel))
+                with open(os.path.join(GAME_SERVER, rel), "rb") as f:
+                    self.assertFalse(f.read().startswith(b"\xef\xbb\xbf"), rel)
 
 
 CLASSIC = "DOL.GS.Quests.ClassicQuestStep"
