@@ -253,6 +253,18 @@ class BundlePatchTests(unittest.TestCase):
         with open(os.path.join(self.bundle, "VERSION"), "w", encoding="utf-8") as f:
             f.write(tag + "\n")  # as deploy/build_bundles.sh writes it
 
+    def test_the_bundles_fetcher_takes_a_client_file_a_patch_replaces(self):
+        # A lock for a release made of a base and an upstream patch (0.37b: 0.36b + the 0.37 game patch), read by
+        # the bundle's own odaoc_fetch.py: a client file the patch lists comes from the patch zip, game.dll from
+        # the base's edition, and the client patches still apply.
+        paths = "runtime/client-opendaoc/app/paths.dat"
+        lock, patch_files = fx.build_patch(self.dir, self.lock, self.files,
+                                           files={paths: b"[paths]\r\nsettings=OfflineDAoC037"})
+        dest, r = self.setup_sh(release=(self.dir, lock))
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertEqual(read(os.path.join(dest, "client", "paths.dat")), patch_files[paths])
+        self.assertEqual(read(os.path.join(dest, "client", "game.dll")), self.dll_patched)
+
     def test_setup_patches_the_new_client(self):
         dest, r = self.setup_sh()
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)

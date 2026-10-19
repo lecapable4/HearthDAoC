@@ -78,6 +78,44 @@ def extra_chat():
         return json.load(f).get("Chat") or {}
 
 
+def merge_quests(upstream, extra):
+    """{quest ID: entry}: upstream's "Quests" with the fork file's, as ClassicQuests.Merge merges them. Our entry with
+    "Replace" replaces upstream's, and ours for an ID upstream lacks is added; for any other ID upstream's entry stays,
+    with our "XpShares" and steps' "Greet" laid onto it (overlaid). IDs stay strings; our "_" notes and null entries are
+    skipped. Neither input is changed."""
+    quests = dict(upstream or {})
+    for qid, info in (extra or {}).items():
+        if qid.startswith("_") or info is None:
+            continue
+        if info.get("Replace") or qid not in quests:
+            quests[qid] = info
+        elif quests[qid] is not None:
+            quests[qid] = overlaid(quests[qid], info)
+    return quests
+
+
+def overlaid(entry, ours):
+    """A copy of upstream's entry with ours laid onto it, as ClassicQuestOverlay.Apply does: a non-empty "XpShares"
+    replaces upstream's list; a step's "Greet" replaces upstream's greeting on that step ("" removes it), adding the
+    step where upstream's list has none. Nothing else of ours counts."""
+    entry = dict(entry)
+    if ours.get("XpShares"):
+        entry["XpShares"] = list(ours["XpShares"])
+    greets = [(i, step["Greet"]) for i, step in enumerate(ours.get("Steps") or [])
+              if step and step.get("Greet") is not None]
+    if greets:
+        steps = list(entry.get("Steps") or [])
+        for i, greet in greets:
+            if greet == "":
+                if i < len(steps) and steps[i]:
+                    steps[i] = {key: value for key, value in steps[i].items() if key != "Greet"}
+            else:
+                steps += [None] * (i + 1 - len(steps))
+                steps[i] = {**(steps[i] or {}), "Greet": greet}
+        entry["Steps"] = steps
+    return entry
+
+
 def said_by(conn):
     """{npc: [text]}: the quest texts each NPC says, lowercased names. A quest's giver says its Description; its
     SourceText and FinishText reach the player beside the giver or a target; a stage's target says that stage's
@@ -127,16 +165,18 @@ def unanswered(texts, replies):
 # The fork's replies that replace an upstream reply holding <Player> and still speak to the player, and how many
 # <Player> each keeps: Skorri's "Please <Player>, give Olvaerr his cloak", Thorgil's "You cannot use a bow,
 # <Player>." (the guide's "Spiritmaster": a class as a title, which the fork leaves as <Player>) and Grindan Halig's
-# "Best of luck <Player>!" (the fork changes only his class word).
+# "Best of luck <Player>!" (the fork changes only his class word), and Tethra's "Thank you, <Player>." and "Good day
+# to you, <Player>" (the fork cuts only the editor's "(sic)").
 SPEAKS_TO_THE_PLAYER = {("skorri", "a cloak"): 1, ("thorgil", "staff"): 1,
-                        ("grindan halig", "willing to bear the weight"): 1}
+                        ("grindan halig", "willing to bear the weight"): 1, ("tethra", "no more heads"): 2}
 
 # The class the guides' authors were called by, which upstream's Chat kept as plain text, so every class read the
 # author's (class-word scan, 2026-10-11). The fork's reply is upstream's with these words alone changed: the class, and
 # the guides' placeholders "(minstrel)" and "(class name)", become <Class>, which the server replaces with the player's
 # class (GetPersonalizedMessage; female names included). {(NPC, the fork's key, upstream's key): [(upstream's words, the
 # fork's)]}. Upstream's key for Gral Bermorn's reply keeps the guide's spaces, which no whisper sends: players get his
-# fork key's reply, which was upstream's word for word.
+# fork key's reply, which was upstream's word for word. Siv Alfevson's "Spiritmaster" came with the later lines of his
+# conversation that 0.37 gave his [our clan] (0.37 sync, #138).
 CHAT_CLASS_WORDS = {
     ("gral bermorn", "opened from the other side", " opened from the other side "): [
         ("take these instructions to aid you. Good luck to thee Theurgist.",
@@ -150,7 +190,24 @@ CHAT_CLASS_WORDS = {
         ("This is great (class name)!", "This is great <Class>!"), ("Good luck (class name)!", "Good luck <Class>!")],
     ("grindan halig", "willing to bear the weight", "willing to bear the weight"): [
         ("Ah! Very good (class name)!", "Ah! Very good <Class>!")],
+    ("siv alfevson", "our clan", "our clan"): [
+        ("I can assist you no more Spiritmaster.", "I can assist you no more <Class>.")],
 }
+
+# The guides' notes that came into upstream's Chat with the later lines of a recorded conversation (0.36 and 0.37; the
+# 0.37 sync, #138): a walkthrough's note after Elizabeth's last line, and an editor's "(sic)" in Tethra's and Cristin's
+# replies. The fork's reply is upstream's without them. {(NPC, keyword): (upstream's words, the fork's)}
+CHAT_NOTES = {
+    ("elizabeth", "other items"): ("you cannot change your mind. After turning in both items to Elizabeth, gain "
+                                   "62,914,560 experience as well Two Handed Conclusion:", "you cannot change your mind."),
+    ("tethra", "no more heads"): ("unusually villianous (sic), and", "unusually villianous, and"),
+    ("cristin", "three things"): ("around Connacht (sic) . The first", "around Connacht . The first"),
+}
+
+# The lines upstream's generator had lost, which the fork's Chat gave back (quest entry scan, 2026-10-11) and upstream
+# 0.37 restored, with the guides' typos fixed ("andhis", "stone" for "stole", "fromt he"): upstream's again.
+RESTORED_UPSTREAM = [("hugh gallen", "bit of information"), ("sugnhild", "loved one"), ("sugnhild", "gudlor"),
+                     ("sugnhild", "searched many weeks"), ("achae smith", "out here"), ("vadri pade", "druid tale")]
 
 
 # The web page upstream scraped with Mystemas's last line (Strange Bedfellows): the guide's reward, then the site's
@@ -187,8 +244,37 @@ class PeriodChatTests(unittest.TestCase):
         self.assertIn("[can be found]", reply)
         self.assertEqual(kaere["get it for me"], reply)
 
-    def test_hugh_gallen_names_durren(self):
-        self.assertIn("his son, Durren, [was slain]", self.chat["hugh gallen"]["bit of information"])
+    @unittest.skipUnless(UPSTREAM_QUESTS, "needs upstream's classic-quests.json (HDC_CLASSIC_QUESTS)")
+    def test_the_lines_upstream_restored_are_upstreams(self):
+        with open(UPSTREAM_QUESTS, encoding="utf-8") as f:
+            upstream = merged_chat(json.load(f).get("Chat"), {})
+        for npc, keyword in RESTORED_UPSTREAM:
+            with self.subTest(npc=npc, keyword=keyword):
+                self.assertNotIn(keyword, self.chat.get(npc, {}))
+                self.assertTrue(upstream[npc][keyword].strip())
+        self.assertIn("his son, Durren, [was slain]", upstream["hugh gallen"]["bit of information"])
+        self.assertIn("beset upon by this small sprite and his followers", upstream["sugnhild"]["searched many weeks"])
+        self.assertIn("Then from the northern shores came", upstream["vadri pade"]["druid tale"])
+        # Achae Smith's [another favor] stays the fork's: upstream's still asks for "<Player>'s remains".
+        self.assertIn("Will you please find Thulin's remains for me?", self.chat["achae smith"]["another favor"])
+
+    def test_the_guides_notes_are_cut_from_the_replies(self):
+        for (npc, key), (old, new) in CHAT_NOTES.items():
+            with self.subTest(npc=npc, keyword=key):
+                self.assertEqual(self.chat[npc][key].count(new), 1)
+                self.assertNotIn(old, self.chat[npc][key])
+        self.assertTrue(self.chat["elizabeth"]["other items"].endswith(
+            "Which do you desire - [one handed] or [two handed] or a [shield]. Choose carefully, for once your choice "
+            "is made; you cannot change your mind."))
+        self.assertNotIn("(sic)", self.chat["tethra"]["no more heads"] + self.chat["cristin"]["three things"])
+
+    @unittest.skipUnless(UPSTREAM_QUESTS, "needs upstream's classic-quests.json (HDC_CLASSIC_QUESTS)")
+    def test_the_replies_without_the_guides_notes_are_upstreams(self):
+        with open(UPSTREAM_QUESTS, encoding="utf-8") as f:
+            upstream = merged_chat(json.load(f).get("Chat"), {})
+        for (npc, key), words in CHAT_NOTES.items():
+            with self.subTest(npc=npc, keyword=key):
+                self.assertEqual(self.chat[npc][key], with_class_words(upstream[npc][key], [words]))
 
     def test_the_keywords_that_were_player_are_names(self):
         # Upstream's keys "<Player>" (and Rollo's "retrieve the <Player> item") never match: the player clicks their
@@ -259,12 +345,13 @@ class PeriodChatTests(unittest.TestCase):
     def test_no_reply_holds_a_guides_placeholder_or_a_web_page(self):
         # The guard, with upstream's Chat merged as MergeChat does, over every key, whether a whisper reaches it or not:
         # upstream's replies that hold one (Mystemas's [Understand], Iohannes Aldar's [pay generously], Grindan Halig's
-        # [willing to bear the weight]) are all replaced by the fork's.
+        # [willing to bear the weight], and the guides' notes of CHAT_NOTES) are all replaced by the fork's.
         with open(UPSTREAM_QUESTS, encoding="utf-8") as f:
             upstream = json.load(f).get("Chat")
         self.assertEqual(sorted({(npc, key) for npc, key, _words in not_the_npcs_words(merged_chat(upstream, {}))}),
-                         [("grindan halig", "willing to bear the weight"), ("iohannes aldar", "pay generously"),
-                          ("mystemas", "understand")])
+                         [("cristin", "three things"), ("elizabeth", "other items"),
+                          ("grindan halig", "willing to bear the weight"), ("iohannes aldar", "pay generously"),
+                          ("mystemas", "understand"), ("tethra", "no more heads")])
         self.assertEqual(not_the_npcs_words(merged_chat(upstream, extra_chat())), [])
 
     @unittest.skipUnless(UPSTREAM_QUESTS, "needs upstream's classic-quests.json (HDC_CLASSIC_QUESTS)")
@@ -382,15 +469,16 @@ class ReachabilityTests(unittest.TestCase):
 
     def test_the_fixed_replies_are_offered_where_the_quests_show_them(self):
         # Crace's [enchanted silver] (Silver Run, stage 1), Skorri's [a cloak] (Solving the Argument, sent on accept)
-        # and Gral Bermorn's three (Weakened Bonds, stages 2 and 13, said by him; every keyword there is answered).
+        # and Gral Bermorn's three (Weakened Bonds, stage 2, said by him; every keyword there is answered). Since 0.36
+        # his stage 13 says only his reply to [opened from the other side] itself.
         shown = [(20288, "TargetText", 1, "crace", "enchanted silver"), (21142, "SourceText", 1, "skorri", "a cloak"),
-                 (20639, "TargetText", 2, "gral bermorn", "opened from the other side"),
-                 (20639, "TargetText", 13, "gral bermorn", "opened from the other side")]
+                 (20639, "TargetText", 2, "gral bermorn", "opened from the other side")]
         for qid, column, stage, npc, keyword in shown:
             with self.subTest(quest=qid, stage=stage, keyword=keyword):
                 text = self.stage(qid, column, stage)
                 self.assertIn(keyword, offered([text], self.chat[npc]))
                 self.assertEqual(unanswered([text], self.chat[npc]), [])
+        self.assertEqual(self.stage(20639, "TargetText", 13), self.chat["gral bermorn"]["opened from the other side"])
 
     def test_the_class_word_replies_are_offered_where_players_get_them(self):
         # Mystemas, Iohannes Aldar and Grindan Halig offer theirs from what they say in their quests' texts (Strange
@@ -419,25 +507,27 @@ class ReachabilityTests(unittest.TestCase):
 
     def test_the_words_that_were_player_in_quest_texts_are_the_guides(self):
         # Upstream's generator took "Now" and "Well" for names. Silver Run's Crace keeps <Player> where he speaks to the
-        # player ("Well, Elline, did you get the sporites?", "I hope you find it useful, Warden!").
+        # player ("Well, Elline, did you get the sporites?", "I hope you find it useful, Warden!"). Since 0.36 stage 1
+        # says his first lines and stage 5 his last.
         description, = self.conn.execute("SELECT Description FROM DataQuest WHERE ID=20013").fetchone()
         self.assertIn("hiding from Arawn for years, Now, with the Inconnu walking the land", description)
+        said = {1: ("are you? Well, you know about the [enchanted silver]", "Aye, Well, it's mainly",
+                    "two sporites. Well, <Player>, did you get", "quite useful. Well, that's what"),
+                5: ("I hope you find it useful, <Player>!",)}
         for qid in (20288, 20289, 20290, 20291):
-            for stage in (1, 5):
+            for stage, lines in said.items():
                 with self.subTest(quest=qid, stage=stage):
                     text = self.stage(qid, "TargetText", stage)
-                    for words in ("are you? Well, you know about the [enchanted silver]", "Aye, Well, it's mainly",
-                                  "two sporites. Well, <Player>, did you get", "quite useful. Well, that's what",
-                                  "I hope you find it useful, <Player>!"):
+                    for words in lines:
                         self.assertIn(words, text)
-                    self.assertEqual(text.count("<Player>"), 2)
+                    self.assertEqual(text.count("<Player>"), 1)
                     self.assertEqual(unanswered([text], self.chat["crace"]), [])
 
     def test_wariel_and_amora_ask_the_players_name_and_answer_it(self):
         # The period's keyword was [name]; upstream's generator wrote <Player>: "What is your <the player's name>?". The
-        # fork's Chat answers [name] with the guides' next line, as upstream's answers the texts' other keywords.
-        asks = [(20099, 1, "wariel", "Well hello young one. What is your [name]? Well, it is a pleasure"),
-                (20099, 7, "wariel", "Well hello young one. What is your [name]? Well, it is a pleasure")]
+        # fork's Chat answers [name] with the guides' next line, as upstream's answers the texts' other keywords. (Since
+        # 0.36 Trapper's Pride's stage 7, which said it all again, is empty.)
+        asks = [(20099, 1, "wariel", "Well hello young one. What is your [name]? Well, it is a pleasure")]
         asks += [(qid, 1, "amora", "Hello stranger, may I ask your [name]? It is a pleasure")
                  for qid in range(21102, 21118)]
         for qid, stage, npc, words in asks:
@@ -457,6 +547,82 @@ class ReachabilityTests(unittest.TestCase):
         giver, = self.conn.execute("SELECT StartName FROM DataQuest WHERE ID=20068").fetchone()
         self.assertEqual(giver, "Kylirean")
         self.assertIn("experiment", self.chat[giver.lower()])
+
+
+class QuestMergeTests(unittest.TestCase):
+    """merge_quests mirrors ClassicQuests.Merge for the quest entries (Tests/UnitTests/UT_ClassicQuestsExtra.cs): the
+    world tests that read both files see the merged entries the server uses."""
+
+    UPSTREAM = {"20433": {"XpShares": [0.0, 0.0, 0.100364],
+                          "Steps": [None, {"Marker": {"Region": 1, "X": 1, "Y": 2, "Z": 3}, "Greet": "Back already?"},
+                                    {"Greet": "Were you able to deliver the dispatch?"},
+                                    {"Greet": "Did Twr ap Alsig take the dispatch?"}]}}
+
+    def merged(self, extra, upstream=None):
+        return merge_quests(json.loads(json.dumps(upstream or self.UPSTREAM)), extra)
+
+    def test_our_xp_shares_win_on_upstreams_entry(self):
+        quest = self.merged({"20433": {"XpShares": [0.0, 0.0, 0.1]}})["20433"]
+        self.assertEqual(quest["XpShares"], [0.0, 0.0, 0.1])
+        self.assertEqual(quest["Steps"][1]["Marker"], {"Region": 1, "X": 1, "Y": 2, "Z": 3})
+        self.assertEqual(quest["Steps"][2]["Greet"], "Were you able to deliver the dispatch?")
+
+    def test_without_shares_of_ours_upstreams_stay(self):
+        for ours in ({"Steps": [None]}, {"XpShares": [], "Steps": [None]}, {"XpShares": None, "Steps": [None]}):
+            with self.subTest(ours=ours):
+                self.assertEqual(self.merged({"20433": ours})["20433"]["XpShares"], [0.0, 0.0, 0.100364])
+
+    def test_our_greet_wins_on_its_step_and_the_others_stay(self):
+        sack = "Were you able to retrieve Tepok's precious sack?"
+        steps = self.merged({"20433": {"Steps": [None, None, {"Greet": sack}]}})["20433"]["Steps"]
+        self.assertEqual([step.get("Greet") for step in steps[1:]],
+                         ["Back already?", sack, "Did Twr ap Alsig take the dispatch?"])
+
+    def test_an_empty_greet_removes_upstreams(self):
+        steps = self.merged({"20433": {"Steps": [None, None, {"Greet": ""}]}})["20433"]["Steps"]
+        self.assertEqual([step.get("Greet") for step in steps[1:]],
+                         ["Back already?", None, "Did Twr ap Alsig take the dispatch?"])
+
+    def test_only_the_greet_of_our_step_is_carried(self):
+        steps = self.merged({"20433": {"Steps": [None, {"Marker": {"Region": 1, "X": 9, "Y": 9, "Z": 9},
+                                                        "NeedsItem": "cq_x"}]}})["20433"]["Steps"]
+        self.assertEqual(steps[1], {"Marker": {"Region": 1, "X": 1, "Y": 2, "Z": 3}, "Greet": "Back already?"})
+        self.assertEqual(len(steps), 4)
+
+    def test_a_greet_on_a_step_upstream_has_no_info_for_adds_the_step(self):
+        steps = self.merged({"20433": {"Steps": [None, {"Greet": "Back already?"}, None, {"Greet": "Well?"}]}},
+                            {"20433": {"Steps": [None, None]}})["20433"]["Steps"]
+        self.assertEqual(steps, [None, {"Greet": "Back already?"}, None, {"Greet": "Well?"}])
+
+    def test_an_empty_greet_on_a_step_upstream_has_no_info_for_adds_nothing(self):
+        quest = self.merged({"20433": {"Steps": [None, {"Greet": ""}, None, {"Greet": ""}]}},
+                            {"20433": {"Steps": [None, None]}})
+        self.assertEqual(quest["20433"]["Steps"], [None, None])
+
+    def test_a_new_id_is_added_whole(self):
+        ours = {"XpShares": [0.0, 0.1],
+                "Steps": [None, {"Greet": "You return.", "Marker": {"Region": 1, "X": 5, "Y": 5, "Z": 5}}]}
+        merged = self.merged({"990509": ours})
+        self.assertEqual(sorted(merged), ["20433", "990509"])
+        self.assertEqual(merged["990509"], ours)
+        self.assertEqual(merged["20433"], self.UPSTREAM["20433"])
+
+    def test_a_replace_entry_still_replaces_the_whole_entry(self):
+        for ours in ({"Replace": True, "Steps": [None, {"Marker": {"Region": 1, "X": 9, "Y": 9, "Z": 9}}]},
+                     {"Replace": True, "XpShares": [0.0, 0.25], "Steps": [None, {"Greet": "Mine."}]}):
+            with self.subTest(ours=ours):
+                self.assertEqual(self.merged({"20433": ours})["20433"], ours)
+
+    def test_notes_and_null_entries_of_ours_are_skipped(self):
+        self.assertEqual(self.merged({"_about": "notes", "20433": None, "990509": None}), self.UPSTREAM)
+
+    def test_the_inputs_are_not_changed(self):
+        upstream = json.loads(json.dumps(self.UPSTREAM))
+        ours = {"20433": {"XpShares": [0.5], "Steps": [None, {"Greet": ""}, {"Greet": "Mine."}]}}
+        before = json.dumps(ours)
+        merge_quests(upstream, ours)
+        self.assertEqual(upstream, self.UPSTREAM)
+        self.assertEqual(json.dumps(ours), before)
 
 
 if __name__ == "__main__":

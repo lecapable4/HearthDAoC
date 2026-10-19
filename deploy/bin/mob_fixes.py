@@ -22,6 +22,12 @@ The file:
   the fix is not applied. Values are text, numbers or null, and compare as SQLite compares them with the column (12
   and "12" are the same in an integer column).
 - name: what the start log calls the row; why: the correction and its source.
+- group (optional): a name shared by the entries of one decision that depend on each other, such as a carried-only
+  copy made a quest's reward (an ItemTemplate entry) and the quest's other copy of it dropped (a DataQuest entry): one
+  applied without the other would leave the quest handing two real rewards, or none (the 0.37 sync). A group changes
+  its rows only while every entry of it has its rows and each holds the values it expects, or already this file's;
+  otherwise none of them changes, and the start log names the group, and its entries that hold neither, at every
+  start. A group has two entries or more; one none of whose rows is in the world is skipped.
 """
 import datetime
 import json
@@ -64,6 +70,8 @@ def _check(entry, n):
         raise ValueError(f"{what}: set changes the row's {KEYS[table]}")
     if not all(_is_value(value) for value in (*expect.values(), *sets.values())):
         raise ValueError(f"{what}: a value is not text, a number or null")
+    if "group" in entry and (not isinstance(entry["group"], str) or not entry["group"].strip()):
+        raise ValueError(f"{what}: its group is not a name")
     return what, table
 
 
@@ -88,6 +96,13 @@ def _plan(conn, data):
         if unknown:
             raise ValueError(f"{what}: {table} has no column {', '.join(unknown)}")
         plan.append((entry, table, KEYS[table]))
+    sizes = {}
+    for entry in data.get("fixes", []):
+        if "group" in entry:
+            sizes[entry["group"]] = sizes.get(entry["group"], 0) + 1
+    lone = [group for group, size in sizes.items() if size < 2]
+    if lone:
+        raise ValueError(f"group {lone[0]} has one entry")
     return plan
 
 
@@ -106,16 +121,37 @@ def apply(conn, now=None, data=None):
     conn.execute(f"SAVEPOINT {SAVEPOINT}")
     try:
         data = data if data is not None else load_data()
-        changed, kept = [], []
-        for entry, table, key in _plan(conn, data):
-            label = f"{entry['name']} ({table} {entry['id']})"
-            at_set, set_args = _holds(entry["set"])
-            upstream, expect_args = _holds(entry["expect"])
-            rows = conn.execute(f'SELECT {at_set}, {upstream} FROM "{table}" WHERE "{key}"=?',
-                                (*set_args, *expect_args, entry["id"])).fetchall()
+        changed, kept, held = [], [], []
+        planned = {id(entry): (table, key) for entry, table, key in _plan(conn, data)}
+        found = []  # (entry, table, key, label, [(at this file's values, at upstream's)]) of every entry, in order
+        for entry in data.get("fixes", []):
+            table, key = planned.get(id(entry), (entry["table"], None))
+            rows = []
+            if key:  # its table is in the world
+                at_set, set_args = _holds(entry["set"])
+                upstream, expect_args = _holds(entry["expect"])
+                rows = conn.execute(f'SELECT {at_set}, {upstream} FROM "{table}" WHERE "{key}"=?',
+                                    (*set_args, *expect_args, entry["id"])).fetchall()
+            found.append((entry, table, key, f"{entry['name']} ({table} {entry['id']})", rows))
+        # A group changes whole or not at all: each entry needs its rows, every one at upstream's values or this file's.
+        blocked = {}
+        for entry, _, _, label, rows in found:
+            if "group" in entry:
+                blocking = blocked.setdefault(entry["group"], [[], False])
+                blocking[1] = blocking[1] or bool(rows)  # some row of the group is in the world
+                if not rows or any(not done and not ours for done, ours in rows):
+                    blocking[0].append(label)
+        for group, (labels, present) in blocked.items():
+            if present and labels:
+                held.append(f"{group} ({', '.join(labels)})")
+        for entry, table, key, label, rows in found:
+            if "group" in entry and blocked[entry["group"]][0]:
+                continue  # its group is left as it is (named above), or none of the group's rows is in the world
             if any(not done and not ours for done, ours in rows):
                 kept.append(label)
             if any(ours and not done for done, ours in rows):
+                at_set, set_args = _holds(entry["set"])
+                upstream, expect_args = _holds(entry["expect"])
                 assign = ", ".join(f'"{column}"=?' for column in entry["set"])
                 stamp = ""
                 if "lasttimerowupdated" in {name.lower() for _, name, *_ in conn.execute(f'PRAGMA table_info("{table}")')}:
@@ -128,7 +164,7 @@ def apply(conn, now=None, data=None):
         conn.execute(f"RELEASE {SAVEPOINT}")
         return [NOT_APPLIED.format(str(e) or type(e).__name__)]
     conn.execute(f"RELEASE {SAVEPOINT}")
-    return summary(changed, kept)
+    return summary(changed, kept, held)
 
 
 def _names(labels):
@@ -136,14 +172,19 @@ def _names(labels):
     return ", ".join(labels[:SHOWN]) + more
 
 
-def summary(changed, kept):
-    """The start log's line: the rows corrected, and every start the rows left as they are, so a row the owner or an
-    upstream upgrade changed is seen. Nothing when all are up to date."""
+def summary(changed, kept, held=()):
+    """The start log's line: the rows corrected, and every start the rows and the groups left as they are (a group
+    with the entries that keep it so), so a row the owner or an upstream upgrade changed is seen. Nothing when all are
+    up to date."""
     parts = []
     if changed:
         parts.append(f"{len(changed)} corrected: {_names(changed)}")
     if kept:
         parts.append(f"{len(kept)} left as they are (they hold neither upstream's values nor this file's): {_names(kept)}")
+    if held:
+        parts.append(f"{len(held)} group{' left as it is' if len(held) == 1 else 's left as they are'} (an entry's row "
+                     f"holds neither upstream's values nor this file's, or is missing, so no row of the group changes): "
+                     f"{_names(list(held))}")
     return ["Mob fixes: " + "; ".join(parts)] if parts else []
 
 

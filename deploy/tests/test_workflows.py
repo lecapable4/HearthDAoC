@@ -2,6 +2,7 @@ import json
 import os
 import re
 import shutil
+import sqlite3
 import subprocess
 import sys
 import tempfile
@@ -216,6 +217,36 @@ class ClientPatchWorkflowTests(unittest.TestCase):
                          ['"$TAG"', '"dist/hearthdaoc-deploy-$TAG.tar.gz"', '"dist/hearthdaoc-client-$TAG.zip"',
                           '"dist/hearthdaoc-client-$TAG.content-id"'])
 
+    def test_the_world_tests_run_on_the_world_a_new_world_gets_from_the_lock(self):
+        # Run the world step's script the way GitHub does against a small fake release made of a base and an
+        # upstream patch (0.37b = 0.36b + the 0.37 game patch): the world the tests read is the base's world with
+        # the patch's world update, and the patch's classic-quests.json is beside it.
+        _, world = self.step(TEST_JOB, "init_world.py")
+        _, tests = self.step(TEST_JOB, "python3 -m unittest discover -s deploy/tests -t deploy -v")
+        with tempfile.TemporaryDirectory() as tmp:
+            lock, _files, patch_files = fx.build_patched(tmp)
+            checkout, runner_temp = os.path.join(tmp, "checkout"), os.path.join(tmp, "runner-temp")
+            shutil.copytree(os.path.join(ROOT, "deploy", "bin"), os.path.join(checkout, "deploy", "bin"))
+            os.makedirs(os.path.join(checkout, "tools", "linux"))
+            shutil.copy(os.path.join(ROOT, "tools", "linux", "odaoc_fetch.py"), os.path.join(checkout, "tools", "linux"))
+            os.makedirs(runner_temp)
+            with fx.RangeServer(tmp) as srv:
+                with open(os.path.join(checkout, "deploy", "upstream.lock"), "w") as f:
+                    json.dump(srv.lock(lock), f)
+                run = subprocess.run(["bash", "-e", "-c", world["run"]], cwd=checkout, capture_output=True,
+                                     text=True, env=dict(os.environ, RUNNER_TEMP=runner_temp))
+            self.assertEqual(run.returncode, 0, run.stderr)
+            db = tests["env"]["HDC_TEST_WORLD"].replace("${{ runner.temp }}", runner_temp)
+            con = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
+            try:
+                self.assertEqual(con.execute("SELECT Mob_ID, Level FROM Mob ORDER BY Mob_ID").fetchall(),
+                                 [("m1", 11), ("m2", 30)])
+                self.assertEqual(con.execute("SELECT Version FROM offline_patch_log").fetchall(), [("test.1",)])
+            finally:
+                con.close()
+            quests = os.path.join(os.path.dirname(os.path.dirname(db)), "server-files", "test", "classic-quests.json")
+            self.assertEqual(read_bytes(quests), patch_files["runtime/server/classic-quests.json"])
+
     def test_the_release_job_needs_no_dotnet(self):
         # build_bundles.sh copies the committed splash.mpk: checkout, bundles, release, as before the client patches.
         steps = self.steps(RELEASE_JOB)
@@ -243,13 +274,17 @@ SERVER_UNIT_TESTS = ("dotnet test source/server/Tests/Tests.csproj --nologo --fi
                      '|FullyQualifiedName~UT_EpicChain'
                      '|FullyQualifiedName~UT_QuestIndicatorProbe'
                      '|FullyQualifiedName~UT_QuestIndicators|FullyQualifiedName~UT_IndicatorSentStore'
-                     '|FullyQualifiedName~UT_RpTimerWait|FullyQualifiedName~UT_RpTimerWaitScript"')
+                     '|FullyQualifiedName~UT_RpTimerWait|FullyQualifiedName~UT_RpTimerWaitScript'
+                     '|FullyQualifiedName~UT_RelicPadAttackers'
+                     '|FullyQualifiedName~UT_QuestGrants"')
 UNIT_TESTS = os.path.join(ROOT, "source", "server", "Tests", "UnitTests")
 
 
 class ServerUnitTestWorkflowTests(unittest.TestCase):
-    """CI runs the fork's own server unit tests by name. dotnet test passes (exit 0) when its filter matches
-    no test at all, so every name in the filter must be a test class in source/server/Tests/UnitTests."""
+    """CI runs the fork's own server unit tests by name, and upstream's that guard a rule the owner chose to keep
+    (UT_RelicPadAttackers: the relic pad's 8, companions and gamebots counting; decision 3 of the 0.37b sync). dotnet
+    test passes (exit 0) when its filter matches no test at all, so every name in the filter must be a test class in
+    source/server/Tests/UnitTests."""
 
     def test_the_fork_server_unit_tests_run_with_the_pinned_filter(self):
         steps = job(read("server-image.yml"), TEST_JOB).split("\n      - ")
@@ -269,10 +304,12 @@ class ServerUnitTestWorkflowTests(unittest.TestCase):
                                  "UT_EpicChain",
                                  "UT_QuestIndicatorProbe",
                                  "UT_QuestIndicators", "UT_IndicatorSentStore",
-                                 "UT_RpTimerWait", "UT_RpTimerWaitScript"])
+                                 "UT_RpTimerWait", "UT_RpTimerWaitScript",
+                                 "UT_RelicPadAttackers",
+                                 "UT_QuestGrants"])
         for name in names:
             with open(os.path.join(UNIT_TESTS, name + ".cs"), encoding="utf-8") as f:
-                self.assertIn(f"public sealed class {name}\n", f.read(), name)
+                self.assertRegex(f.read(), rf"\n\s*public (sealed )?class {name}\n", name)  # upstream's are not sealed
 
 
 if __name__ == "__main__":

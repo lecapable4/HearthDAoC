@@ -32,8 +32,12 @@ password appears on the game's command line, and it is saved on your PC as plain
   update copies it again.
 
 **Windows**
-- The **official** OfflineDAoC release for the server's edition: upstream's
-  `DOWNLOAD-AND-PLAY-v0.35.cmd` for `classic`, `DOWNLOAD-AND-PLAY-v0.35b.cmd` for `b`.
+- The **official** OfflineDAoC release for the server's edition: for `classic`, upstream's
+  `Download-OfflineDAoC-v0.37.zip` (on its v0.37 release page), and in it `GET-OFFLINE-DAOC-v0.37.cmd`; for `b`,
+  `Download-OfflineDAoC-v0.37b.zip` and `GET-OFFLINE-DAOC-v0.37b.cmd`. Choose 2 (New install), or 1 to update
+  an OfflineDAoC 0.36 install. Not the `c` edition: HearthDAoC doesn't support its new client. An OfflineDAoC 0.35
+  install (upstream's `DOWNLOAD-AND-PLAY-v0.35.cmd` or `DOWNLOAD-AND-PLAY-v0.35b.cmd`) also works: the client
+  files HearthDAoC's patches change are the same in 0.35 and 0.37.
 - The Windows feature **.NET Framework 3.5 (includes .NET 2.0 and 3.0)**, turned on; the game's
   `connect.exe` needs it.
 
@@ -256,11 +260,11 @@ If you set up the Linux client with `--dest`, use that folder instead of `~/Game
 ## Troubleshooting
 
 **"Not patched", or the standard creation screen.** HearthDAoC's classic creation patches support
-only the OfflineDAoC 0.35 `classic` client. Any other client, such as the `b` edition or an older or
-newer upstream client, keeps the standard creation screen and plays normally.
+only the OfflineDAoC `classic` client of 0.35 to 0.37 (the same files). Any other client, such as the
+`b` edition or an older or newer upstream client, keeps the standard creation screen and plays normally.
 
 **"Not patched: default.ini", or new characters with the standard layout.** The default layout
-supports the `default.ini` of both OfflineDAoC 0.35 editions. A `default.ini` changed by hand, or an
+supports the `default.ini` of both OfflineDAoC editions of 0.35 to 0.37. A `default.ini` changed by hand, or an
 older or newer upstream client's, isn't patched: new characters start with that file's layout, and the
 game plays normally. To get the layout, put OfflineDAoC's file back (on Linux, run `setup.sh` again).
 

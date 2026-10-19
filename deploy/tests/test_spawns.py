@@ -248,7 +248,7 @@ class SpawnsWorldTests(unittest.TestCase):
     def test_the_restore_leaves_out_the_twins_of_quest_targets(self):
         self.assertEqual(spawns.restore(self.data, 20), 12873)
         self.assertNotIn(MESSENGER_TWIN, mob_ids(self.db))
-        self.assertEqual(spawns.restore(self.data, 25), 14840)  # the Cornwall hunters' template makes them level 23
+        self.assertEqual(spawns.restore(self.data, 25), 14908)  # the Cornwall hunters' template makes them level 23
         added = mob_ids(self.db) - self.original
         self.assertEqual(added & ({MESSENGER_TWIN} | CORNWALL_TWINS), set())
         self.assertIn(LONE_CORNWALL_HUNTER, added)
@@ -286,7 +286,7 @@ class SpawnsWorldTests(unittest.TestCase):
                 "in offline_classic165_removed_mobs: arawnite messenger (1), cornwall hunter (6)")
         self.assertIn(line, world_fixes.apply(self.db))
         self.assertEqual((before - mob_ids(self.db)) & restored, twins)
-        self.assertEqual(spawns.status(self.data)["restored"], 14840)
+        self.assertEqual(spawns.status(self.data)["restored"], 14908)
         self.assertFalse([change for change in world_fixes.apply(self.db) if change.startswith("Restored spawns")])
 
     def test_cli(self):

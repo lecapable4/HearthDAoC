@@ -22,6 +22,7 @@ BIN = os.path.join(DEPLOY, "bin")
 sys.path.insert(0, BIN)
 import epic_chains  # noqa: E402
 import mob_fixes  # noqa: E402
+from tests import endings  # noqa: E402
 
 TEST_WORLD = os.environ.get("HDC_TEST_WORLD")
 GAME_SERVER = os.path.join(ROOT, "source", "server", "GameServer")
@@ -36,6 +37,15 @@ LEVEL_11_IDS = [20157, 20155, 20156, 20159, 20158]  # "Entry Into Tomorrow", reb
 PERIOD_IDS = [21304, 21305, 21306, 21307, 21308, 21309, 21489, 21490, 21491, 21492, 21493, 21494,
               20476, 20477, 20478, 20479, 20480, 20481, 21295, 21296, 21297, 21298, 21299,
               20467, 20468, 20469, 20470, 20471, 20472]
+# Upstream's entries the fork lays the owner's Guild of Shadows XP shares onto (and level 43's stage-3 greeting, which
+# it drops; owner 2026-10-18, #138, deploy/tests/test_gos_xp_shares.py): levels 7, 15, 20, 40, 43 and 48 and the
+# closed Supply Runs. The Replace entries carry their own.
+SHARE_IDS = [21500, 21498, 21499, 20497, 21501, 21324, 21322, 21323, 21325, 20188, 20186, 20187, 20190, 20189,
+             20455, 20453, 20454, 20457, 20456, 20171, 20169, 20170, 20173, 20172, 20435, 20433, 20434, 20437, 20436,
+             21482, 21480, 21481, 21484, 21483]
+# Upstream's entry with one grant changed (0.37 sync, deploy/tests/test_quest_rewards.py): level 16 "Brack: Rollo's
+# Story", whose Hilde hands the hammer itself.
+REWARD_IDS = [21465]
 
 
 def read(path):
@@ -52,7 +62,8 @@ class ExtraQuestFileTests(unittest.TestCase):
             self.extra = json.load(f)
 
     def test_it_marks_the_level_50_stages_and_lord_elidyn(self):
-        self.assertEqual(sorted(int(k) for k in self.extra["Quests"]), sorted(LEVEL_50_IDS + LEVEL_11_IDS + PERIOD_IDS))
+        self.assertEqual(sorted(int(k) for k in self.extra["Quests"]),
+                         sorted(LEVEL_50_IDS + LEVEL_11_IDS + PERIOD_IDS + SHARE_IDS + REWARD_IDS))
         for qid in LEVEL_50_IDS:
             quest = self.extra["Quests"][str(qid)]
             self.assertNotIn("Replace", quest)  # upstream has no entry for them
@@ -66,10 +77,11 @@ class ExtraQuestFileTests(unittest.TestCase):
     def test_level_11_replaces_upstreams_entry_for_the_period_story(self):
         # Upstream's six stages (the same for all five IDs), with three changes: stage 2's marker on Frund at the red
         # dwarf camp (where mob_fixes.json moves him), no Crediac issued at stage 4 (upstream's "Agisthil" issued one in
-        # its old design), and Omis hands another Crediac at stage 6 to a player who lost it.
+        # its old design), and Omis hands another Crediac at stage 6 to a player who lost it. And the owner's XP share,
+        # a quarter of the player's level at the last stage (#138).
         frund = next(e for e in mob_fixes.load_data()["fixes"] if e["name"] == "Frund" and e["table"] == "Mob")
         marker = lambda x, y, z: {"Region": 1, "X": x, "Y": y, "Z": z}  # noqa: E731
-        expected = {"Replace": True, "Steps": [
+        expected = {"Replace": True, "XpShares": [0.0, 0.0, 0.0, 0.0, 0.0, 0.25], "Steps": [
             None,
             {"Marker": marker(536186, 490780, 3133)},  # Captain Dillon
             {"Marker": {"Region": frund["expect"]["Region"], **frund["set"]}},  # Frund
@@ -122,39 +134,65 @@ class ExtraQuestFileTests(unittest.TestCase):
         self.assertIn("COPY deploy/hearthdaoc-quests.json /app/server/hearthdaoc-quests.json\n", read(DOCKERFILE))
 
 
-# Each level-50 quest looks its NPC up at a spot and creates it at another when none is found there, so a copy a GM
-# saved shows up as a second NPC at every start (spec 3.3). (file, NPC name, variable the quest creates it in)
+# Each level-50 quest looks its NPC up and creates it when none is found, so a copy a GM saved showed up as a second NPC
+# at every start (spec 3.3). Upstream 0.36's QuestNpcPlacement.IsAt accepts one within SearchRadius (X and Y) of the
+# lookup spot; Mystic50 also accepts Danica within it of the spot where it creates her, since the world's Danica stands
+# outside upstream's box. (file, NPC name, variable the quest creates it in)
 LOOKUPS = (
     ("scripts/quests/Albion/epic/Academy50.cs", "Master Ferowl", "Ferowl"),
     ("scripts/quests/Hibernia/epic/Essence50.cs", "Brigit", "Brigit"),
     ("scripts/quests/Midgard/epic/Mystic50.cs", "Danica", "Danica"),
     ("scripts/quests/Midgard/epic/Viking50.cs", "Elizabeth", "Elizabeth"),
 )
+PLACEMENT = os.path.join(GAME_SERVER, "quests", "QuestsMgr", "QuestNpcPlacement.cs")
+DANICA_UPSTREAM = (100, 802818, 727413)  # upstream's lookup spot in Mystic50
 
 
-def lookup_and_creation(text, name, var):
-    """((lookup X, Y), (creation X, Y), (radius X, Y)) of the NPC's block in a level-50 quest."""
+def search_radius():
+    """QuestNpcPlacement.SearchRadius: IsAt's box reaches this far from its spot in X and in Y."""
+    return int(re.search(r"public const int SearchRadius = (\d+);", read(PLACEMENT)).group(1))
+
+
+def lookup(text, name, var):
+    """(the line above the NPC's lookup test, the test line, its IsAt boxes as (region, X, Y), the spot where the
+    quest creates the NPC as (region, X, Y)) in a level-50 quest."""
     block = text[text.index(f'GetNPCsByName("{name}"'):]
-    found = re.search(r"Math\.Abs\(npc\.X - (\d+)\) <= (\d+) && Math\.Abs\(npc\.Y - (\d+)\) <= (\d+)", block)
-    x = re.search(rf"\b{var}\.X = (\d+);", block)
-    y = re.search(rf"\b{var}\.Y = (\d+);", block)
-    return (found.group(1), found.group(3)), (x.group(1), y.group(1)), (found.group(2), found.group(4))
+    lines = block[block.index("foreach (GameNPC npc in npcs)"):].split("\n")
+    at = next(i for i, line in enumerate(lines) if line.strip().startswith("if ("))
+    boxes = [tuple(int(v) for v in m.groups())
+             for m in re.finditer(r"QuestNpcPlacement\.IsAt\(npc, (\d+), (\d+), (\d+)\)", lines[at])]
+    made = tuple(int(re.search(rf"\b{var}\.{field} = (\d+);", block).group(1)) for field in ("CurrentRegionID", "X", "Y"))
+    return lines[at - 1], lines[at], boxes, made
+
+
+def in_a_box(boxes, region, x, y):
+    return any(r == region and abs(x - bx) <= search_radius() and abs(y - by) <= search_radius() for r, bx, by in boxes)
 
 
 @unittest.skipUnless(TEST_WORLD, "needs HDC_TEST_WORLD (a clean classic world database)")
 class EpicLookupWorldTests(unittest.TestCase):
-    # The world's own copies of the level-50 NPCs are within the quests' lookup box, so the quests use them.
+    # The world's own copies of the level-50 NPCs are within one of their quest's lookup boxes, so the quests use them.
     def test_the_worlds_npcs_are_found_by_their_quests(self):
         conn = sqlite3.connect(f"file:{TEST_WORLD}?mode=ro", uri=True)
         try:
             for rel, name, var in LOOKUPS:
-                (cx, cy), _made, (rx, ry) = lookup_and_creation(read(os.path.join(GAME_SERVER, rel)), name, var)
-                for x, y in conn.execute("SELECT X, Y FROM Mob WHERE Name=?", (name,)):
-                    with self.subTest(name=name):
-                        self.assertLessEqual(abs(x - int(cx)), int(rx))
-                        self.assertLessEqual(abs(y - int(cy)), int(ry))
+                _above, _test, boxes, _made = lookup(read(os.path.join(GAME_SERVER, rel)), name, var)
+                for region, x, y in conn.execute("SELECT Region, X, Y FROM Mob WHERE Name=?", (name,)):
+                    with self.subTest(name=name, x=x, y=y):
+                        self.assertTrue(in_a_box(boxes, region, x, y), boxes)
         finally:
             conn.close()
+
+    def test_upstreams_box_alone_misses_the_worlds_danica(self):
+        # Why Mystic50 keeps the second box; once a world has her inside upstream's, the box can go.
+        conn = sqlite3.connect(f"file:{TEST_WORLD}?mode=ro", uri=True)
+        try:
+            spots = conn.execute("SELECT Region, X, Y FROM Mob WHERE Name='Danica'").fetchall()
+        finally:
+            conn.close()
+        self.assertTrue(spots)
+        for region, x, y in spots:
+            self.assertFalse(in_a_box([DANICA_UPSTREAM], region, x, y), (region, x, y))
 
 
 class EpicSourceTests(unittest.TestCase):
@@ -164,26 +202,45 @@ class EpicSourceTests(unittest.TestCase):
             self.assertNotIn("class Shadows_50", read(str(path)), str(path))
 
     def test_each_level_50_quest_finds_its_npc_near_where_it_creates_it(self):
+        # A copy a GM saved of the NPC the quest made stands where it made it: one of the lookup's boxes holds it.
         for rel, name, var in LOOKUPS:
             with self.subTest(rel):
-                found, made, radius = lookup_and_creation(read(os.path.join(GAME_SERVER, rel)), name, var)
-                self.assertEqual(found, made)
-                self.assertEqual(radius, ("2000", "2000"))
+                _above, test, boxes, made = lookup(read(os.path.join(GAME_SERVER, rel)), name, var)
+                self.assertNotIn("Math.Abs", test)  # the fork's own 2,000 box is gone
+                self.assertTrue(in_a_box(boxes, *made), (boxes, made))
 
-    def test_the_four_files_keep_their_crlf_endings(self):
+    def test_the_lookups_are_upstreams_but_danicas_second_box(self):
+        for rel, name, var in LOOKUPS:
+            with self.subTest(rel):
+                above, test, boxes, made = lookup(read(os.path.join(GAME_SERVER, rel)), name, var)
+                if name == "Danica":
+                    self.assertEqual(boxes, [DANICA_UPSTREAM, made])
+                    self.assertTrue(above.strip().startswith("// HearthDAoC:"), above)
+                else:
+                    self.assertEqual(len(boxes), 1)
+                    self.assertNotIn("HearthDAoC", above + test)
+
+    def test_is_at_is_a_box_of_search_radius_in_the_region(self):
+        # What in_a_box copies.
+        text = read(PLACEMENT)
+        self.assertIn("npc != null && npc.CurrentRegionID == region &&", text)
+        self.assertIn("Math.Abs(npc.X - x) <= SearchRadius && Math.Abs(npc.Y - y) <= SearchRadius;", text)
+
+    def test_the_four_files_keep_upstreams_endings(self):
         for rel, _name, _var in LOOKUPS:
-            with open(os.path.join(GAME_SERVER, rel), "rb") as f:
-                raw = f.read()
-            self.assertEqual(raw.count(b"\r\n"), raw.count(b"\n"), rel)
-            self.assertFalse(raw.startswith(b"\xef\xbb\xbf"), rel)
+            with self.subTest(rel=rel):
+                endings.check(self, os.path.join(GAME_SERVER, rel))
+                with open(os.path.join(GAME_SERVER, rel), "rb") as f:
+                    self.assertFalse(f.read().startswith(b"\xef\xbb\xbf"), rel)
 
 
 CLASSIC = "DOL.GS.Quests.ClassicQuestStep"
 NOW = "2026-10-09 12:00:00"
-# The clean 0.35 world's summary line. Tasks 6 and 7 update it as they add steps.
+# The clean 0.37b world's summary line: upstream 0.36 added the 41 items itself, with its own stats (owner answer 2.a,
+# 2026-10-18: the fork's replace them).
 SUMMARY = ("Epic chains: Guild of Shadows 60 links, 60 XP and coin, 4 Supply Runs closed, 2 rewards and 7 texts fixed; "
-           "87 other links; 41 items added, 36 item fixes; 5 level-50 quests, Lord Elidyn's camp 17 restored; "
-           "Shadows_50: 0 finished carried, 0 removed, 0 epic vests recharged")
+           "87 other links; 0 items added, 41 replaced, 36 item fixes; 5 level-50 quests, Lord Elidyn's camp 17 "
+           "restored; Shadows_50: 0 finished carried, 0 removed, 0 epic vests recharged")
 # Every other line's steps pinned on the clean 0.35 world: (name, level) -> rows (spec 2.5).
 EXPECTED_PINS = {
     ("A War of Old", 20): 2, ("A War of Old", 25): 2, ("A War of Old", 30): 2,
@@ -286,6 +343,52 @@ class EpicDataTests(unittest.TestCase):
         self.assertEqual(steps["50"]["ids"], LEVEL_50_IDS)
         self.assertEqual([i is None for i in steps["7closed"]["ids"]], [False, False, False, True, False])
 
+    def test_every_item_has_its_0_36_guard(self):
+        # Upstream 0.36 added all 41 items with its own stats; the fork's replace them (owner answer 2.a, 2026-10-18).
+        guards = self.data["item_guards_036"]
+        items = {item["Id_nb"]: item for item in self.data["items"]}
+        self.assertEqual(sorted(guards), sorted(items))
+        for id_nb, guard in guards.items():
+            with self.subTest(id_nb):
+                self.assertTrue(guard)
+                self.assertLessEqual(set(guard), set(items[id_nb]) - {"Id_nb"})
+                self.assertEqual([column for column, value in guard.items() if value == items[id_nb][column]], [])
+
+
+class EpicPayGuardTests(unittest.TestCase):
+    """The pay step (spec 3.4, step 4) changes a row while it holds upstream's 0.35b XP and coin, or the higher fixed XP
+    upstream 0.36 gave steps 11, 15, 20, 25, 40 and 48 ("pay_guard_036"), and leaves any other (no world needed)."""
+
+    def setUp(self):
+        self.data = epic_chains.load_data()
+        self.conn = sqlite3.connect(":memory:")
+        self.conn.execute("CREATE TABLE DataQuest (ID INT PRIMARY KEY, RewardXP TEXT, RewardMoney TEXT, "
+                          "LastTimeRowUpdated TEXT)")
+
+    def tearDown(self):
+        self.conn.close()
+
+    def test_the_0_36_guards_are_steps_11_15_20_25_40_and_48(self):
+        steps = self.data["steps"]
+        self.assertEqual([key for key, step in steps.items() if "pay_guard_036" in step], ["11", "15", "20", "25", "40", "48"])
+        for key in ("11", "15", "20", "25", "40", "48"):
+            with self.subTest(key):
+                guard, upstream = steps[key]["pay_guard_036"], steps[key]["upstream"]
+                self.assertEqual(len(guard["RewardXP"].split("|")), len(upstream["RewardXP"].split("|")))
+                self.assertNotEqual(guard["RewardXP"], upstream["RewardXP"])
+                self.assertEqual(guard["RewardMoney"], upstream["RewardMoney"])  # 0.36 changed only the XP
+
+    def test_a_row_at_the_0_35b_or_0_36_values_is_paid_and_any_other_is_left(self):
+        self.conn.executemany("INSERT INTO DataQuest (ID, RewardXP, RewardMoney) VALUES (?, ?, ?)", [
+            (20157, "0|0|0|0|0|31920", "0|0|0|0|0|0"),  # the Infiltrator's 11 as 0.35b ships it
+            (20155, "0|0|0|0|0|41800", "0|0|0|0|0|0"),  # the Mercenary's as 0.36 ships it
+            (20156, "0|0|0|0|0|50000", "0|0|0|0|0|0"),  # the Cabalist's at neither: the owner's, or a later upstream's
+        ])
+        self.assertEqual(epic_chains._pay(self.conn, NOW, self.data), {"pay": 2})
+        self.assertEqual(self.conn.execute("SELECT ID, RewardXP, RewardMoney FROM DataQuest ORDER BY ID").fetchall(), [
+            (20155, "0|0|0|0|0|95000", "0|0|0|0|0|1100"), (20156, "0|0|0|0|0|50000", "0|0|0|0|0|0"),
+            (20157, "0|0|0|0|0|95000", "0|0|0|0|0|1100")])
+
 
 @unittest.skipUnless(TEST_WORLD, "needs HDC_TEST_WORLD (a clean classic world database)")
 class EpicWorldTests(unittest.TestCase):
@@ -299,6 +402,9 @@ class EpicWorldTests(unittest.TestCase):
         cls.conn = sqlite3.connect(cls.db)
         cls.before = {r["ID"]: r for r in rows(cls.conn, "SELECT * FROM DataQuest")}
         cls.data = epic_chains.load_data()
+        ids = [item["Id_nb"] for item in cls.data["items"]]
+        cls.item_ids = dict(cls.conn.execute(  # upstream's rows of them, by ItemTemplate_ID
+            f"SELECT Id_nb, ItemTemplate_ID FROM ItemTemplate WHERE Id_nb IN ({', '.join('?' * len(ids))})", ids))
         cls.result = epic_chains.apply(cls.conn, NOW)
         cls.conn.commit()
         cls.after = {r["ID"]: r for r in rows(cls.conn, "SELECT * FROM DataQuest")}
@@ -468,7 +574,9 @@ class EpicWorldTests(unittest.TestCase):
             with self.subTest(item["Id_nb"]):
                 row = rows(self.conn, "SELECT * FROM ItemTemplate WHERE Id_nb=?", (item["Id_nb"],))[0]
                 self.assertEqual({k: row[k] for k in item}, item)
-                self.assertEqual(row["ItemTemplate_ID"], str(uuid.uuid5(uuid.NAMESPACE_URL, "hearthdaoc:item:" + item["Id_nb"])))
+                # An added row gets a stable ID; a replaced one keeps upstream's (Inventory refers to Id_nb).
+                self.assertEqual(row["ItemTemplate_ID"], self.item_ids.get(
+                    item["Id_nb"], str(uuid.uuid5(uuid.NAMESPACE_URL, "hearthdaoc:item:" + item["Id_nb"]))))
                 self.assertEqual(row["LastTimeRowUpdated"], NOW)
 
     def test_the_item_fixes(self):
@@ -547,10 +655,12 @@ class EpicWorldTests(unittest.TestCase):
     def test_the_extra_quest_file_names_the_level_50_quests_and_lord_elidyn(self):
         with open(EXTRA_QUESTS, encoding="utf-8") as f:
             extra = json.load(f)
-        added = sorted(int(k) for k, quest in extra["Quests"].items() if not quest.get("Replace"))
+        added = sorted(int(k) for k, quest in extra["Quests"].items()
+                       if not quest.get("Replace") and int(k) not in SHARE_IDS)
         self.assertEqual(added, sorted(self.data["steps"]["50"]["ids"]))
         replaced = sorted(int(k) for k, quest in extra["Quests"].items() if quest.get("Replace"))  # the rebuilt level 11
-        self.assertEqual(replaced, sorted([qid for qid in self.data["steps"]["11"]["ids"] if qid is not None] + PERIOD_IDS))
+        self.assertEqual(replaced, sorted([qid for qid in self.data["steps"]["11"]["ids"] if qid is not None] + PERIOD_IDS
+                                          + REWARD_IDS))
         self.assertTrue(self.conn.execute("SELECT 1 FROM Mob WHERE Mob_ID=?", (extra["QuestMonsterIds"][0],)).fetchone())
 
 
@@ -606,15 +716,31 @@ class EpicSafetyTests(unittest.TestCase):
         self.assertEqual(epic_chains.apply(empty, NOW), [])
 
     def test_items_that_exist_are_left_alone(self):
-        # Upstream added one meanwhile (or the owner edited it), and the owner set a vest's charges.
-        self.conn.execute("INSERT INTO ItemTemplate (Id_nb, Name) VALUES ('cq_alb_ring_of_shades', 'Their Ring')")
+        # An item row at neither upstream's 0.36 values nor the file's (upstream changed it again, or the owner edited
+        # it) stays and is named, and the owner set a vest's charges.
+        self.conn.execute("UPDATE ItemTemplate SET Name='Their Ring' WHERE Id_nb='cq_alb_ring_of_shades'")
         self.conn.execute("UPDATE ItemTemplate SET SpellID=999, Charges=1, MaxCharges=1 WHERE Id_nb='ReaverEpicVest'")
         result = epic_chains.apply(self.conn, NOW)
-        self.assertIn("40 items added, 35 item fixes", result[0])
+        self.assertIn("0 items added, 40 replaced, 35 item fixes", result[0])
+        self.assertEqual(result[1:], [epic_chains.KEPT_ITEMS.format("cq_alb_ring_of_shades")])
         self.assertEqual(self.conn.execute("SELECT Name FROM ItemTemplate WHERE Id_nb='cq_alb_ring_of_shades'").fetchone(),
                          ("Their Ring",))
         self.assertEqual(self.conn.execute("SELECT SpellID, Charges FROM ItemTemplate WHERE Id_nb='ReaverEpicVest'").fetchone(),
                          (999, 1))
+
+    def test_a_missing_item_is_added_and_one_that_is_already_the_files_is_left_quietly(self):
+        import uuid
+        items = {item["Id_nb"]: item for item in epic_chains.load_data()["items"]}
+        self.conn.execute("DELETE FROM ItemTemplate WHERE Id_nb='cq_alb_ring_of_shades'")
+        cloak = items["cq_alb_spirit_threaded_cloak"]
+        columns = [column for column in cloak if column != "Id_nb"]
+        self.conn.execute(f"UPDATE ItemTemplate SET {', '.join(f'{c}=?' for c in columns)} "
+                          "WHERE Id_nb='cq_alb_spirit_threaded_cloak'", [cloak[c] for c in columns])
+        result = epic_chains.apply(self.conn, NOW)
+        self.assertEqual(len(result), 1)
+        self.assertIn("1 items added, 39 replaced, 36 item fixes", result[0])
+        self.assertEqual(self.conn.execute("SELECT ItemTemplate_ID FROM ItemTemplate WHERE Id_nb='cq_alb_ring_of_shades'")
+                         .fetchone(), (str(uuid.uuid5(uuid.NAMESPACE_URL, "hearthdaoc:item:cq_alb_ring_of_shades")),))
 
 
 @unittest.skipUnless(TEST_WORLD, "needs HDC_TEST_WORLD (a clean classic world database)")

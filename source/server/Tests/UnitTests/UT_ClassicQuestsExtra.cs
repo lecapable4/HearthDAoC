@@ -267,4 +267,149 @@ public sealed class UT_ClassicQuestsExtra
         Assert.That(merged.Links, Has.Count.EqualTo(1));
         Assert.That(merged.Links[0].Members, Is.EqualTo(new[] { "d", "r1", "r2" }));
     }
+
+    // HearthDAoC (0.37 sync, #138): upstream 0.36 pays a classic quest's XP as a share of the player's current level
+    // (XpShares) and has a step's NPC greet a player who comes back (Greet). Our entry for a quest upstream has carries
+    // its XpShares and each step's Greet onto upstream's entry, and ours win: the Guild of Shadows chain pays the owner's
+    // shares (decision 1.c), and "" drops a greeting (R6: level 43's stage 3). Everything else stays upstream's.
+    private const string Scaled = """
+    { "Quests": { "20433": { "XpShares": [ 0.0, 0.0, 0.100364 ],
+                             "Steps": [ null, { "Marker": { "Region": 1, "X": 1, "Y": 2, "Z": 3 }, "Greet": "Back already?" },
+                                              { "Greet": "Were you able to deliver the dispatch?" },
+                                              { "Greet": "Did Twr ap Alsig take the dispatch?" } ] } } }
+    """;
+
+    [Test]
+    public void OurXpSharesWinOnUpstreamsEntry()
+    {
+        ClassicQuests.Config merged = ClassicQuests.Merge(Parse(Scaled), Parse("""{ "Quests": { "20433": { "XpShares": [ 0.0, 0.0, 0.1 ] } } }"""));
+        Assert.Multiple(() =>
+        {
+            Assert.That(merged.Quests[20433].XpShares, Is.EqualTo(new[] { 0.0, 0.0, 0.1 }));
+            Assert.That(merged.Quests[20433].Steps[1].Marker, Is.EqualTo(new ClassicQuests.Point(1, 1, 2, 3)));
+            Assert.That(merged.Quests[20433].Steps[2].Greet, Is.EqualTo("Were you able to deliver the dispatch?"));
+        });
+    }
+
+    [TestCase("")]
+    [TestCase("\"XpShares\": [], ")]
+    [TestCase("\"XpShares\": null, ")]
+    public void WithoutSharesOfOursUpstreamsStay(string shares)
+    {
+        ClassicQuests.Config merged = ClassicQuests.Merge(Parse(Scaled), Parse($$"""{ "Quests": { "20433": { {{shares}}"Steps": [ null ] } } }"""));
+        Assert.That(merged.Quests[20433].XpShares, Is.EqualTo(new[] { 0.0, 0.0, 0.100364 }));
+    }
+
+    [Test]
+    public void OurGreetWinsOnItsStepAndTheOthersStay()
+    {
+        ClassicQuests.Config merged = ClassicQuests.Merge(Parse(Scaled),
+            Parse("""{ "Quests": { "20433": { "Steps": [ null, null, { "Greet": "Were you able to retrieve Tepok's precious sack?" } ] } } }"""));
+        Assert.Multiple(() =>
+        {
+            Assert.That(merged.Quests[20433].Steps[1].Greet, Is.EqualTo("Back already?"));
+            Assert.That(merged.Quests[20433].Steps[2].Greet, Is.EqualTo("Were you able to retrieve Tepok's precious sack?"));
+            Assert.That(merged.Quests[20433].Steps[3].Greet, Is.EqualTo("Did Twr ap Alsig take the dispatch?"));
+        });
+    }
+
+    [Test]
+    public void AnEmptyGreetRemovesUpstreams()
+    {
+        ClassicQuests.Config merged = ClassicQuests.Merge(Parse(Scaled), Parse("""{ "Quests": { "20433": { "Steps": [ null, null, { "Greet": "" } ] } } }"""));
+        Assert.Multiple(() =>
+        {
+            Assert.That(merged.Quests[20433].Steps[2].Greet, Is.Null);
+            Assert.That(merged.Quests[20433].Steps[1].Greet, Is.EqualTo("Back already?"));
+            Assert.That(merged.Quests[20433].Steps[3].Greet, Is.EqualTo("Did Twr ap Alsig take the dispatch?"));
+        });
+    }
+
+    [Test]
+    public void OnlyTheGreetOfOurStepIsCarried()
+    {
+        // A marker, an item or a custom step of ours needs a Replace entry.
+        ClassicQuests.Config merged = ClassicQuests.Merge(Parse(Scaled),
+            Parse("""{ "Quests": { "20433": { "Steps": [ null, { "Marker": { "Region": 1, "X": 9, "Y": 9, "Z": 9 }, "NeedsItem": "cq_x" } ] } } }"""));
+        Assert.Multiple(() =>
+        {
+            Assert.That(merged.Quests[20433].Steps[1].Marker, Is.EqualTo(new ClassicQuests.Point(1, 1, 2, 3)));
+            Assert.That(merged.Quests[20433].Steps[1].NeedsItem, Is.Null);
+            Assert.That(merged.Quests[20433].Steps[1].Greet, Is.EqualTo("Back already?"));
+            Assert.That(merged.Quests[20433].Steps, Has.Count.EqualTo(4));
+        });
+    }
+
+    [Test]
+    public void AGreetOnAStepUpstreamHasNoInfoForAddsTheStep()
+    {
+        ClassicQuests.Config merged = ClassicQuests.Merge(Parse("""{ "Quests": { "20433": { "Steps": [ null, null ] } } }"""),
+            Parse("""{ "Quests": { "20433": { "Steps": [ null, { "Greet": "Back already?" }, null, { "Greet": "Well?" } ] } } }"""));
+        Assert.Multiple(() =>
+        {
+            Assert.That(merged.Quests[20433].Steps, Has.Count.EqualTo(4));
+            Assert.That(merged.Quests[20433].Steps[1].Greet, Is.EqualTo("Back already?"));
+            Assert.That(merged.Quests[20433].Steps[2], Is.Null);
+            Assert.That(merged.Quests[20433].Steps[3].Greet, Is.EqualTo("Well?"));
+            Assert.That(merged.Quests[20433].Steps[3].Marker, Is.Null);
+        });
+    }
+
+    [Test]
+    public void AnEmptyGreetOnAStepUpstreamHasNoInfoForAddsNothing()
+    {
+        ClassicQuests.Config merged = ClassicQuests.Merge(Parse("""{ "Quests": { "20433": { "Steps": [ null, null ] } } }"""),
+            Parse("""{ "Quests": { "20433": { "Steps": [ null, { "Greet": "" }, null, { "Greet": "" } ] } } }"""));
+        Assert.Multiple(() =>
+        {
+            Assert.That(merged.Quests[20433].Steps, Has.Count.EqualTo(2));
+            Assert.That(merged.Quests[20433].Steps[1], Is.Null);
+        });
+    }
+
+    [Test]
+    public void SharesAndGreetsAreReadWithoutCase()
+    {
+        ClassicQuests.Config merged = ClassicQuests.Merge(Parse(Scaled),
+            Parse("""{ "Quests": { "20433": { "xpshares": [ 0.25 ], "steps": [ null, { "greet": "" } ] } } }"""));
+        Assert.Multiple(() =>
+        {
+            Assert.That(merged.Quests[20433].XpShares, Is.EqualTo(new[] { 0.25 }));
+            Assert.That(merged.Quests[20433].Steps[1].Greet, Is.Null);
+        });
+    }
+
+    [Test]
+    public void ANewIdIsAddedWithItsSharesAndGreets()
+    {
+        ClassicQuests.Config merged = ClassicQuests.Merge(Parse(Scaled),
+            Parse("""{ "Quests": { "990509": { "XpShares": [ 0.0, 0.1 ], "Steps": [ null, { "Greet": "You return." } ] } } }"""));
+        Assert.Multiple(() =>
+        {
+            Assert.That(merged.Quests.Keys, Is.EquivalentTo(new[] { 20433, 990509 }));
+            Assert.That(merged.Quests[990509].XpShares, Is.EqualTo(new[] { 0.0, 0.1 }));
+            Assert.That(merged.Quests[990509].Steps[1].Greet, Is.EqualTo("You return."));
+            Assert.That(merged.Quests[20433].XpShares, Is.EqualTo(new[] { 0.0, 0.0, 0.100364 }));
+        });
+    }
+
+    [Test]
+    public void AReplaceEntryStillReplacesTheWholeEntry()
+    {
+        // Upstream's shares and greetings go with its entry; a Replace entry brings its own (the fork's rebuilt quests).
+        ClassicQuests.Config merged = ClassicQuests.Merge(Parse(Scaled),
+            Parse("""{ "Quests": { "20433": { "Replace": true, "Steps": [ null, { "Marker": { "Region": 1, "X": 9, "Y": 9, "Z": 9 } } ] } } }"""));
+        ClassicQuests.Config own = ClassicQuests.Merge(Parse(Scaled),
+            Parse("""{ "Quests": { "20433": { "Replace": true, "XpShares": [ 0.0, 0.25 ], "Steps": [ null, { "Greet": "Mine." } ] } } }"""));
+        Assert.Multiple(() =>
+        {
+            Assert.That(merged.Quests[20433].XpShares, Is.Empty);
+            Assert.That(merged.Quests[20433].Steps, Has.Count.EqualTo(2));
+            Assert.That(merged.Quests[20433].Steps[1].Greet, Is.Null);
+            Assert.That(merged.Quests[20433].Steps[1].Marker, Is.EqualTo(new ClassicQuests.Point(1, 9, 9, 9)));
+            Assert.That(own.Quests[20433].XpShares, Is.EqualTo(new[] { 0.0, 0.25 }));
+            Assert.That(own.Quests[20433].Steps[1].Greet, Is.EqualTo("Mine."));
+            Assert.That(own.Quests[20433].Steps[1].Marker, Is.Null);
+        });
+    }
 }

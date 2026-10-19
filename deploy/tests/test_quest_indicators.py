@@ -11,6 +11,8 @@ import os
 import re
 import unittest
 
+from tests import endings
+
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 GAME_SERVER = os.path.join(ROOT, "source", "server", "GameServer")
 FORK = os.path.join(GAME_SERVER, "scripts", "hearthdaoc")
@@ -95,14 +97,15 @@ class RulesAndPacketsTests(unittest.TestCase):
 
 
 class EndingsTests(unittest.TestCase):
-    def test_the_upstream_files_keep_their_endings_and_bom(self):
+    def test_the_upstream_files_keep_upstreams_endings_and_their_bom(self):
+        # Upstream's endings, line by line, whichever they are (v0.36b's GamePlayer.cs had both; tests/endings.py).
         for path, bom in ((GAME_NPC, False), (GAME_PLAYER, False), (CREATE, True), (EFFECT, False),
                           (ABSTRACT_QUEST, False), (DATA_QUEST, True), (DAILY, False), (WEEKLY, False),
                           (MONTHLY, False)):
-            with open(path, "rb") as f:
-                raw = f.read()
-            self.assertEqual(raw.count(b"\r\n"), raw.count(b"\n"), path)
-            self.assertEqual(raw.startswith(b"\xef\xbb\xbf"), bom, path)
+            with self.subTest(path=path):
+                endings.check(self, path)
+                with open(path, "rb") as f:
+                    self.assertEqual(f.read().startswith(b"\xef\xbb\xbf"), bom, path)
 
     def test_the_fork_files_are_lf(self):
         for path in (QUEST_INDICATORS, SENT_STORE):
