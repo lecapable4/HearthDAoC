@@ -5,7 +5,8 @@ DataQuest hands every template in FinalRewardItemTemplates. From the period guid
 upstream's generator made two templates of X, a plain cq_X ("Classic quest reward ((quest item))") and a realm
 cq_<realm>_X, and ten quests hand both: both as the final reward, or one on the kill step (StepItemTemplates) or a
 trade (classic-quests.json) and the other as the final reward. The period gave one. deploy/bin/mob_fixes.json keeps
-one: the realm template, on the kill step where the period's monster dropped it, and a trade's own output.
+one: the realm template, on the kill step where the period's monster dropped it, and a trade's own output. 0.36's
+reward items doubled 37 more: 0.35b had only the plain cq_X, carried only; 0.36 added the wearable cq_<realm>_X.
 
 The world tests run world_fixes on a copy of a clean classic world (HDC_TEST_WORLD). The trades, choices and grants
 are in upstream's classic-quests.json (HDC_CLASSIC_QUESTS, as in test_quest_reachability) and the fork's
@@ -37,7 +38,23 @@ COLLECT = {10, 11}
 REWARDS = {20022: ["silver chain"], 20116: ["wiley's boots"], 20137: ["wyrm sleeves"], 20207: ["belt of animation"],
            20208: ["gyrg's cloak"], 20209: ["quicksilver bracer"], 20320: ["yellow silken robes"],
            20510: ["flint dirk", "flint knife", "flinthead club"], 20515: ["cloudy green stone"], 20637: ["snake charm"]}
-DOUBLED = set(REWARDS)
+# 0.36's items doubled 37 more. 30 hand both copies through DataQuest: the realm template is kept, as for the ten.
+REALM_REWARDS = {
+    20024: ["thinking cap"], 20074: ["woven grass helm"], 20078: ["stone bracer"], 20117: ["smyga's helm"],
+    20124: ["ring of illbane"], 20125: ["watercast ring"], 20126: ["driftspirit cloak"], 20127: ["toe bone belt"],
+    20129: ["flame helm"], 20131: ["gauntlets of the redhand"], 20133: ["stripe hide helm"], 20134: ["nimh's curse"],
+    20135: ["fine sash"], 20138: ["bulbous eye"], 20139: ["agile defender"], 20142: ["boots of stealthy evasion"],
+    20243: ["fagan's signet ring"], 20244: ["fagan's signet ring"], 20245: ["fagan's signet ring"],
+    20246: ["fagan's signet ring"], 20375: ["helm of the aki"], 21053: ["taldos' amulet"], 21146: ["berbenet leggings"],
+    21187: ["shining crown of insanity"], 21256: ["hammer of black ice"], 21352: ["yog's iron fist"],
+    21371: ["puzzler's globe"], 21406: ["faerie drake hide shield"], 21425: ["unstoppered wondrous potion"],
+    21466: ["dancing silk"]}
+# 8 hand one copy through classic-quests.json (a grant or a trade) or a choice and the other through DataQuest: decided
+# one by one (21371 has one item of each kind).
+CALLED_REWARDS = {20512: ["yellow quartz"], 20975: ["perfect life stone"], 21021: ["pious ring"], 21022: ["pious ring"],
+                  21263: ["vigdis's protector"], 21264: ["herbalist's hauberk of ivy", "ring of spun silk"],
+                  21371: ["scurceol's bracer"], 21465: ["brack's hammer"]}
+DOUBLED = set(REWARDS) | set(REALM_REWARDS) | set(CALLED_REWARDS)
 
 
 def custom_steps():
@@ -90,7 +107,13 @@ def handed(conn, steps_of):
                 kept.append((f"step {n}", item))
             step, extra = custom(n)
             kept += [(f"trade at step {n}", out.lower()) for out in (extra.get("Trades") or {}).values() if out]
-            kept += [(f"choice at step {n}", out.lower()) for out in (extra.get("Choices") or {}).values() if out]
+            # A choice hands one of the items it offers: of those of one name (Alastriona's four Skinner's Gloves, one
+            # per armour type), one counts.
+            offered = {}
+            for out in (extra.get("Choices") or {}).values():
+                if out and out.lower() in names:
+                    offered.setdefault(names[out.lower()], out.lower())
+            kept += [(f"choice at step {n}", out) for out in offered.values()]
             kept += [(f"grant at step {n}", g.lower()) for g in step.get("Grant") or [] if g and not taken_from(n, g.lower())]
             given = (extra.get("Item") or "").lower()
             if extra.get("Give") and given and not taken_from(n, given):
@@ -117,6 +140,35 @@ def doubled(conn, steps_of):
     return sorted(found)
 
 
+class ScanTests(unittest.TestCase):
+    """The scan on a tiny world of two items of one name (no world file needed)."""
+
+    # Alastriona's Chest (20076) offers four Skinner's Gloves, one per armour type, at its last step.
+    STEPS = {"1": [None, None, {"Custom": {"Kind": "choose", "Target": "Alastriona",
+                                           "Choices": {"Cloth": "gloves_cloth", "Leather": "gloves_leather"}}}]}
+
+    def world(self, final=""):
+        conn = sqlite3.connect(":memory:")
+        conn.execute("CREATE TABLE ItemTemplate (Id_nb TEXT, Name TEXT, Item_Type INT, Price INT)")
+        conn.execute("CREATE TABLE DataQuest (ID INT, StepType TEXT, StepItemTemplates TEXT, CollectItemTemplate TEXT, "
+                     "FinalRewardItemTemplates TEXT)")
+        conn.executemany("INSERT INTO ItemTemplate VALUES (?, 'Skinner''s Gloves', 22, 0)",
+                         [("gloves_cloth",), ("gloves_leather",)])
+        conn.execute("INSERT INTO DataQuest VALUES (1, '0|9', '|', '', ?)", (final,))
+        self.addCleanup(conn.close)
+        return conn
+
+    def test_a_choice_hands_one_of_its_items(self):
+        conn = self.world()
+        self.assertEqual(handed(conn, self.STEPS)[1]["skinner's gloves"], ["choice at step 2: gloves_cloth"])
+        self.assertEqual(doubled(conn, self.STEPS), [])
+
+    def test_a_choice_beside_a_final_reward_of_its_item_is_a_double(self):
+        conn = self.world(final="gloves_leather")
+        self.assertEqual(doubled(conn, self.STEPS), [
+            (1, "skinner's gloves", ["choice at step 2: gloves_cloth", "final reward: gloves_leather"])])
+
+
 @unittest.skipUnless(TEST_WORLD and UPSTREAM_QUESTS,
                      "needs HDC_TEST_WORLD (a clean classic world) and upstream's classic-quests.json (HDC_CLASSIC_QUESTS)")
 class QuestRewardTests(unittest.TestCase):
@@ -134,7 +186,7 @@ class QuestRewardTests(unittest.TestCase):
         cls.conn.close()
         cls.tmp.cleanup()
 
-    def test_upstreams_world_hands_these_ten_rewards_twice(self):
+    def test_upstreams_world_hands_these_rewards_twice(self):
         # The check finds what the owner met: the scan behind the fix, kept so a later upstream world is checked too.
         clean = sqlite3.connect(f"file:{TEST_WORLD}?mode=ro", uri=True)
         try:
@@ -144,6 +196,8 @@ class QuestRewardTests(unittest.TestCase):
         self.assertEqual({qid for qid, _, _ in found}, DOUBLED, found)
         self.assertIn((20207, "belt of animation", ["final reward: cq_belt_of_animation",
                                                     "final reward: cq_alb_belt_of_animation"]), found)
+        self.assertIn((21146, "berbenet leggings", ["final reward: cq_berbenet_leggings",
+                                                    "final reward: cq_mid_berbenet_leggings"]), found)
 
     def test_no_quest_hands_one_reward_twice(self):
         self.assertEqual(doubled(self.conn, self.steps), [])
