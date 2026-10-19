@@ -341,6 +341,18 @@ class QuestRewardTests(unittest.TestCase):
             with self.subTest(qid, item=item):
                 self.assertEqual(quests[qid][item], [copy])
 
+    def test_breaking_the_blades_journal_sends_the_player_back_for_the_belt_at_the_end(self):
+        # "4)You are then told to go kill Prince Abdin. 5)Return to Mysteras. 6) Receive a reward (belt)." (Allakhazam
+        # cquest 1802, Wayback capture 2003-12-28). The belt is now the step-8 choice (the Breaking the Blade entry), so
+        # stage 4's journal line no longer promises one, and stage 6 sends the player back after Legion for both rewards
+        # (the crown and the belt), not "another".
+        stages, items = self.conn.execute("SELECT StepText, StepItemTemplates FROM DataQuest WHERE ID=21263").fetchone()
+        stages = stages.split("|")
+        self.assertEqual(items, "|||||||")
+        self.assertEqual(stages[3], "Return to Mystemas.")
+        self.assertEqual(stages[5], "Return to Mystemas for your rewards.")
+        self.assertEqual([n for n, text in enumerate(stages, 1) if "belt" in text.lower() or "another" in text.lower()], [])
+
     def test_a_granted_reward_is_the_period_item(self):
         # "he will reward you with a Perfect Life Stone (Necklace item with 118hp)" (Allakhazam cquest 2007, Wayback
         # capture 2004-04-19). Upstream's grant hands 0.35b's carried-only copy; it takes the realm template's values.
