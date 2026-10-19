@@ -246,7 +246,7 @@ class ControllerHookTests(unittest.TestCase):
         marked(self, tour, call)
         self.assertLess(tour.index("BotOverCap("), tour.index(call))
         self.assertLess(tour.index("bot.CurrentRegionID != bracket.RegionId"), tour.index(call))
-        self.assertLess(tour.index("_rvrIntent = assault ?"), tour.index(call))
+        self.assertLess(tour.index("_rvrIntent = assault && !tooFew ?"), tour.index(call))
         self.assertLess(tour.index(call), tour.index("TryRunSiegeJob(bot)"))
         self.assertLess(tour.index(call), tour.index("return RoamBattleground("))
 
@@ -296,7 +296,7 @@ class ControllerHookTests(unittest.TestCase):
 
 class EndingsTests(unittest.TestCase):
     def test_the_upstream_files_keep_their_endings(self):
-        for path, crlf in ((BG, True), (WBC, False), (GC, False), (FT, False)):
+        for path, crlf in ((BG, True), (WBC, False), (GC, True), (FT, False)):
             with open(path, "rb") as f:
                 raw = f.read()
             self.assertEqual(raw.count(b"\r\n"), raw.count(b"\n") if crlf else 0, path)
