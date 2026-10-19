@@ -174,10 +174,12 @@ public sealed class UT_DataQuestDeliveryItem
     // HearthDAoC (0.37 sync): upstream 0.36 hands a Deliver step's item to a player on that step who lacks it, at every
     // refresh (ClassicQuests.GiveDeliveryItem). A first delivery back to the giver is the item the giver wants the player
     // to bring: on the clean 0.37b world all 11 "bring me" quests' step-1 templates exist, so each would be handed free.
+    // These cases test the rule; that GiveDeliveryItem returns on it is deploy/tests/test_quest_rewards.py's
+    // RefreshSourceTests (the refresh is private and needs a live player).
     [TestCase(20098, "Gridash", "Gridash")] // Sveabone Hilt Sword: "Run along and buy me a bronze short sword"
     [TestCase(20781, "Duana", "Duana")]     // Seek the Moonstone C (20781-20784): the collar an earlier quest gave
     [TestCase(21008, "Audun", "Audun")]     // An End to the Daggers (21008-21013): the Red Dagger Map
-    public void TheRefreshHandsNoFirstDeliveryBackToTheGiver(int quest, string target, string giver)
+    public void AFirstDeliveryBackToTheGiverIsAnItemThePlayerBrings(int quest, string target, string giver)
         => Assert.That(QuestDeliveryItems.BringsToGiver(1, target, giver), Is.True, $"quest {quest}");
 
     [Test]

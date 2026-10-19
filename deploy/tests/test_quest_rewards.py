@@ -23,6 +23,7 @@ from collections import defaultdict
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DEPLOY = os.path.dirname(HERE)
+CLASSIC_QUESTS = os.path.join(DEPLOY, "..", "source", "server", "GameServer", "quests", "QuestsMgr", "ClassicQuests.cs")
 sys.path.insert(0, os.path.join(DEPLOY, "bin"))
 
 import world_fixes as wf  # noqa: E402
@@ -167,6 +168,28 @@ class ScanTests(unittest.TestCase):
         conn = self.world(final="gloves_leather")
         self.assertEqual(doubled(conn, self.STEPS), [
             (1, "skinner's gloves", ["choice at step 2: gloves_cloth", "final reward: gloves_leather"])])
+
+
+class RefreshSourceTests(unittest.TestCase):
+    """ClassicQuests' refresh (every 5 s) hands a player on a step an item the step should have given and the player
+    lacks. The fork's hooks in it keep it from handing an item free (source check: the refresh is private upstream code
+    that needs a live player; the rules themselves are the C# helpers' unit tests)."""
+
+    @staticmethod
+    def body(signature):
+        with open(CLASSIC_QUESTS, encoding="utf-8-sig") as f:
+            source = f.read()
+        return source.split(signature, 1)[1].split("\n        }\n", 1)[0]
+
+    def test_the_delivery_refresh_hands_no_item_a_quest_asks_you_to_bring(self):
+        # Upstream 0.36's GiveDeliveryItem hands a Deliver step's item to a player on that step who lacks it, once a
+        # minute. A first delivery back to the giver is an item the giver wants the player to bring (QuestDeliveryItems.
+        # BringsToGiver; UT_DataQuestDeliveryItem): 20098's bronze short sword, the Seek the Moonstone collar and the Red
+        # Dagger Map would be handed free (0.37 sync).
+        body = self.body("private static void GiveDeliveryItem(GamePlayer player, DataQuest quest)")
+        hook = "if (QuestDeliveryItems.BringsToGiver(quest.Step, quest.TargetName, quest.DBDataQuest?.StartName)) return;"
+        self.assertIn(hook, body)
+        self.assertLess(body.index(hook), body.index("string id = quest.CurrentStepItemTemplate;"))
 
 
 @unittest.skipUnless(TEST_WORLD and UPSTREAM_QUESTS,
