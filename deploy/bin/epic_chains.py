@@ -7,9 +7,10 @@ fork table fork_world_fixes, and a world with the marker is left alone, so chang
 statement runs under one savepoint; if a step fails it is rolled back (no change, no marker, so the next start tries
 again) and apply() returns only the "not applied" line, while world_fixes.py still commits its own fixes.
 
-Each step changes a row only while it still holds upstream's 0.35b value, and inserts a row only where none with its
-key exists, so a later upstream world that fixed something itself keeps its own fix, and the counts show only what
-this fix did. The Guild of Shadows data (quest IDs, links, XP and coin, texts, items, the level-50 quests) is in
+Each step changes a row only while it still holds upstream's 0.35b value (or, where upstream 0.36 changed it, the 0.36
+value the data file records beside it), and inserts a row only where none with its key exists, so a later upstream
+world that fixed something itself keeps its own fix, and the counts show only what this fix did. The Guild of Shadows
+data (quest IDs, links, XP and coin, texts, items, the level-50 quests) is in
 epic_chains_data.json, beside this file.
 1. The Guild of Shadows links: QuestDependency of its 60 chain rows by quest ID (DataQuest's "#a/b": one of them is
    finished; "!#a/b": closed while one of them is active or finished).
@@ -17,7 +18,8 @@ epic_chains_data.json, beside this file.
    level below it for its classes, is pinned to the IDs of those quests at the highest such level.
 3. The other version of the Supply Run (Lady Aelawen's) is closed: it needs itself finished, so it is offered to no
    one, and a character already on it can finish it (DataQuest reads dependencies only when it offers a quest).
-4. The chain's XP and coin, in the last stage's entry (the 11 SI also pays coin at stage 3).
+4. The chain's XP and coin, in the last stage's entry (the 11 SI also pays coin at stage 3), over upstream's 0.35b
+   values or the higher fixed XP 0.36 gave six steps ("pay_guard_036").
 5. Necromancer 11: one reward for each version.
 6. Texts: the Reaver's level-40 list without the two weapons that don't exist; the level-30 speech's source tags.
 7. Items: the missing rewards and level-40 weapons, inserted where missing; fixes to existing rows (the level-50
@@ -179,12 +181,14 @@ def _pay(conn, now, data):
             continue
         upstream = step["upstream"]
         xp, money = pay_lists(len(upstream["RewardXP"].split("|")), step)
+        guards = [upstream] + ([step["pay_guard_036"]] if "pay_guard_036" in step else [])
+        held = " OR ".join(["(IFNULL(RewardXP,'')=? AND IFNULL(RewardMoney,'')=?)"] * len(guards))
+        values = [value for guard in guards for value in (guard["RewardXP"], guard["RewardMoney"])]
         for qid in step["ids"]:
             if qid is not None:
                 changed += conn.execute(
-                    "UPDATE DataQuest SET RewardXP=?, RewardMoney=?, LastTimeRowUpdated=? "
-                    "WHERE ID=? AND IFNULL(RewardXP,'')=? AND IFNULL(RewardMoney,'')=?",
-                    (xp, money, now, qid, upstream["RewardXP"], upstream["RewardMoney"])).rowcount
+                    f"UPDATE DataQuest SET RewardXP=?, RewardMoney=?, LastTimeRowUpdated=? WHERE ID=? AND ({held})",
+                    (xp, money, now, qid, *values)).rowcount
     return {"pay": changed}
 
 

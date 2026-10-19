@@ -331,6 +331,41 @@ class EpicDataTests(unittest.TestCase):
         self.assertEqual([i is None for i in steps["7closed"]["ids"]], [False, False, False, True, False])
 
 
+class EpicPayGuardTests(unittest.TestCase):
+    """The pay step (spec 3.4, step 4) changes a row while it holds upstream's 0.35b XP and coin, or the higher fixed XP
+    upstream 0.36 gave steps 11, 15, 20, 25, 40 and 48 ("pay_guard_036"), and leaves any other (no world needed)."""
+
+    def setUp(self):
+        self.data = epic_chains.load_data()
+        self.conn = sqlite3.connect(":memory:")
+        self.conn.execute("CREATE TABLE DataQuest (ID INT PRIMARY KEY, RewardXP TEXT, RewardMoney TEXT, "
+                          "LastTimeRowUpdated TEXT)")
+
+    def tearDown(self):
+        self.conn.close()
+
+    def test_the_0_36_guards_are_steps_11_15_20_25_40_and_48(self):
+        steps = self.data["steps"]
+        self.assertEqual([key for key, step in steps.items() if "pay_guard_036" in step], ["11", "15", "20", "25", "40", "48"])
+        for key in ("11", "15", "20", "25", "40", "48"):
+            with self.subTest(key):
+                guard, upstream = steps[key]["pay_guard_036"], steps[key]["upstream"]
+                self.assertEqual(len(guard["RewardXP"].split("|")), len(upstream["RewardXP"].split("|")))
+                self.assertNotEqual(guard["RewardXP"], upstream["RewardXP"])
+                self.assertEqual(guard["RewardMoney"], upstream["RewardMoney"])  # 0.36 changed only the XP
+
+    def test_a_row_at_the_0_35b_or_0_36_values_is_paid_and_any_other_is_left(self):
+        self.conn.executemany("INSERT INTO DataQuest (ID, RewardXP, RewardMoney) VALUES (?, ?, ?)", [
+            (20157, "0|0|0|0|0|31920", "0|0|0|0|0|0"),  # the Infiltrator's 11 as 0.35b ships it
+            (20155, "0|0|0|0|0|41800", "0|0|0|0|0|0"),  # the Mercenary's as 0.36 ships it
+            (20156, "0|0|0|0|0|50000", "0|0|0|0|0|0"),  # the Cabalist's at neither: the owner's, or a later upstream's
+        ])
+        self.assertEqual(epic_chains._pay(self.conn, NOW, self.data), {"pay": 2})
+        self.assertEqual(self.conn.execute("SELECT ID, RewardXP, RewardMoney FROM DataQuest ORDER BY ID").fetchall(), [
+            (20155, "0|0|0|0|0|95000", "0|0|0|0|0|1100"), (20156, "0|0|0|0|0|50000", "0|0|0|0|0|0"),
+            (20157, "0|0|0|0|0|95000", "0|0|0|0|0|1100")])
+
+
 @unittest.skipUnless(TEST_WORLD, "needs HDC_TEST_WORLD (a clean classic world database)")
 class EpicWorldTests(unittest.TestCase):
     """The fix on a copy of the clean classic world, applied once (spec 2 and 3.4)."""
