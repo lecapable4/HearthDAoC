@@ -303,7 +303,8 @@ class PatchedReleaseTests(unittest.TestCase):
             self.assertEqual(init_world.init(self.release(srv), self.data, "classic", log=logged.append), 0)
         self.assertEqual(self.world("SELECT Mob_ID, Level FROM Mob ORDER BY Mob_ID"), [("m1", 11), ("m2", 30)])
         self.assertEqual(self.world("SELECT Version FROM offline_patch_log"), [("test.1",)])
-        self.assertIn("World data updated to test.1: 1 added, 1 changed, 0 removed.", logged)
+        self.assertIn("Upstream's test.1 world update applied to the new clean copy: 1 added, 1 changed, 0 removed.",
+                      logged)
         with open(os.path.join(self.data, "world.json"), encoding="utf-8") as f:
             self.assertEqual(json.load(f)["version"], "test")
 
@@ -368,7 +369,10 @@ class PatchedReleaseTests(unittest.TestCase):
         with fx.RangeServer(self.dir) as srv:
             rc, err = self.main(srv)
         self.assertEqual(rc, init_world.EXIT_DOWNLOAD)
-        self.assertIn("the test.1 world update does not fit this world", err)
+        # Nothing failed to download (review finding deploy-2 of the 0.37 sync): the new world could not be built.
+        self.assertTrue(err.startswith("ERROR: the new world could not be built: the test.1 world update does not fit "
+                                       "this world"), err)
+        self.assertTrue(err.rstrip().endswith("The server was not started; the next start tries again."), err)
         self.assertFalse(os.path.exists(os.path.join(self.data, "world.json")))  # the next start tries again
         self.assertFalse(os.path.exists(init_world.world_paths(self.data)["db"]))
 

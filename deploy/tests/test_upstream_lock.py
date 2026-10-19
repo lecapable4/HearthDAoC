@@ -194,7 +194,8 @@ class RealPatchTests(unittest.TestCase):
         dest = os.path.join(self.dir, "world", "opendaoc.sqlite3.db")
         logged = []
         self.assertEqual(world_update.build_world(self.release, "classic", dest, cache, logged.append), "skip")
-        self.assertEqual(logged, ["World data updated to 0.37: 16 added, 263 changed, 0 removed."])
+        self.assertEqual(logged, ["Upstream's 0.37 world update applied to the new clean copy: 16 added, 263 changed, "
+                                  "0 removed."])
         con = sqlite3.connect(f"file:{dest}?mode=ro", uri=True)
         try:
             con.execute("ATTACH DATABASE ? AS clean", (f"file:{PATCHED_WORLD}?mode=ro",))

@@ -360,6 +360,37 @@ class WorldAdminTests(unittest.TestCase):
                 world_admin.upgrade_world(Release(srv.lock(lock), retries=1, backoff=0), self.data,
                                           [sys.executable, "-c", fake], log=QUIET)
 
+    def test_a_failed_import_after_fetch_clean_says_only_the_new_clean_copy_was_updated(self):
+        # ./hdc upgrade-world (and so ./hdc update) runs fetch-clean, then upgrade-world on the clean world it built
+        # (deploy/hdc). When the import fails, the owner's world is as it was, and no line may read as if it had been
+        # updated: fetch-clean printed upstream's "World data updated to 0.37: ..." (review finding deploy-2 of the
+        # 0.37 sync).
+        db = self.make_sqlite_world(version="0.0")
+        with sqlite3.connect(db) as c:  # what upgrade_world counts before the import
+            for table in ("Account (Name TEXT, PrivLevel INTEGER)", "DOLCharacters (Name TEXT)", "offline_world_bots (Id TEXT)"):
+                c.execute(f"CREATE TABLE {table}")
+        with open(db, "rb") as f:
+            before = f.read()
+        lock, _, _ = fx.build_patched(self.dir)
+        with fx.RangeServer(self.dir) as srv:
+            lock_path = os.path.join(self.dir, "upstream.lock")
+            with open(lock_path, "w", encoding="utf-8") as f:
+                json.dump(srv.lock(lock), f)
+            admin = [sys.executable, os.path.join(REPO, "deploy", "bin", "world_admin.py"), "--data", self.data,
+                     "--lock", lock_path]
+            fetched = subprocess.run(admin + ["fetch-clean"], capture_output=True, text=True)
+            upgraded = subprocess.run(admin + ["upgrade-world", "--importer", f"'{sys.executable}' -c 'raise SystemExit(1)'",
+                                               "--clean-world", os.path.join(self.data, world_admin.CLEAN_WORLD)],
+                                      capture_output=True, text=True)
+        self.assertEqual((fetched.returncode, fetched.stderr, upgraded.returncode), (0, "", 1))
+        self.assertEqual(fetched.stdout.splitlines(), [
+            "Upstream's test.1 world update applied to the new clean copy: 1 added, 1 changed, 0 removed.",
+            "Clean classic world for upstream test ready."])
+        self.assertNotIn("World data", fetched.stdout + upgraded.stdout + upgraded.stderr)
+        self.assertEqual(upgraded.stderr.splitlines()[0], "ERROR: the import failed; the current world is unchanged. Details:")
+        with open(db, "rb") as f:
+            self.assertEqual(f.read(), before)
+
     def test_upgrade_world_refuses_same_version_by_default(self):
         self.make_sqlite_world(version="0.34b")
         with self.assertRaisesRegex(world_admin.AdminError, "already"):

@@ -237,6 +237,10 @@ def main(argv=None):
             if a.server_dir:
                 link_server_files(release, a.data, a.server_dir)
         return rc
+    except world_update.WorldUpdateError as e:  # nothing failed to download: the new world could not be built
+        print(f"ERROR: the new world could not be built: {e}. The server was not started; the next start tries again.",
+              file=sys.stderr)
+        return EXIT_DOWNLOAD
     except FetchError as e:
         print(f"ERROR: world download failed: {e}. The server was not started; the next start resumes.",
               file=sys.stderr)

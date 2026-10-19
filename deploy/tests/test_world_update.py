@@ -188,7 +188,8 @@ class BuildWorldTests(unittest.TestCase):
         logged = []
         with fx.RangeServer(self.dir) as srv:
             self.assertEqual(self.build(srv, lock, logged.append), "ok")
-        self.assertEqual(logged, ["World data updated to test.1: 1 added, 1 changed, 0 removed."])
+        self.assertEqual(logged, ["Upstream's test.1 world update applied to the new clean copy: 1 added, 1 changed, "
+                                  "0 removed."])
         self.assertEqual(rows(self.dest, "SELECT Mob_ID, Level FROM Mob ORDER BY Mob_ID"), [("m1", 11), ("m2", 30)])
         self.assertEqual(rows(self.dest, "SELECT Version, Notes FROM offline_patch_log"), [("test.1", "")])
         with open(self.cached, "rb") as f:

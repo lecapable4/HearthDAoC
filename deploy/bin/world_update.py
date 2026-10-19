@@ -22,6 +22,8 @@ that already has the log row is left alone, so a second run changes nothing. Not
 
 build_world() makes a release's clean world for an edition, as init_world (a new world) and world_admin
 (fetch-clean, upgrade-world) need it: the base's world, and with a patch, a copy of it with the patch's world update.
+It says so in its own words ("... applied to the new clean copy"), not the patcher's "World data updated to ...":
+the owner's world is never the one it changes, and an upgrade whose import then fails leaves that world as it was.
 """
 import base64
 import datetime
@@ -170,11 +172,16 @@ def build_world(release, edition, dest, cache, log=print):
     tmp = dest + ".building"
     try:
         shutil.copyfile(base, tmp)
-        apply(tmp, update, version, log)
+        counts = apply(tmp, update, version, log=lambda line: None)
         for side in ("-journal", "-wal", "-shm"):
             if os.path.exists(tmp + side):
                 raise WorldUpdateError(f"the {version} world update left {os.path.basename(tmp + side)} behind")
         os.replace(tmp, dest)
+        if counts is None:
+            log(f"The new clean copy already had upstream's {version} world update.")
+        else:
+            log(f"Upstream's {version} world update applied to the new clean copy: {counts['added']} added, "
+                f"{counts['changed']} changed, {counts['removed']} removed.")
     finally:
         for path in (tmp, tmp + "-journal", tmp + "-wal", tmp + "-shm"):
             if os.path.exists(path):
