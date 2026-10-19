@@ -631,6 +631,28 @@ class BattlegroundFixTests(unittest.TestCase):
                                 "ORDER BY InternalID"), [(253000301, 3800, 1), (253000302, 2000, 0)])
         self.assertEqual(self.q("SELECT Level, BaseLevel FROM Keep WHERE KeepID=33"), [(1, 19)])
 
+    def test_the_gates_0_36_left_damaged_and_open_get_full_health_and_close(self):
+        # Upstream 0.36's release defaults left both gates of Dun Abermenai and Dun Murdaigean at Health 2545, State 0.
+        # The server closes a keep door above 15% health when it loads it, so they stood closed at 67% and 44%.
+        # Thidranki Faste's gate at those values is no 0.36 reset and stays as it is.
+        execute(self.db, "UPDATE Door SET Health=2545, State=0 WHERE InternalID IN (251000301, 251000302, 252000301, "
+                         "253000301, 253000302)")
+        self.assertIn("Battlegrounds: keep levels for the ranges (Dun Abermenai base level 19, Thidranki Faste base "
+                      "level 24, Dun Murdaigean base level 29, Caer Caledon base level 35, 7 gates' health)",
+                      apply_fix(self.db))
+        self.assertEqual(self.q("SELECT InternalID, Health, State, LastTimeRowUpdated FROM Door ORDER BY InternalID"), [
+            (250000301, 7000, 1, NOW), (250000302, 7000, 1, NOW), (251000301, 5800, 1, NOW), (251000302, 5800, 1, NOW),
+            (252000301, 2545, 0, "2023-06-15 11:03:20"), (252000302, 4800, 1, NOW), (253000301, 3800, 1, NOW),
+            (253000302, 3800, 1, NOW),
+        ])
+
+    def test_at_the_owners_base_level_the_open_gates_stay(self):
+        execute(self.db, "UPDATE Keep SET BaseLevel=25 WHERE KeepID=33",
+                "UPDATE Door SET Health=2545, State=0 WHERE InternalID IN (253000301, 253000302)")
+        apply_fix(self.db)
+        self.assertEqual(self.q("SELECT InternalID, Health, State FROM Door WHERE InternalID IN (253000301, 253000302) "
+                                "ORDER BY InternalID"), [(253000301, 2545, 0), (253000302, 2545, 0)])
+
     def test_second_run_changes_nothing(self):
         self.assertEqual(apply_fix(self.db), self.LINES)
         before = dump(self.db)
@@ -848,7 +870,7 @@ class BattlegroundGeometryTests(unittest.TestCase):
 
 @unittest.skipUnless(TEST_WORLD, "needs HDC_TEST_WORLD (a clean classic world database)")
 class BattlegroundShippedWorldTests(unittest.TestCase):
-    """The clean classic world (0.35) before the fix (read-only), and a copy of it after one run."""
+    """The clean classic world (0.37b) before the fix (read-only), and a copy of it after one run."""
 
     LINES = [
         "Battlegrounds: classic level and realm rank limits for Abermenai, Thidranki, Murdaigean, Caledonia",
@@ -923,14 +945,15 @@ class BattlegroundShippedWorldTests(unittest.TestCase):
             (32, "Dun Murdaigean", 251, 33089, 38271, 3720, 2915, 0, 1, "", 1, 1, 1, 0, 0, 31, 0,
              "Classic BG (Claude 2026-10-07)", "2022-10-09 21:09:42", "32"),
             (33, "Dun Abermenai", 253, 33089, 38271, 3720, 2915, 0, 1, "", 1, 1, 1, 0, 0, 21, 0,
-             "Classic BG (Claude 2026-10-07)", "2022-10-09 21:09:42", "33"),
+             "Classic BG (Claude 2026-10-07)", "2026-10-15 00:35:22.5731184Z", "33"),
         ])
         self.assertEqual(self.before("SELECT Region, KeepID FROM Keep WHERE Region BETWEEN 250 AND 253 AND BaseLevel < 100 "
                                      "ORDER BY Region"), [(250, 31), (251, 32), (252, 11), (253, 33)])
-        # Their gates: closed, at full health for upstream's BaseLevel (x 200).
+        # Their gates: closed, at full health for upstream's BaseLevel (x 200), but Dun Murdaigean's and Dun
+        # Abermenai's, which upstream 0.36's release defaults left at 2545, State 0.
         self.assertEqual(self.before(f"SELECT InternalID, Health, State FROM Door WHERE {self.GATES} ORDER BY InternalID"), [
-            (250000301, 9200, 1), (250000302, 9200, 1), (251000301, 6200, 1), (251000302, 6200, 1),
-            (252000301, 5200, 1), (252000302, 5200, 1), (253000301, 4200, 1), (253000302, 4200, 1),
+            (250000301, 9200, 1), (250000302, 9200, 1), (251000301, 2545, 0), (251000302, 2545, 0),
+            (252000301, 5200, 1), (252000302, 5200, 1), (253000301, 2545, 0), (253000302, 2545, 0),
         ])
         self.assertEqual(self.before("SELECT `Key`, Value FROM ServerProperty WHERE `Key` IN ('keep_doors_base_health', "
                                      "'keep_guard_level_multiplier', 'starting_keep_level') ORDER BY `Key`"),
