@@ -8,7 +8,7 @@ PR publishes the next release; the server picks it up with `./hdc update`, which
 owner's check (est.; the research gave 1.5-2 days for the meter, the command, the lines, the CSV and the unit tests,
 README section 2.6; this spec adds the one-at-a-time report side, its fault handling and the exact chat replies).
 
-References are to HearthDAoC `main` at 487b95e (v0.35b-hearth.20), `source/server/GameServer/` unless a path says
+References are to HearthDAoC `main` at 5b5577a (v0.37b-hearth.1), `source/server/GameServer/` unless a path says
 otherwise. Shorthand: `GL` = `Managers/GameLoop/GameLoop.cs`, `MT` = `Managers/GameLoop/GameLoopThreadPoolMultiThreaded.cs`,
 `NS` = `ECS-Services/NpcService.cs`, `CS` = `ECS-Services/ClientService.cs`, `GSB` = `ECS-Services/GameServiceBase.cs`,
 `CPP` = `bots/autonomous/AutonomousCampPlanningPipeline.cs`, `ABR` = `bots/autonomous/AutonomousBotRegistry.cs`, `APP` =
@@ -16,6 +16,10 @@ otherwise. Shorthand: `GL` = `Managers/GameLoop/GameLoop.cs`, `MT` = `Managers/G
 `~/Games/DAoC/research/player-bots-2026-10-14/` on the owner's machine: `README.md` section 1 and its Verification
 section, and `cpu-measurement.md` sections 2-6 ("cpu §n"); `cpu-bench/` holds the clock and wrapper benchmarks. Costs
 marked (est.) come from code reading or those local benchmarks, not from a running server.
+
+The references were refreshed on 2026-10-19 from 487b95e (v0.35b-hearth.20) to 5b5577a, after `main` took the
+upstream 0.37b sync: the cites that moved, the facts the sync changed and its new memory diagnostics (research
+`~/Games/DAoC/research/upstream-037-2026-10-18/performance.md` section 4). The design did not change.
 
 ## Read this first
 
@@ -85,8 +89,11 @@ GameBots with the player bots the prototype will add, measured the same way in t
 
 ### What the server measures today
 
-- `SERVER_WORK`, every 60 s: the wall time of each of the 17 stages (`Managers/GameLoop/GameLoopWorkMetrics.cs:39-65`,
-  the line at :61). Not per entity or kind: a stage's time is its slowest thread's path.
+- `SERVER_WORK`, every 60 s: the wall time of each of the 17 stages (`Managers/GameLoop/GameLoopWorkMetrics.cs:39-71`,
+  the line at :67). Not per entity or kind: a stage's time is its slowest thread's path.
+- `SERVER_MEMORY`, every 5 minutes: heap by generation, live data, allocation rate, collections, GC pauses, working
+  set and the types that allocate most (`Managers/GameLoop/ServerMemoryDiagnostics.cs:154-161`); `SERVER_GC_PAUSE`,
+  a Warn line for each GC pause of 250 ms or more (:30, :409-413). Process-wide: not per entity or kind.
 - `/diag perf` and `/diag object` (`ECS-Debug/ECSDebug.cs:307-308`, :336-341): per stage, and live list sizes.
 - The autosave log, per kind for free: `players: N in X ms` and `autonomousBots: N in X ms` (`GameServer.cs:1276`,
   :1283).
@@ -114,7 +121,8 @@ The code check for this spec found these; each is settled below and can be chang
   (`GL:95-101`; MT:316-321, :163-164). So the meter uses its own bounded walk, and its own code never throws (3.3).
 - **The owner of each item is read before its callback runs.** A posted action is reset in the callback's `finally`
   and goes back to a pool another thread can take it from (GSB:77-82).
-- **`monster` has an `n`:** the live monster brains, which shows how many monsters the players and bots keep awake.
+- **`monster` has an `n`:** the live monster brains, which shows how many monsters the players and bots keep awake,
+  plus a few encounter controllers that always think (3.8).
 - **Per-bot counters live in a `ConditionalWeakTable`**, not a new field on `GameBot` (hook H8 not taken, 3.6).
 - **The player bots' contract is written down** (2.5): their client implements a marker interface,
   `IPlayerBotClient`, declared in `BotCpuMeter.cs`, so the research's `HeadlessClient : GameClient` (README section
@@ -131,7 +139,7 @@ The code check for this spec found these; each is settled below and can be chang
 
 All lines are written once a minute while the meter is on, in this order: the kind lines (kind order of 2.5), the
 `BOT_CPU_TOP` lines, `BOT_CPU_PROCESS`, then any `BOT_CPU_COMPARE` lines. Through the server's logger at Info level,
-like `SERVER_WORK` (`Managers/GameLoop/GameLoopWorkMetrics.cs:61`), in the invariant culture (a `.` decimal point
+like `SERVER_WORK` (`Managers/GameLoop/GameLoopWorkMetrics.cs:67`), in the invariant culture (a `.` decimal point
 whatever the server's culture). The numbers below are made up; only the shape is real.
 
 ```
@@ -192,9 +200,14 @@ becomes `_`. The goal's activity text, the level and the region are in `/botcpu 
 | `throttledMs` | container CPU throttling | ms, integer |
 | `gcPauseMs`, `gen2` | GC pause time and full collections in the window | ms, integer; count |
 | `allocMBSec` | all allocation in the process | MB/s, 1 decimal |
-| `heapMB`, `rssMB` | managed heap (`GC.GetTotalMemory(false)`, as `SERVER_STALL` reads it, `Managers/GameLoop/GameLoopWorkMetrics.cs:87`) and resident memory; no forced collection | MB, integer |
+| `heapMB`, `rssMB` | managed heap (`GC.GetTotalMemory(false)`, as `SERVER_STALL` reads it, `Managers/GameLoop/GameLoopWorkMetrics.cs:93`) and resident memory; no forced collection | MB, integer |
 
 A value the platform can't give (Windows, a file missing in the container, or a schedstat that reads 0, 3.9) is `-`.
+
+`heapMB` is `GC.GetTotalMemory(false)`, as in `SERVER_STALL` `heapMB` and `SERVER_GC_PAUSE` `totalMemoryMB`
+(`Managers/GameLoop/ServerMemoryDiagnostics.cs:413`), not `SERVER_MEMORY`'s `heapMB` (:155, the heap at the last
+collection with its free space, `GCMemoryInfo.HeapSizeBytes`); for leaks, read `SERVER_MEMORY` `liveMB`, what the
+last full collection left alive (:310-316).
 
 **`BOT_CPU_COMPARE`**: one line for each of the pairs `playerbot/gamebot`, `piloted/gamebot` and `player/gamebot` whose
 two kinds both have `n` of at least 1.0 in the window. `cpu`, `alloc`, `calls` and `usPerCall` are the ratios of
@@ -253,7 +266,7 @@ it next to its own logs (est.). Read it with `docker exec hearthdaoc-server cat 
 - Written off the game loop, appended once a minute. Above 50 MB the file is renamed `bot-cpu.csv.1` (replacing an
   older one) and a new file starts: about 20 days of continuous running (est., 2.5 MB a day; section 9, log volume).
   A failed write, whatever the exception (not only an I/O one, unlike `bot-ai-delay.json`,
-  `Managers/GameLoop/GameLoopWorkMetrics.cs:96`), logs one warning and the meter goes on; the row is lost.
+  `Managers/GameLoop/GameLoopWorkMetrics.cs:102`), logs one warning and the meter goes on; the row is lost.
 
 ### 2.4 The GM command `/botcpu`
 
@@ -334,7 +347,7 @@ calls/s`. `calls/s` counts visits as in 2.1.
 |---|---|---|
 | `GameBot` with `IsAutonomousWorldBot` (`bots/GameBot.cs:47`) | `gamebot` | about 240 |
 | any other `GameBot`: companions and temporary helpers (`/spawn`, `/grind`, `/raid`) | `companion` | when players use them |
-| `GamePlayer` whose `Client` implements `IPlayerBotClient` (a marker interface in `BotCpuMeter.cs`) or is a `BotDummyClient` or derives from it (`bots/BotDummyClient.cs:6-13`) | `playerbot` | none: nothing gives a `GamePlayer` such a client today (`BotDummyClient` is used only inside `GameBot`, `bots/GameBot.cs:2238`, :2317) |
+| `GamePlayer` whose `Client` implements `IPlayerBotClient` (a marker interface in `BotCpuMeter.cs`) or is a `BotDummyClient` or derives from it (`bots/BotDummyClient.cs:6-13`) | `playerbot` | none: nothing gives a `GamePlayer` such a client today (`BotDummyClient` is used only inside `GameBot`, `bots/GameBot.cs:2269`, :2348) |
 | `GamePlayer` that `AutonomousPlayerPilot.IsActive` (APP:89) | `piloted` | none: `/bot` is not registered (section 1) |
 | any other `GamePlayer` | `player` | the owner and any real players |
 | any other living: NPCs (monsters, guards, merchants), keep doors (`gameobjects/GameDoorBase.cs:13`) | `monster` | live brains in the thousands (est.) |
@@ -433,7 +446,7 @@ as the camp planner's `int` (CPP:22) has no owner and is never boxed.
    `IControlledBrain` (`bots/BotBrain.cs:21`).
 2. `GamePlayer`: `playerbot` if its `Client` is an `IPlayerBotClient` or a `BotDummyClient` (one type test each, est.
    a few ns); else `piloted` if `AutonomousPlayerPilot.IsActive` (APP:89, a dictionary read); else `player`.
-3. `GameNPC` whose `Brain` (`gameobjects/GameNPC.cs:2195-2204`, no lock) is an `IControlledBrain` with an `Owner`
+3. `GameNPC` whose `Brain` (`gameobjects/GameNPC.cs:2244-2253`, no lock) is an `IControlledBrain` with an `Owner`
    (`ai/brain/IControlledBrain.cs:67`): a pet. The meter walks `Owner` up to the first owner that is not itself a pet
    (a `GameBot`, a `GamePlayer`, or an NPC without a controlled brain), at most 8 steps. The item is charged to that
    owner's kind under stage `Pets`, and to that owner's per-bot counter. A walk longer than 8 steps (a cycle) charges
@@ -508,9 +521,9 @@ they are charged to nothing, and the GameBot average would leave them out. NS:27
 
 | Hook (cpu §4.5) | Ruling | Why |
 |---|---|---|
-| H5, posted actions (GSB:94-122) | **not taken.** Posted work goes to `unattributed` in its service's stage | `PostedAction` is private (GSB:94). Its one use was the `/bot` pilot's think, posted to NpcService (APP:226), and `/bot` is not registered (section 1). The prototype's driver ticks on a timer instead. If `/bot` is registered again, the pilot's think shows in `unattributed` / `Npc` until H5 is added (2 lines plus one for `PilotState`, APP:36) |
+| H5, posted actions (GSB:94-122) | **not taken.** Posted work goes to `unattributed` in its service's stage | `PostedAction` is private (GSB:94). Its one use was the `/bot` pilot's think, posted to NpcService (APP:226), and `/bot` is not registered (section 1). The prototype's driver ticks on a timer instead. If `/bot` is registered again, the pilot's think shows in `unattributed` / `Npc` until H5 is added (2 lines plus one for `PilotState`, APP:36). The v0.37b sync adds two GameBot jobs posted to NpcService: the ambient guild chat check once a minute (`bots/autonomous/AutonomousBotGuilds.cs:76`) and the guild roster check at each roster refresh, every 8-30 s (`bots/autonomous/AutonomousPopulationController.cs:338`, :326). They land in `unattributed` / `Npc`. Both return at once while no GameBot is in a guild (`bots/autonomous/AutonomousBotGuilds.cs:223`, :316). The ruling stands |
 | H4, thread CPU clock per batch (MT:285-329, :128-133) | **not taken** | it needs the server's first libc P/Invoke (`clock_gettime`, Linux-only, so the Windows launcher build needs a fallback, cpu §3), an edit in the pool's hot loop, and costs an est. 3 ms a second (cpu §4.6). Once-a-minute reads of each loop thread's scheduler statistics give the same warning at no cost to the loop (3.9) |
-| H8, a counter field on `GameBot` | **not taken.** A `ConditionalWeakTable` holds the per-bot counters | no edit to `bots/GameBot.cs`, an upstream file of 4,699 lines; an est. 20-50 ns per bot-owned item (cpu §4.5). If the measured overhead (`callsSec`, 3.11) matters, H8 is a one-property follow-up |
+| H8, a counter field on `GameBot` | **not taken.** A `ConditionalWeakTable` holds the per-bot counters | no edit to `bots/GameBot.cs`, an upstream file of 4,735 lines, LF since the v0.37b sync (it was CRLF; an H8 line would be LF too); an est. 20-50 ns per bot-owned item (cpu §4.5). If the measured overhead (`callsSec`, 3.11) matters, H8 is a one-property follow-up |
 
 ### 3.7 Per-thread slots, and the report off the loop
 
@@ -527,7 +540,7 @@ they are charged to nothing, and the GameBot average would leave them out. NS:27
   - A command (on, off, reset, a new stop time) does only this on its game-loop thread: for `off`,
     `BotCpuMeter.Disable()` (a `Volatile.Write` of `Enabled`, so metering stops at once); then it puts a job in a
     first-in-first-out queue (`ConcurrentQueue`) and calls `System.Threading.ThreadPool.QueueUserWorkItem`, as
-    `PublishBotAiDelay` does (`Managers/GameLoop/GameLoopWorkMetrics.cs:92-98`). No file, `/proc` read or log write
+    `PublishBotAiDelay` does (`Managers/GameLoop/GameLoopWorkMetrics.cs:98-104`). No file, `/proc` read or log write
     happens on the loop, and the game-loop thread never takes the report lock.
   - The queued work item takes the lock, waiting for it; a timer tick takes it with `Monitor.TryEnter` and skips that
     second if it is held. That replaces a guard flag like the pilot's (APP:206-220), which only keeps one tick from
@@ -579,7 +592,7 @@ window's 60 s closes the window.
 |---|---|
 | `gamebot` | `AutonomousBotRegistry.PopulationForBrainTick` (ABR:21), read every second: the registered GameBots in the world, refreshed once a second on the loop (ABR:23-34, :37-59). A corpse it keeps in the world (`bots/GameBot.cs:938`) still counts (est.) |
 | `player`, `piloted`, `playerbot` | presence: the wrapper counts each `GameClient` item in `ClientService.BeginTick` (CS:59), one per client per tick, when the client has an owner by 3.3: `IsPlaying` (Playing or Linkdead) and an Active `Player`. Linkdead counts on purpose: the character stays in the world for 60 s (`gameobjects/GamePlayer.cs:893`, :42) and its timers, effects and movement still cost. A client loading (`WorldEnter`) or at the character screen does not count. `ClientService.EndTick` items are charged but never counted |
-| `companion`, `monster` | presence: each brain whose body is that kind (not a pet) in `NpcService`, one per live brain per tick (NS:46; every live brain is visited every tick, NS:52-61). For monsters that is the live brains: the woken monsters |
+| `companion`, `monster` | presence: each brain whose body is that kind (not a pet) in `NpcService`, one per live brain per tick (NS:46; every live brain is visited every tick, NS:52-61). For monsters that is the live brains: the woken monsters, and the few encounter controllers (est.), hidden NPCs of the guild "DO NOT REMOVE!" that always think (`gameobjects/GameNPC.cs:700-707`) |
 | `unattributed` | none |
 
 - Presence `n` = presence count ÷ ticks in the window; ticks = the change of `GameLoop.GameLoopTime` ÷
@@ -594,21 +607,28 @@ window's 60 s closes the window.
 **Not charged to any kind:**
 
 - **Off the game loop:** thread-pool timers: the GameBot ones (the population controller,
-  `bots/autonomous/AutonomousPopulationController.cs:64`; the two dashboards, `bots/autonomous/AutonomousBotDashboard.cs:40`
-  and `bots/autonomous/AutonomousRvrDashboard.cs:51`; the map markers, `bots/autonomous/AutonomousBotMapMarkers.cs:60`;
-  the realm-event records and controls, `bots/autonomous/RealmEventRecords.cs:44` and
-  `bots/autonomous/RealmEventControls.cs:41`), the pilot's poll (APP:78) and the ClassicQuests refresh for each player
-  every 5 s (`quests/QuestsMgr/ClassicQuests.cs:196`, :725); the camp planner thread (CPP:52); saves, bots' included
-  (`GameServer.cs:1237-1298`, at the lowest priority, :1259; section 7 reads them per kind); network and database
-  I/O; GC on its own threads (`source/server/CoreServer/CoreServer.csproj:20-21`); the meter's own report.
-- **On the loop, outside callbacks:** each stage's list update (e.g. NS:36), barrier waits, the quest services'
-  rollover loops over every client (`ECS-Services/DailyQuestService.cs:38-87` and its Weekly and Monthly
-  equivalents), the minute's `SERVER_WORK` and `SERVER_STALL` reporting (`Managers/GameLoop/GameLoopWorkMetrics.cs:50-64`),
-  the loop's busy wait before the next tick (`Managers/GameLoop/GameLoopTickPacer.cs:69-83`), and the meter's own
-  per-item work.
+  `bots/autonomous/AutonomousPopulationController.cs:69`; the two dashboards,
+  `bots/autonomous/AutonomousBotDashboard.cs:40` and `bots/autonomous/AutonomousRvrDashboard.cs:51`; the map markers,
+  `bots/autonomous/AutonomousBotMapMarkers.cs:60`; the realm-event records and controls,
+  `bots/autonomous/RealmEventRecords.cs:44` and `bots/autonomous/RealmEventControls.cs:41`; the guild chat timer,
+  `bots/autonomous/AutonomousBotGuilds.cs:76`, which only posts its work to the loop), the pilot's poll (APP:78) and the
+  ClassicQuests refresh for each player every 5 s (`quests/QuestsMgr/ClassicQuests.cs:219`, :923); the camp planner
+  thread (CPP:52); saves, bots' included (`GameServer.cs:1237-1298`, at the lowest priority, :1259; section 7 reads them
+  per kind); network and database I/O; GC on its own threads (`source/server/CoreServer/CoreServer.csproj:20-21`); the
+  GC event listener's dispatch thread (`Managers/GameLoop/ServerMemoryDiagnostics.cs:366-434`); the one-off `roads.json`
+  load, queued at the first tick, on a thread-pool thread (`bots/autonomous/AutonomousZoneRoads.cs:64`); the meter's own
+  report.
+- **On the loop, outside callbacks:** each stage's list update (e.g. NS:36), barrier waits, the quest services' rollover
+  loops over every client (`ECS-Services/DailyQuestService.cs:38-87` and its Weekly and Monthly equivalents), the
+  minute's `SERVER_WORK` and `SERVER_STALL` reporting (`Managers/GameLoop/GameLoopWorkMetrics.cs:50-70`), the
+  diagnostics' one-time start at the first tick (:54), `ServerMemoryDiagnostics.Minute()` once a minute (:59) and its
+  `SERVER_MEMORY` report every 5 minutes (est. 1-2 ms on the loop, most of it the working-set read, which reads one
+  `/proc` file per thread: `Managers/GameLoop/ServerMemoryDiagnostics.cs:153-156`; more on a test run with
+  `memory-census.on`, :163-167), the loop's busy wait before the next tick
+  (`Managers/GameLoop/GameLoopTickPacer.cs:69-83`), and the meter's own per-item work.
 - **Inside a callback, charged to its owner:** posted actions run one by one while a load waits on a task
   (`Managers/GameLoop/GameLoopSynchronizationContext.cs:76-86`; the waits are `GameLoopAsyncHelper.Wait` and
-  `GetResult`, :59-74, called from `gameobjects/GamePlayer.cs:10615`, `gameutils/GamePlayerInventory.cs:38` and
+  `GetResult`, :59-74, called from `gameobjects/GamePlayer.cs:10656`, `gameutils/GamePlayerInventory.cs:38` and
   `bots/BotInventory.cs:40`). They run inside the waiting code's timed span, so they are charged to the waiting
   callback's owner and stage, or to `Fleet` inside the fleet scope; a wait outside any callback or scope charges
   them to nothing.
@@ -681,7 +701,7 @@ nothing.
 ### 4.1 The server property
 
 - `bot_cpu_meter`, category `server`, a `public static bool BOT_CPU_METER` in `BotCpuScript`
-  (`[ServerProperty]` fields are found only when public and static, `serverproperty/ServerProperties.cs:2577-2588`).
+  (`[ServerProperty]` fields are found only when public and static, `serverproperty/ServerProperties.cs:2578-2589`).
   Code default `false`, as `si_start_choice` and `bot_rp_timer_wait` (`scripts/hearthdaoc/SiStartChoiceScript.cs:19-22`,
   `scripts/hearthdaoc/RpTimerWaitScript.cs:16-19`).
 - Description (the same string in C# and `server_properties.py`, no `"` or `\`): "Measure the game loop's CPU time per
@@ -902,7 +922,7 @@ handlers' wiring, and the chat in game. The owner's checks cover them (6.5, step
 
 ### 6.2 Source checks (Python, `deploy/tests/test_bot_cpu.py`)
 
-With the helpers of `deploy/tests/test_rp_timer_wait.py:41-70` (`source`, `between`, `marked`):
+With the helpers of `deploy/tests/test_rp_timer_wait.py:44-73` (`source`, `between`, `marked`):
 
 - **H1:** in GL's `ExecuteForEach<T>`, the guard line once, with `// HearthDAoC:` on the line above, followed by the
   unchanged `_threadPool.ExecuteForEach(items, toExclusive, action);`.
@@ -924,18 +944,22 @@ With the helpers of `deploy/tests/test_rp_timer_wait.py:41-70` (`source`, `betwe
   IsActive(GamePlayer player)`; `private sealed class PostedAction` (if upstream opens it, H5 becomes cheap: 3.6).
 - **The nesting stays inside the scope:** CPP has exactly one `GameLoop.ExecuteForEach(`, and the only call of
   `AutonomousWorldBotController.PrepareCampPlanningTick()` is in NS.
-- **Endings:** GL keeps its ten LF-only lines and no BOM, and the hook lines end in CRLF; NS keeps its BOM and CRLF
-  throughout; the four new files, the three test files and `test_bot_cpu.py` are LF, without BOM or tabs (as
-  `deploy/tests/test_rp_timer_wait.py:297-313`).
+- **Endings:** GL and NS keep upstream's endings line by line, by `endings.check` (`deploy/tests/endings.py:125-129`)
+  with the BOM pinned, as `deploy/tests/test_quest_indicators.py:100-108` does: GL its ten LF-only lines and no BOM, NS
+  its BOM and CRLF throughout, and the hook lines end in CRLF, the ending of the upstream lines beside them; the four
+  new files, the three test files and `test_bot_cpu.py` are LF, without BOM or tabs (as
+  `deploy/tests/test_rp_timer_wait.py:322-330`). `endings.check` compares with upstream's file at the tag or commit of
+  `deploy/upstream.lock`, which CI's full clone has (`.github/workflows/server-image.yml:33`); in a shallow clone it
+  fails on GL, a file upstream ships with both endings (`deploy/tests/endings.py:12-16`).
 - **The guides:** in `deploy/HANDOFF.md` and in `docs/fork/verification/bot-cpu-meter-live.md` (section 8), every line
   that contains `BOT_CPU` and reads the server log uses
   `docker exec hearthdaoc-server sh -c 'cat $(ls -tr /data/logs/server*)'`, and no line contains both `BOT_CPU` and
-  `/data/logs/server.log`. The check is per line, not per file as `deploy/tests/test_rp_timer_wait.py:316-331` is:
+  `/data/logs/server.log`. The check is per line, not per file as `deploy/tests/test_rp_timer_wait.py:333-344` is:
   `HANDOFF.md` already reads `server.log` alone for its start checks (`deploy/HANDOFF.md:70-71`).
 
 ### 6.3 Deploy tests (the switch), in the same file
 
-Copying `deploy/tests/test_rp_timer_wait.py:73-158`:
+Copying `deploy/tests/test_rp_timer_wait.py:76-161`:
 
 - `bot_cpu_value`: `on`/`ON`/`On` give `True`, `off`/`OFF`/`oFf` give `False`; `""`, `yes`, `true`, `1`, `" on"` and
   the like are refused with the exact message.
@@ -949,20 +973,25 @@ Copying `deploy/tests/test_rp_timer_wait.py:73-158`:
   - every CLI call in `deploy/tests/test_server_properties.py:102-144` gains `"--bot-cpu", "off"`, except the
     missing-argument test at :130-133, whose `assertIn` still finds `--si-start-choice` first (argparse lists missing
     required arguments in declaration order, and `--bot-cpu` comes last);
+  - the start in `deploy/tests/test_relic_pad.py:62-63` (the entrypoint's world steps, new in the 0.37b sync) gains
+    `"--bot-cpu", "off"` too (CI runs it with `HDC_TEST_WORLD`); without it argparse exits 2 and :65 fails;
   - the expected stdout on a new world gains "Bot CPU meter: off\n" at `test_server_properties.py:112` and :143,
-    `deploy/tests/test_rp_timer_wait.py:118` and `deploy/tests/test_si_start_choice.py:61`;
-  - unchanged: second runs on the same world (`test_server_properties.py:115`, :121; `test_rp_timer_wait.py:124`)
+    `deploy/tests/test_rp_timer_wait.py:121` and `deploy/tests/test_si_start_choice.py:61`;
+  - unchanged: second runs on the same world (`test_server_properties.py:115`, :121; `test_rp_timer_wait.py:127`;
+    `test_si_start_choice.py:67`)
     and the bad-value tests (nothing is written).
 - **Smoke test** (`deploy/tests/smoke.sh`, next to :51): `Command - '&botcpu' .* required plvl:2` in the server log,
-  and no `BOT_CPU_STATE` line after a default start.
+  and no `BOT_CPU_STATE` line after a default start. Both are plain `grep -q` lines, not a `logs_have` call or a loop:
+  `deploy/tests/test_container_lines.py:44-46` reads every `logs_have` string and the first `for line in ...; do` loop
+  of `smoke.sh` as world-fix lines.
 
 ### 6.4 CI
 
 Add `|FullyQualifiedName~UT_BotCpuMeter|FullyQualifiedName~UT_BotCpuReport|FullyQualifiedName~UT_BotCpuScript` to the
-filter at `.github/workflows/server-image.yml:116`, and the same three names to `SERVER_UNIT_TESTS` and to the expected
-list in `deploy/tests/test_workflows.py:236-246` and :262-275 (which also checks each file holds `public sealed class
-UT_X`). CI runs no fork test missing from that filter. The deploy tests are found on their own
-(`.github/workflows/server-image.yml:91`).
+filter at `.github/workflows/server-image.yml:119`, and the same three names to `SERVER_UNIT_TESTS` and to the expected
+list in `deploy/tests/test_workflows.py:267-279` and :297-312 (which also checks each file holds
+`public sealed class UT_X`, or upstream's `public class UT_X`, :312). CI runs no fork test missing from that filter. The
+deploy tests are found on their own (`.github/workflows/server-image.yml:94`).
 
 ### 6.5 The owner's checks on the live server, after the release
 
@@ -985,6 +1014,9 @@ UT_X`). CI runs no fork test missing from that filter. The deploy tests are foun
 4. Sanity: usually `chargedPct` < `loopThreadsCpuPct` < `processCpuPct`. If `chargedPct` is higher, `loopWaitMs`,
    `throttledMs` or `gcPauseMs` is large too: the wall times are inflated (3.9). `gamebot` `msSec` / 10 is its share of
    one core in %. `loopThreadsCpuPct` as `-` means the kernel gives no scheduler statistics (3.9): say so on #137.
+   Confirm a large `gcPauseMs` with the `SERVER_GC_PAUSE` lines of the same minutes (check 3's command, with
+   `grep SERVER_GC_PAUSE` for `grep BOT_CPU`). Those lines list only pauses of 250 ms or more (section 1); shorter
+   pauses add up in the `pauseTotalMs` of the `SERVER_MEMORY` line that covers them (every 5 minutes).
 5. `/botcpu` in chat shows the same last minute; `/botcpu top` lists 5 GameBots with their goals.
 6. `docker exec hearthdaoc-server tail -5 /data/logs/bot-cpu.csv`: a header the first time, then rows.
 7. Overhead: compare the `SERVER_WORK` lines of the 10 minutes before with 10 minutes on. Pass if `samples` stays at
@@ -1022,8 +1054,9 @@ Short, for the live server; the prototype's full rules are in cpu §5 and README
   bot registered in `ClientService` saves with the players (`ECS-Services/ClientService.cs:599-607`), so `players`
   counts player bots and real players together.
 - **One kind can cost in another's bucket:**
-  - a player wakes every NPC within 6,000 units (`world/WorldMgr.cs:60`; CS:670-674; `gameobjects/GameNPC.cs:1981-1987`):
-    the cost lands in `monster`;
+  - a player wakes every NPC within 6,000 units (`world/WorldMgr.cs:60`; CS:670-674;
+    `gameobjects/GameNPC.cs:2029-2035`): the cost lands in `monster`, whose `n` also holds a few encounter controllers
+    that always think (`gameobjects/GameNPC.cs:700-707`);
   - a GameBot that a player can see within 6,000 units thinks at its fastest rate (`bots/BotBrain.cs:2626-2640`): the
     cost lands in `gamebot`;
   - an NPC or GameBot that moves near a player pays for updating it (CS:704-713): the cost lands in the mover's kind;
@@ -1042,9 +1075,9 @@ Short, for the live server; the prototype's full rules are in cpu §5 and README
 
 ## 8. Documentation
 
-- `docs/fork/FORK.md`: a row in the server-code table after the realm-point waits (:60): the four new files, the five
+- `docs/fork/FORK.md`: a row in the server-code table after the realm-point waits (:62): the four new files, the five
   marked lines in GL and NS, the tests.
-- `deploy/HANDOFF.md`: the setting in the settings paragraph (:87-93) and in the `./hdc update` paragraph (:248-250);
+- `deploy/HANDOFF.md`: the setting in the settings paragraph (:87-93) and in the `./hdc update` paragraph (:271-273);
   a short "Bot CPU meter" paragraph under Day-to-day: `/botcpu`, the read command of 2.2, the CSV.
 - `deploy/.env.example` (4.2).
 - `docs/fork/verification/bot-cpu-meter-live.md`: the checks of 6.5 with the owner's results; its log reads follow the
@@ -1060,7 +1093,7 @@ Short, for the live server; the prototype's full rules are in cpu §5 and README
   `gcPauseMs` say by how much at most. Ratios between kinds hold (est.).
 - **Off-loop work is not charged** (3.9): `offLoopCpuPct` shows its size, `campThreadCpuPct` the camp planner's part;
   the other GameBot timers and bot saves stay in `offLoopCpuPct` (saves per kind: section 7). The 5-second
-  ClassicQuests refresh is per player (`quests/QuestsMgr/ClassicQuests.cs:725`) and would matter for player bots;
+  ClassicQuests refresh is per player (`quests/QuestsMgr/ClassicQuests.cs:923`) and would matter for player bots;
   wrapping it is out of scope.
 - **`calls` counts items, not thinks** (section 7): the `calls` ratio on a `COMPARE` line is easy to misread.
 - **Effects count for the living that carries them,** not the caster: a damage-over-time a bot puts on a monster costs
