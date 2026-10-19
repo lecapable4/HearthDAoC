@@ -1,14 +1,20 @@
-"""Test helper: build a small fake OfflineDAoC release (split ZIP + manifest) and serve it
-over HTTP with Range support, so the fetch code can be tested without the network."""
+"""Test helper: build a small fake OfflineDAoC release (split ZIP + manifest), and a fake upstream
+game patch on it, and serve them over HTTP with Range support, so the fetch code can be tested
+without the network."""
 import hashlib
 import http.server
 import io
+import json
 import os
 import random
 import threading
 import zipfile
 
 ROOT = "OfflineDAoC-vtest/"
+PATCH_ROOT = "OfflineDAoC-vtest-patch/"
+PATCH_NAME = "game-patch.zip"
+# Any base file can stand for upstream's patch identity (runtime/OfflineDAoC.dll).
+IDENTITY = "runtime/server/config/logconfig.xml"
 
 
 def _blob(seed, size):
@@ -29,6 +35,10 @@ DEFAULT_FILES = {
     "runtime/server/classic-quests.json": b'{"Quests": {}}',
     "runtime/server/classic-quest-guides.json": b'{"Guides": {}}',
 }
+
+
+def _sha(data):
+    return hashlib.sha256(data).hexdigest()
 
 
 def build(directory, files=None, part_size=4096, tamper=None, extra_names=()):
@@ -80,6 +90,52 @@ def build(directory, files=None, part_size=4096, tamper=None, extra_names=()):
     return lock, files
 
 
+def build_patch(directory, lock, base_files, files=None, remove=(), updates=None, version="test.1",
+                identity_from=None, tamper=None):
+    """Write directory/parts/game-patch.zip, a fake upstream game patch on the release build() made, and
+    return (lock with its "patch" object, {rel: bytes} of the patch's files).
+
+    files: {rel: bytes} the patch adds or replaces (under files/ in the zip, listed in patch.json "Files").
+    remove: rels patch.json "Remove" lists.
+    updates: {lock edition: (patch.json "Database" key, file name, world update dict)}, at the zip's root.
+    identity_from: the hashes patch.json says its Identity file may have (default: the base's).
+    tamper: {rel: wrong_sha} written into patch.json instead of the file's real hash.
+    """
+    files = dict(files or {})
+    tamper = tamper or {}
+    updates = updates or {}
+    meta = {
+        "Version": version, "Kind": "game", "Title": f"test {version} update",
+        "Identity": {"Path": IDENTITY, "To": _sha(b"new identity"),
+                     "From": [_sha(base_files[IDENTITY])] if identity_from is None else identity_from},
+        "Files": [{"Path": rel, "Sha256": tamper.get(rel, _sha(data)), "Bytes": len(data),
+                   "From": [_sha(base_files[rel])] if rel in base_files else []}
+                  for rel, data in sorted(files.items())],
+        "Remove": [{"Path": rel, "From": [_sha(base_files[rel])]} for rel in remove],
+        "Database": {key: name for key, name, _ in updates.values()},
+    }
+    meta_bytes = json.dumps(meta, indent=1).encode()
+    update_bytes = {name: json.dumps(update).encode() for _, name, update in updates.values()}
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr(PATCH_ROOT, b"")  # directory entry, must be ignored
+        z.writestr(PATCH_ROOT + "patch.json", meta_bytes)
+        for name, data in sorted(update_bytes.items()):
+            z.writestr(PATCH_ROOT + name, data)
+        for rel, data in sorted(files.items()):
+            z.writestr(PATCH_ROOT + "files/" + rel, data)
+    blob = buf.getvalue()
+    parts_dir = os.path.join(directory, "parts")
+    os.makedirs(parts_dir, exist_ok=True)
+    with open(os.path.join(parts_dir, PATCH_NAME), "wb") as f:
+        f.write(blob)
+    patch = {"name": PATCH_NAME, "size": len(blob), "sha256": _sha(blob), "root_folder": PATCH_ROOT,
+             "patch_json_sha256": _sha(meta_bytes),
+             "world_updates": {edition: {"database": key, "path": name, "sha256": _sha(update_bytes[name])}
+                               for edition, (key, name, _) in updates.items()}}
+    return dict(lock, patch=patch), files
+
+
 class RangeServer:
     """Serves directory/parts with HTTP Range support. Set .fail to a callable
     (path, range_header) -> bool to make matching requests fail with 503, or .truncate to one
@@ -127,9 +183,11 @@ class RangeServer:
         return f"http://127.0.0.1:{self.httpd.server_address[1]}"
 
     def lock(self, lock):
-        """Return a copy of lock with part URLs pointing at this server."""
+        """Return a copy of lock with part URLs (and the patch's) pointing at this server."""
         out = dict(lock)
         out["parts"] = [{"url": f"{self.url}/{p['name']}", "size": p["size"]} for p in lock["parts"]]
+        if "patch" in lock:
+            out["patch"] = dict(lock["patch"], url=f"{self.url}/{lock['patch']['name']}")
         return out
 
     def __enter__(self):

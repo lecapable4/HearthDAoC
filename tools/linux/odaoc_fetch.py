@@ -6,6 +6,15 @@ Trust chain: deploy/upstream.lock (in git) pins the SHA-256 of the release's
 "PACKAGE MANIFEST.sha256"; that manifest gives the SHA-256 of every other file. Each file is
 also checked against the CRC32 and size recorded in the ZIP central directory.
 
+A release upstream ships as a patch on a full base release (0.37b: the 0.36b game plus
+OfflineDAoC-v0.37-game-patch.zip) has a "patch" object in the lock, which pins the patch's
+patch.json and its world updates. A file patch.json lists comes from the patch zip, checked
+against patch.json; a file it removes is gone; every other file comes from the base, checked
+against the base's manifest. Files under editions/ always come from the base: upstream's
+patches never ship them, and remove them from installed games only because they are used while
+installing the base (make_patch.py GAME_SKIP_PREFIXES). The patch must be for this base: the
+base's hash of patch.json's Identity file is one of the hashes the patch says it updates.
+
 CLI:
     odaoc_fetch.py --lock LOCK list [--prefix P]
     odaoc_fetch.py --lock LOCK client --edition classic|b --client-dir DIR
@@ -25,6 +34,8 @@ import urllib.request
 import zlib
 
 USER_AGENT = "hearthdaoc-fork-fetch/1"
+# Paths always taken from the base release, even when the patch lists them.
+BASE_ONLY_PREFIXES = ("editions/",)
 
 
 class FetchError(Exception):
@@ -55,27 +66,24 @@ def safe_rel(rel):
     return rel
 
 
-class Release:
-    def __init__(self, lock, opener=None, retries=4, backoff=1.0):
-        self.lock = lock
-        self.version = lock["version"]
-        self.root = lock["root_folder"] if lock["root_folder"].endswith("/") else lock["root_folder"] + "/"
-        self.urls = [p["url"] for p in lock["parts"]]
-        self.sizes = [int(p["size"]) for p in lock["parts"]]
+def _no_constants(name):
+    raise FetchError(f"non-standard JSON number {name}")
+
+
+class Archive:
+    """A ZIP in one or more parts on the web, read by HTTP range requests."""
+
+    def __init__(self, urls, sizes, root, name, opener=None, retries=4, backoff=1.0):
+        self.name = name
+        self.root = root if root.endswith("/") else root + "/"
+        self.urls = list(urls)
+        self.sizes = [int(s) for s in sizes]
         self.starts = [sum(self.sizes[:i]) for i in range(len(self.sizes))]
         self.total = sum(self.sizes)
-        self.manifest_path = lock.get("manifest_path", "PACKAGE MANIFEST.sha256")
-        self.manifest_sha256 = lock["manifest_sha256"].lower()
         self._open = opener or urllib.request.urlopen
         self.retries = max(1, retries)
         self.backoff = backoff
         self._entries = None
-        self._manifest = None
-
-    @classmethod
-    def from_lock_file(cls, path, **kwargs):
-        with open(path, encoding="utf-8") as f:
-            return cls(json.load(f), **kwargs)
 
     # ---- bytes across the split parts ----
     def _get(self, part, start, end_incl):
@@ -168,29 +176,10 @@ class Release:
         self._entries = entries
         return entries
 
-    def manifest(self):
-        """{relative path: sha256}, after checking the manifest against the pinned hash."""
-        if self._manifest is not None:
-            return self._manifest
-        with tempfile.TemporaryDirectory() as tmp:
-            path = os.path.join(tmp, "manifest")
-            self._extract_entry(self.manifest_path, path, None)
-            got = sha256_file(path)
-            if got != self.manifest_sha256:
-                raise FetchError(f"{self.manifest_path} SHA-256 {got} does not match the pinned {self.manifest_sha256}")
-            sums = {}
-            with open(path, encoding="utf-8") as f:
-                for line in f:
-                    line = line.rstrip("\r\n")
-                    if len(line) > 66 and line[64:66] == "  ":
-                        sums[line[66:]] = line[:64].lower()
-        self._manifest = sums
-        return sums
-
-    def _extract_entry(self, rel, dest, sha_expected):
+    def _extract_entry(self, rel, dest, sha_expected, against="the release manifest"):
         e = self.entries().get(rel)
         if e is None:
-            raise FetchError(f"not in release {self.version}: {rel}")
+            raise FetchError(f"not in {self.name}: {rel}")
         if e["flag"] & 1:
             raise FetchError(f"encrypted entry: {rel}")
         if e["meth"] not in (0, 8):
@@ -220,13 +209,127 @@ class Release:
             if size != e["usz"] or (crc & 0xFFFFFFFF) != e["crc"]:
                 raise FetchError(f"CRC/size mismatch: {rel}")
             if sha_expected is not None and h.hexdigest() != sha_expected:
-                raise FetchError(f"SHA-256 mismatch against the release manifest: {rel}")
+                raise FetchError(f"SHA-256 mismatch against {against}: {rel}")
             os.replace(tmp, dest)
         finally:
             if os.path.exists(tmp):
                 os.remove(tmp)
 
+
+class Release(Archive):
+    """The release the lock pins: its base archive, and its patch when the lock has one.
+
+    manifest_file: a local copy of the base's package manifest (upstream commits them, e.g.
+    source/tools/release-baselines/0.36/0.36b-package.sha256), checked against the same pin, used
+    instead of the one in the archive."""
+
+    def __init__(self, lock, opener=None, retries=4, backoff=1.0, manifest_file=None):
+        super().__init__([p["url"] for p in lock["parts"]], [p["size"] for p in lock["parts"]],
+                         lock["root_folder"], f"release {lock['version']}", opener, retries, backoff)
+        self.lock = lock
+        self.version = lock["version"]
+        self.manifest_path = lock.get("manifest_path", "PACKAGE MANIFEST.sha256")
+        self.manifest_sha256 = lock["manifest_sha256"].lower()
+        self.manifest_file = manifest_file
+        self._manifest = None
+        self._patch = None
+
+    @classmethod
+    def from_lock_file(cls, path, **kwargs):
+        with open(path, encoding="utf-8") as f:
+            return cls(json.load(f), **kwargs)
+
+    def manifest(self):
+        """{relative path: sha256}, after checking the manifest against the pinned hash."""
+        if self._manifest is not None:
+            return self._manifest
+        with tempfile.TemporaryDirectory() as tmp:
+            path = self.manifest_file or os.path.join(tmp, "manifest")
+            if not self.manifest_file:
+                self._extract_entry(self.manifest_path, path, None)
+            got = sha256_file(path)
+            if got != self.manifest_sha256:
+                raise FetchError(f"{self.manifest_path} SHA-256 {got} does not match the pinned {self.manifest_sha256}")
+            sums = {}
+            with open(path, encoding="utf-8") as f:
+                for line in f:
+                    line = line.rstrip("\r\n")
+                    if len(line) > 66 and line[64:66] == "  ":
+                        sums[line[66:]] = line[:64].lower()
+        self._manifest = sums
+        return sums
+
+    # ---- the patch (lock "patch") ----
+    def patch(self):
+        """None without a patch, else {"meta": patch.json, "zip": the patch Archive, "files": {rel: patch.json
+        entry}, "removed": {rels}} once patch.json matched the lock's pin and the patch is for this base."""
+        if self._patch is not None or not self.lock.get("patch"):
+            return self._patch
+        p = self.lock["patch"]
+        zip_ = Archive([p["url"]], [p["size"]], p["root_folder"], f"the {self.version} patch",
+                       self._open, self.retries, self.backoff)
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "patch.json")
+            zip_._extract_entry("patch.json", path, p["patch_json_sha256"].lower(), "the lock's pin")
+            with open(path, encoding="utf-8") as f:
+                meta = json.load(f, parse_constant=_no_constants)
+        files = {}
+        for f in meta["Files"]:
+            rel = safe_rel(f["Path"])
+            if rel.startswith(BASE_ONLY_PREFIXES):
+                raise FetchError(f"the {self.version} patch ships {rel}, which only the base may hold")
+            files[rel] = f
+        removed = {safe_rel(r["Path"]) for r in meta["Remove"]}
+        removed = {r for r in removed if not r.startswith(BASE_ONLY_PREFIXES)}
+        ident = meta["Identity"]
+        if self.manifest().get(ident["Path"]) not in [h.lower() for h in ident["From"]]:
+            raise FetchError(f"the {self.version} patch is not for this base release: its {ident['Path']} "
+                             "is not one the patch updates")
+        self._patch = {"meta": meta, "zip": zip_, "files": files, "removed": removed}
+        return self._patch
+
+    def _patch_file(self, rel):
+        """The patch.json entry of rel when rel comes from the patch, else None; FetchError when it removes rel."""
+        patch = self.patch()
+        if patch is None or rel.startswith(BASE_ONLY_PREFIXES):
+            return None
+        if rel in patch["removed"]:
+            raise FetchError(f"{rel} is removed by the {self.version} patch")
+        return patch["files"].get(rel)
+
+    def world_update(self, edition):
+        """None without a patch, else (the patch's version, the parsed world update for `edition`): the file the
+        lock names for it, which patch.json's Database map must name too, checked against the lock's SHA-256."""
+        self.edition(edition)
+        patch = self.patch()
+        if patch is None:
+            return None
+        wu = self.lock["patch"]["world_updates"].get(edition)
+        if wu is None:
+            raise FetchError(f"the lock names no world update of the {self.version} patch for edition {edition!r}")
+        named = patch["meta"]["Database"].get(wu["database"])
+        if named != wu["path"]:
+            raise FetchError(f"patch.json names {named!r} as the {wu['database']!r} world update, the lock {wu['path']!r}")
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "update.json")
+            patch["zip"]._extract_entry(safe_rel(wu["path"]), path, wu["sha256"].lower(), "the lock's pin")
+            with open(path, encoding="utf-8") as f:
+                update = json.load(f, parse_constant=_no_constants)
+        return patch["meta"]["Version"], update
+
+    # ---- files of the release (the patch's where it has them) ----
+    def entry(self, rel):
+        """The ZIP entry (size, CRC32, ...) rel is read from."""
+        f = self._patch_file(rel)
+        e = self._patch["zip"].entries().get("files/" + rel) if f else self.entries().get(rel)
+        if e is None:
+            raise FetchError(f"not in release {self.version}: {rel}")
+        return e
+
     def expected_sha256(self, rel):
+        f = self._patch_file(rel)
+        if f is not None:
+            return f["Sha256"].lower()
         sha = self.manifest().get(rel)
         if sha is None:
             raise FetchError(f"no SHA-256 in the release manifest for {rel}")
@@ -237,11 +340,18 @@ class Release:
         sha = self.expected_sha256(safe_rel(rel))
         if os.path.isfile(dest) and sha256_file(dest) == sha:
             return "skip"
-        self._extract_entry(rel, dest, sha)
+        if self._patch_file(rel) is None:
+            self._extract_entry(rel, dest, sha)
+        else:
+            self._patch["zip"]._extract_entry("files/" + rel, dest, sha, "the patch's patch.json")
         return "ok"
 
     def files_under(self, prefix):
-        return sorted(r for r in self.entries() if r.startswith(prefix))
+        names = {r for r in self.entries() if r.startswith(prefix)}
+        patch = self.patch()
+        if patch is not None:
+            names = (names - patch["removed"]) | {r for r in patch["files"] if r.startswith(prefix)}
+        return sorted(names)
 
     def edition(self, name):
         editions = self.lock["editions"]
@@ -256,13 +366,12 @@ def fetch_client(release, edition, client_dir, log=print):
     from the edition."""
     prefix = release.lock["client_prefix"]
     game_dll_rel = release.edition(edition)["game_dll"]
-    entries = release.entries()
     plan = []
     for rel in release.files_under(prefix):
         if rel == prefix + "game.dll":
             continue
         local = os.path.join(client_dir, rel[len(prefix):])
-        e = entries[rel]
+        e = release.entry(rel)
         if not os.path.isfile(local) or os.path.getsize(local) != e["usz"] or crc32_file(local) != e["crc"]:
             plan.append((rel, local))
     plan.append((game_dll_rel, os.path.join(client_dir, "game.dll")))
@@ -290,7 +399,7 @@ def main(argv=None):
         release = Release.from_lock_file(a.lock)
         if a.cmd == "list":
             for rel in release.files_under(a.prefix):
-                print(f"{release.entries()[rel]['usz']:>12} {rel}")
+                print(f"{release.entry(rel)['usz']:>12} {rel}")
         elif a.cmd == "client":
             n = fetch_client(release, a.edition, a.client_dir)
             print(f"Client ready: {n} files verified against release {release.version} ({a.edition}).")
