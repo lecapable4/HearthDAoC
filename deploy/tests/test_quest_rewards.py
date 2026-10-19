@@ -191,6 +191,17 @@ class RefreshSourceTests(unittest.TestCase):
         self.assertIn(hook, body)
         self.assertLess(body.index(hook), body.index("string id = quest.CurrentStepItemTemplate;"))
 
+    def test_a_grant_hands_a_real_item_once(self):
+        # Upstream's GrantItems hands a step's granted item to a player on the step who holds none in slots 7-249, once
+        # a minute. A real item (QuestGrants.IsToken: not carried-only, or worth money) put in the account vault, sold or
+        # destroyed came back every minute; QuestGrants hands it once per character and quest, remembered in the
+        # character's custom parameters (UT_QuestGrants), before upstream's own check of each item (0.37 sync).
+        body = self.body("private static void GrantItems(GamePlayer player, DataQuest quest, StepInfo step)")
+        hook = "if (QuestGrants.HandOnce(player, quest, id, step.GrantFrom)) continue;"
+        self.assertIn(hook, body)
+        self.assertLess(body.index("string id = step.Grant[i];"), body.index(hook))
+        self.assertLess(body.index(hook), body.index("if (string.IsNullOrEmpty(id) || player.Inventory.GetFirstItemByID(id"))
+
 
 @unittest.skipUnless(TEST_WORLD and UPSTREAM_QUESTS,
                      "needs HDC_TEST_WORLD (a clean classic world) and upstream's classic-quests.json (HDC_CLASSIC_QUESTS)")

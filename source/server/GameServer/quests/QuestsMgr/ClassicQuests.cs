@@ -378,6 +378,7 @@ namespace DOL.GS.Quests
             for (int i = 0; i < step.Grant.Count; i++)
             {
                 string id = step.Grant[i];
+                if (QuestGrants.HandOnce(player, quest, id, step.GrantFrom)) continue; // HearthDAoC: a real item once (QuestGrants)
                 if (string.IsNullOrEmpty(id) || player.Inventory.GetFirstItemByID(id, eInventorySlot.Min_Inv, eInventorySlot.Max_Inv) != null) continue;
                 var key = (player, quest.ID, quest.Step * 100 + i + 1);
                 long now = GameLoop.GameLoopTime;
