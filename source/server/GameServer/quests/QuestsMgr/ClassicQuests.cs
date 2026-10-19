@@ -142,7 +142,8 @@ namespace DOL.GS.Quests
             /// Information is the Key (Celt) went to every Hibernian race, Sluaghbinders included (owner check 2026-10-07).</summary>
             public List<string> Races { get; set; } = new();
             /// <summary>HearthDAoC: in hearthdaoc-quests.json, this entry replaces upstream's for the same quest ID (a quest
-            /// the fork rebuilt, such as level 11's "Entry Into Tomorrow"); without it upstream's entry wins.</summary>
+            /// the fork rebuilt, such as level 11's "Entry Into Tomorrow"); without it upstream's entry wins, but for our
+            /// XpShares and Greets (<see cref="ClassicQuestOverlay"/>).</summary>
             public bool Replace { get; set; }
             /// <summary>Each step's experience as a share of the player's current level (quest XP scaled with the
             /// player's level in the period); empty: the quest row's fixed RewardXP. tools/claude-version/fix_quest_xp.py.</summary>
@@ -822,7 +823,8 @@ namespace DOL.GS.Quests
 
         /// <summary>
         /// HearthDAoC: adds the extra file's quests where upstream's file has no entry for the ID (upstream's entry wins,
-        /// unless ours says <see cref="QuestInfo.Replace"/>), and its quest monsters; its <c>Chat</c> replies replace
+        /// unless ours says <see cref="QuestInfo.Replace"/>; ours still carries its XpShares and Greets onto upstream's:
+        /// <see cref="ClassicQuestOverlay"/>), and its quest monsters; its <c>Chat</c> replies replace
         /// upstream's (see <see cref="MergeChat"/>). Returns <paramref name="upstream"/>. A null extra file changes nothing.
         /// </summary>
         public static Config Merge(Config upstream, Config extra)
@@ -833,8 +835,8 @@ namespace DOL.GS.Quests
                 {
                     if (quest.Value?.Replace == true)
                         upstream.Quests[quest.Key] = quest.Value;
-                    else
-                        upstream.Quests.TryAdd(quest.Key, quest.Value);
+                    else if (!upstream.Quests.TryAdd(quest.Key, quest.Value)) // HearthDAoC: our XpShares and Greets win (0.37 sync)
+                        ClassicQuestOverlay.Apply(upstream.Quests[quest.Key], quest.Value);
                 }
             if (extra.QuestMonsterIds != null)
                 foreach (string mob in extra.QuestMonsterIds)
