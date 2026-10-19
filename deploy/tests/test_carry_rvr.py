@@ -445,9 +445,9 @@ class CarryTests(unittest.TestCase):
         self.assertEqual(query(self.new, "SELECT ClaimedGuildName FROM Keep WHERE KeepID=50"), [("Raiders",)])
 
 
-@unittest.skipUnless(TEST_WORLD, "needs HDC_TEST_WORLD (a clean classic 0.35 world)")
+@unittest.skipUnless(TEST_WORLD, "needs HDC_TEST_WORLD (a clean classic world, 0.37b)")
 class RealWorldCarryTests(unittest.TestCase):
-    """A copy of the clean 0.35 world, run by the server for a while (world fixes, then captures), carries into
+    """A copy of the clean 0.37b world, run by the server for a while (world fixes, then captures), carries into
     a fresh copy, as upgrade-world does. Dun Abermenai and Dun Murdaigean swap KeepIDs in the old copy, as
     between the fork's 0.34 world and upstream's 0.35 one. Five keeps are in play; Caer Sursbrooke is not
     (its own realm's, unclaimed), though its level and gate differ from the new world's."""
@@ -457,12 +457,13 @@ class RealWorldCarryTests(unittest.TestCase):
         "UPDATE Keep SET Realm=1, Level=4, ClaimedGuildName='' WHERE Name='Dun Crauchon' AND Region=200",
         "UPDATE Keep SET Realm=3, Level=4 WHERE Name='Bledmeer Faste' AND Region=100",
         # A capture (AbstractGameKeep.Reset) leaves the keep at level 4 and its gates at level 4's full health,
-        # 40,000 at base level 50. Upstream ships Bledmeer Faste's gates damaged, Dun nGed's at level 1's 10,000.
+        # 40,000 at base level 50. Upstream 0.36 ships Bledmeer Faste's gates whole at 50,000 (0.35 shipped them
+        # damaged), Dun nGed's at level 1's 10,000.
         "UPDATE Door SET Health=40000, State=1 WHERE InternalID IN (115001201, 115001202)",
         "UPDATE Keep SET Realm=1, Level=4 WHERE Name='Dun nGed' AND Region=200",
         "UPDATE Door SET Health=40000 WHERE InternalID IN (212006301, 212006302, 212006304, 212006306)",
         "UPDATE Keep SET Realm=2, ClaimedGuildName='Thid Wardens' WHERE Name='Dun Abermenai' AND Region=253",
-        "UPDATE Keep SET Level=5 WHERE Name='Caer Sursbrooke' AND Region=1",
+        "UPDATE Keep SET Level=4 WHERE Name='Caer Sursbrooke' AND Region=1",  # as 0.35b shipped it; 0.36 ships 5
         "UPDATE Door SET Health=1200, State=0 WHERE InternalID=15110601",   # Caer Benowyc's gate, broken open
         "UPDATE Door SET Health=1000, State=0 WHERE InternalID=253000301",  # Dun Abermenai's outer gate
         "UPDATE Door SET Health=500 WHERE InternalID=14078601",             # Caer Sursbrooke's gate
@@ -512,8 +513,8 @@ class RealWorldCarryTests(unittest.TestCase):
         self.assertEqual(self.keep("Dun Murdaigean", 251), (32, 0, 1, ""))
 
     def test_a_keep_not_in_play_stays_as_the_new_world_ships_it(self):
-        self.assertEqual(self.keep("Caer Sursbrooke", 1), (54, 1, 4, ""))
-        self.assertEqual(query(self.new, "SELECT Health FROM Door WHERE InternalID=14078601"), [(40000,)])
+        self.assertEqual(self.keep("Caer Sursbrooke", 1), (54, 1, 5, ""))
+        self.assertEqual(query(self.new, "SELECT Health FROM Door WHERE InternalID=14078601"), [(50000,)])
 
     def test_the_keep_structure_stays_the_new_worlds(self):
         columns = "KeepID, Name, Region, X, Y, Z, Heading, OriginalRealm, KeepType, BaseLevel, SkinType, CreateInfo, Keep_ID"
@@ -529,7 +530,7 @@ class RealWorldCarryTests(unittest.TestCase):
     def test_captured_keeps_gates_arrive_full(self):
         self.assertEqual(query(TEST_WORLD, "SELECT InternalID, Health FROM Door WHERE InternalID IN (115001201, 115001202, "
                                            "212006301) ORDER BY InternalID"),
-                         [(115001201, 2500), (115001202, 43583), (212006301, 10000)])
+                         [(115001201, 50000), (115001202, 50000), (212006301, 10000)])
         self.assertEqual(query(self.new, "SELECT InternalID, Health, State FROM Door WHERE InternalID IN (115001201, "
                                          "115001202, 212006301, 212006302, 212006304, 212006306) ORDER BY InternalID"),
                          [(115001201, 40000, 1), (115001202, 40000, 1), (212006301, 40000, 1), (212006302, 40000, 1),
