@@ -11,7 +11,8 @@ v2 is for upstream's 0.35 world. Every world the 0.35 image runs is a fresh 0.35
 and hdc upgrade-world start from upstream's clean world, without the fork tables), so v2 expects 0.35's
 values, not 0.34's (v1). 0.35 ships central keeps of its own in Abermenai and Murdaigean, Dun Abermenai
 (KeepID 33) and Dun Murdaigean (KeepID 32), with their guards; the fork keeps them and only levels them
-for the ranges and adds its wall casters and a hastener.
+for the ranges and adds its wall casters and a hastener. From the 0.37b sync on it also takes the gates
+of those two keeps from the values 0.36 left them at (step 3).
 
 Each step changes a value only while it still holds upstream's value (the keep Level reset in step 3, and
 its gates, are the exception, as the spec requires), adds rows only where none of their kind are there
@@ -22,7 +23,8 @@ yet, and adds one line to the result when it changed something:
    for their ranges and keep Level 1, and their gates (closed already) the matching full health. A keep
    put back to Level 1 (a capture, or an upgrade that carried its state, left it higher) has its gates
    lowered to Level 1's full health where they are higher, as the server does after a capture
-   (ClassicBattlegroundsScript.OnKeepTaken);
+   (ClassicBattlegroundsScript.OnKeepTaken). The gates of Dun Abermenai and Dun Murdaigean that still hold
+   the damaged, open values upstream 0.36 left them at get the full health too, and close;
 4. the portal keeps of Abermenai and Murdaigean, which have no guards, get a copy of Thidranki's portal
    keep guards and hasteners (all four battlegrounds share one map and the same portal keep spots);
 5. Dun Abermenai and Dun Murdaigean get six casters on their walls and a hastener beside their gate:
@@ -63,6 +65,10 @@ KEEP_LEVELS = {33: (253, "Dun Abermenai", 21, 19), 11: (252, "Thidranki Faste", 
 GATES = {33: (253000301, 253000302), 11: (252000301, 252000302), 32: (251000301, 251000302),
          31: (250000301, 250000302)}
 KEEP_DOORS_BASE_HEALTH = 200
+# Upstream 0.36's release defaults (release-world-defaults.json, applied by its build_release_036.py) left both gates
+# of these two keeps at (Health, State) (2545, 0), "as shipped in 0.35", though 0.35 shipped them whole and closed.
+# They also go to the new full health, closed (State 1), once the keep has the new BaseLevel.
+RESET_GATES = {33: (2545, 0), 32: (2545, 0)}
 # Step 6.
 QUEST_CLASSES = (
     "DOL.GS.DailyQuest.Albion.CaleKeepCaptureAlb", "DOL.GS.DailyQuest.Hibernia.CaleKeepCaptureHib",
@@ -210,6 +216,13 @@ def _step3_keep_levels(conn, now):
         gates += conn.execute("UPDATE Door SET Health=?, LastTimeRowUpdated=? WHERE InternalID IN (?, ?) AND Health=? "
                               "AND EXISTS (SELECT 1 FROM Keep WHERE KeepID=? AND Region=? AND BaseLevel=?)",
                               (new * KEEP_DOORS_BASE_HEALTH, now, *GATES[keep_id], old * KEEP_DOORS_BASE_HEALTH,
+                               keep_id, region, new)).rowcount
+    for keep_id, (health, state) in RESET_GATES.items():
+        region, _, _, new = KEEP_LEVELS[keep_id]
+        gates += conn.execute("UPDATE Door SET Health=?, State=1, LastTimeRowUpdated=? WHERE InternalID IN (?, ?) "
+                              "AND Health=? AND State=? AND EXISTS (SELECT 1 FROM Keep WHERE KeepID=? AND Region=? "
+                              "AND BaseLevel=?)",
+                              (new * KEEP_DOORS_BASE_HEALTH, now, *GATES[keep_id], health, state,
                                keep_id, region, new)).rowcount
     if gates:
         items.append(_count(gates, "gate's health", "gates' health"))

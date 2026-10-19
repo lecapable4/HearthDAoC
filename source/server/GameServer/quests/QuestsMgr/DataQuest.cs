@@ -219,6 +219,9 @@ namespace DOL.GS.Quests
         /// A static list of every search area for all data quests
         /// </summary>
         protected static List<KeyValuePair<int, QuestSearchArea>> m_allQuestSearchAreas = new List<KeyValuePair<int, QuestSearchArea>>();
+        // Regions load in parallel and every DataQuest reads and writes this list as it is built: unguarded, a quest's
+        // search areas were randomly lost on server start ("Collection was modified", 2026-10-11).
+        protected static readonly object m_allQuestSearchAreasLock = new object();
 
         /// <summary>
         /// How many search areas are part of this quest
@@ -359,11 +362,14 @@ namespace DOL.GS.Quests
 
 			try
 			{
-                foreach (KeyValuePair<int, QuestSearchArea> entry in m_allQuestSearchAreas)
+                lock (m_allQuestSearchAreasLock)
                 {
-                    if (entry.Key == ID)
+                    foreach (KeyValuePair<int, QuestSearchArea> entry in m_allQuestSearchAreas)
                     {
-                        m_numSearchAreas++;
+                        if (entry.Key == ID)
+                        {
+                            m_numSearchAreas++;
+                        }
                     }
                 }
 
@@ -629,19 +635,24 @@ namespace DOL.GS.Quests
 
                 List<KeyValuePair<int, QuestSearchArea>> areasToDelete = new List<KeyValuePair<int, QuestSearchArea>>();
 
-                foreach (KeyValuePair<int, QuestSearchArea> entry in m_allQuestSearchAreas)
+                lock (m_allQuestSearchAreasLock)
                 {
-                    if (entry.Key == ID)
+                    foreach (KeyValuePair<int, QuestSearchArea> entry in m_allQuestSearchAreas)
                     {
-                        areasToDelete.Add(entry);
+                        if (entry.Key == ID)
+                        {
+                            areasToDelete.Add(entry);
+                        }
                     }
+
+                    foreach (KeyValuePair<int, QuestSearchArea> entry in areasToDelete)
+                        m_allQuestSearchAreas.Remove(entry);
                 }
 
                 foreach (KeyValuePair<int, QuestSearchArea> entry in areasToDelete)
                 {
                     m_lastErrorText += " ::Removing QuestSearchArea for DataQuest ID:" + ID + ", Step " + entry.Value.Step;
                     entry.Value.RemoveArea();
-                    m_allQuestSearchAreas.Remove(entry);
                 }
 
                 lastParse = m_dataQuest.SourceName;
@@ -691,7 +702,8 @@ namespace DOL.GS.Quests
                 // COMMAND;3;Search for necklace here;12;8000;74665;500;20
 
                 QuestSearchArea questArea = new QuestSearchArea(this, requiredStep, parse[2], Convert.ToUInt16(parse[3]), Convert.ToInt32(parse[4]), Convert.ToInt32(parse[5]), Convert.ToInt32(parse[6]), Convert.ToInt32(parse[7]));
-                m_allQuestSearchAreas.Add(new KeyValuePair<int,QuestSearchArea>(ID, questArea));
+                lock (m_allQuestSearchAreasLock)
+                    m_allQuestSearchAreas.Add(new KeyValuePair<int,QuestSearchArea>(ID, questArea));
 
                 m_lastErrorText += string.Format(" ::Created Search Area for quest {0}, step {1} in region {2} at X:{3}, Y:{4}, Radius:{5}, Text:{6}, Seconds:{7}.", Name, requiredStep, parse[3], parse[4], parse[5], parse[6], parse[2], parse[7]);
             }
@@ -993,6 +1005,22 @@ namespace DOL.GS.Quests
 		}
 		
 
+		/// <summary>The NPC the player is talking to or handing an item to, for <see cref="SendMessage"/>.</summary>
+		[ThreadStatic] private static GameObject _speaker;
+
+		/// <summary>
+		/// A quest text recorded as a conversation of several turns (separated by <see cref="ClassicQuests.NextTurn"/>):
+		/// the NPC says the first turn now, the others one by one as the player talks to it again. Quest audit
+		/// 2026-10-13: Merle the Old said all of Information is the Key at once; the period walkthrough has his lines
+		/// one at a time, between the player's actions.
+		/// </summary>
+		protected static new void SendMessage(GamePlayer player, string msg, uint delay, eChatType chatType, eChatLoc chatLoc)
+		{
+			if (msg != null && msg.Contains(ClassicQuests.NextTurn))
+				msg = ClassicQuests.StartConversation(player, _speaker, msg);
+			AbstractQuest.SendMessage(player, msg, delay, chatType, chatLoc);
+		}
+
 		/// <summary>
 		/// Can this player do this quest
 		/// </summary>
@@ -1050,11 +1078,12 @@ namespace DOL.GS.Quests
 				var finishedIds = new HashSet<int>();
 				foreach (AbstractQuest quest in finishedQuests)
 				{
+					// A finished scripted quest of that name counts too: Master Torr's Commencement needs his own
+					// scripted "Immediate Resolution" (ImmediateResolutionVB), and only three class-locked classic quests
+					// of that name counted, so every other class could never be offered it (quest probe 2026-10-15).
+					finishedNames.Add(quest.Name);
 					if (quest is DataQuest dataQuest)
-					{
-						finishedNames.Add(dataQuest.Name);
 						finishedIds.Add(dataQuest.ID);
-					}
 				}
 
 				var activeIds = new HashSet<int>();
@@ -1325,6 +1354,13 @@ namespace DOL.GS.Quests
 			}
 		}
 
+
+		/// <summary>The current step's item, whisper keyword, journal text and target text, for the classic quest
+		/// runtime (ClassicQuests: delivery items and whisper links).</summary>
+		public string CurrentStepItemTemplate => StepItemTemplate;
+		public string CurrentAdvanceText => AdvanceText;
+		public string CurrentStepText => Step > 0 && Step <= m_stepTexts.Count ? m_stepTexts[Step - 1] : string.Empty;
+		public string CurrentTargetText => TargetText;
 
 		/// <summary>
 		/// Text needed to advance the step or end the quest for the current step
@@ -1698,7 +1734,7 @@ namespace DOL.GS.Quests
 					{
 						if (RewardXP > 0)
 						{
-							m_questPlayer.ForceGainExperience(RewardXP);
+							m_questPlayer.ForceGainExperience(ClassicQuests.ScaleXP(ID, m_questPlayer, Step - 1, RewardXP));
 						}
 	
 						if (RewardRP > 0)
@@ -1910,6 +1946,11 @@ namespace DOL.GS.Quests
 					GameObject o = sender as GameObject;
 					GamePlayer p = a.Source as GamePlayer;
 
+					// A conversation in progress with this NPC goes on first (ClassicQuests.ContinueConversation).
+					if (p != null && o != null && ClassicQuests.ContinueConversation(p, o))
+						return;
+
+					_speaker = o;
 					if (p != null && o != null)
 					{
 						//log.DebugFormat("DataQuest CheckOffer: Player {0} is interacting with {1}", p.Name, o.Name);
@@ -1926,6 +1967,9 @@ namespace DOL.GS.Quests
 					InteractWithEventArgs a = args as InteractWithEventArgs;
 
 					//log.DebugFormat("DataQuest Interact: Player {0} is interacting with {1}", p.Name, a.Target.Name);
+					if (ClassicQuests.ContinueConversation(p, a.Target))
+						return;
+					_speaker = a.Target;
 					OnPlayerInteract(p, a.Target);
 
 					return;
@@ -1937,6 +1981,7 @@ namespace DOL.GS.Quests
 					GiveItemEventArgs a = args as GiveItemEventArgs;
 
 					//log.DebugFormat("DataQuest: GiveItem {0} receives {1} from {2}", a.Target.Name, a.Item.Name, a.Source.Name);
+					_speaker = a.Target;
 					OnPlayerGiveItem(a.Source, a.Target, a.Item);
 
 					return;
@@ -2129,7 +2174,7 @@ namespace DOL.GS.Quests
 										{
 											if (item != null)
 											{
-												GiveItem((obj is GameLiving ? obj as GameLiving : null), player, item, false);
+												GiveItem((obj is GameLiving ? obj as GameLiving : null), player, ClassicQuests.RewardFor(player, item), false);
 											}
 										}
 									}
@@ -2143,7 +2188,7 @@ namespace DOL.GS.Quests
 
 							if (m_rewardXPs.Count > 0 && m_rewardXPs[0] > 0)
 							{
-								player.ForceGainExperience(m_rewardXPs[0]);
+								player.ForceGainExperience(ClassicQuests.ScaleXP(ID, player, 0, m_rewardXPs[0]));
 							}
 							
 							if (m_rewardCLXPs.Count > 0 && m_rewardCLXPs[0] > 0)
@@ -2545,6 +2590,7 @@ namespace DOL.GS.Quests
 					return;
 				if (firstItem != null)
 					GiveItem(living, player, firstItem, false);
+				_speaker = living; // HearthDAoC: a staged first text waits for the giver (the offer's answer is no interaction)
 				if (m_sourceTexts.Count > 0)
 				{
 					SendMessage(player, m_sourceTexts[0], 0, eChatType.CT_System, eChatLoc.CL_PopupWindow);
@@ -2885,7 +2931,7 @@ namespace DOL.GS.Quests
 											{
 												if (item != null)
 												{
-													GiveItem(dying, player, item, false);
+													GiveItem(dying, player, ClassicQuests.RewardFor(player, item), false);
 												}
 											}
 										}
@@ -2899,7 +2945,7 @@ namespace DOL.GS.Quests
 
 								if (m_rewardXPs.Count > 0 && m_rewardXPs[0] > 0)
 								{
-									player.ForceGainExperience(m_rewardXPs[0]);
+									player.ForceGainExperience(ClassicQuests.ScaleXP(ID, player, 0, m_rewardXPs[0]));
 								}
 								
 								if (m_rewardCLXPs.Count > 0 && m_rewardCLXPs[0] > 0)
@@ -3140,7 +3186,7 @@ namespace DOL.GS.Quests
 								return false;
 							}
 	
-							m_questPlayer.ForceGainExperience(rewardXP);
+							m_questPlayer.ForceGainExperience(ClassicQuests.ScaleXP(ID, m_questPlayer, lastStep - 1, rewardXP));
 						}
 	
 						if (rewardRP > 0)
@@ -3158,7 +3204,7 @@ namespace DOL.GS.Quests
 						{
 							if (item != null)
 							{
-								GiveItem(m_questPlayer, item);
+								GiveItem(m_questPlayer, ClassicQuests.RewardFor(m_questPlayer, item));
 							}
 						}
 	
@@ -3166,7 +3212,7 @@ namespace DOL.GS.Quests
 						{
 							if (item != null)
 							{
-								GiveItem(m_questPlayer, item);
+								GiveItem(m_questPlayer, ClassicQuests.RewardFor(m_questPlayer, item));
 							}
 						}
 	
@@ -3224,7 +3270,7 @@ namespace DOL.GS.Quests
 								return false;
 							}
 	
-							m_questPlayer.ForceGainExperience(rewardXP);
+							m_questPlayer.ForceGainExperience(ClassicQuests.ScaleXP(ID, m_questPlayer, 0, rewardXP));
 						}
 	
 						if (rewardRP > 0)
@@ -3242,7 +3288,7 @@ namespace DOL.GS.Quests
 						{
 							if (item != null)
 							{
-								GiveItem(m_questPlayer, item);
+								GiveItem(m_questPlayer, ClassicQuests.RewardFor(m_questPlayer, item));
 							}
 						}
 	
@@ -3250,7 +3296,7 @@ namespace DOL.GS.Quests
 						{
 							if (item != null)
 							{
-								GiveItem(m_questPlayer, item);
+								GiveItem(m_questPlayer, ClassicQuests.RewardFor(m_questPlayer, item));
 							}
 						}
 	

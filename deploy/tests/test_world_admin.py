@@ -320,6 +320,46 @@ class WorldAdminTests(unittest.TestCase):
         self.assertEqual(os.listdir(os.path.join(self.data, "archive")), [])
         self.assertFalse(os.path.exists(init_world.swap_marker(self.data)))
 
+    def test_fetch_clean_builds_the_patched_clean_world(self):
+        self.make_sqlite_world(version="0.0")
+        lock, files, _ = fx.build_patched(self.dir)
+        with fx.RangeServer(self.dir) as srv:
+            dest = world_admin.fetch_clean(Release(srv.lock(lock), retries=1, backoff=0), self.data, log=QUIET)
+        self.assertEqual(dest, os.path.join(self.data, world_admin.CLEAN_WORLD))
+        with sqlite3.connect(dest) as c:
+            self.assertEqual(c.execute("SELECT Mob_ID, Level FROM Mob ORDER BY Mob_ID").fetchall(), [("m1", 11), ("m2", 30)])
+            self.assertEqual(c.execute("SELECT Version FROM offline_patch_log").fetchall(), [("test.1",)])
+
+    def test_fetch_clean_refuses_a_world_update_that_does_not_fit(self):
+        self.make_sqlite_world(version="0.0")
+        lock, _, _ = fx.build_patched(self.dir, update=fx.world_update(old_level=9))
+        with fx.RangeServer(self.dir) as srv:
+            lock_path = os.path.join(self.dir, "upstream.lock")
+            with open(lock_path, "w", encoding="utf-8") as f:
+                json.dump(srv.lock(lock), f)
+            r = subprocess.run([sys.executable, os.path.join(REPO, "deploy", "bin", "world_admin.py"), "--data", self.data,
+                                "--lock", lock_path, "fetch-clean"], capture_output=True, text=True)
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("ERROR: the test.1 world update does not fit this world", r.stderr)
+        self.assertFalse(os.path.exists(os.path.join(self.data, world_admin.CLEAN_WORLD)))
+
+    def test_upgrade_world_without_a_clean_world_builds_the_patched_one_for_the_importer(self):
+        db = self.make_sqlite_world(version="0.0")
+        with sqlite3.connect(db) as c:  # what upgrade_world counts before the import
+            for table in ("Account (Name TEXT, PrivLevel INTEGER)", "DOLCharacters (Name TEXT)", "offline_world_bots (Id TEXT)"):
+                c.execute(f"CREATE TABLE {table}")
+        lock, _, _ = fx.build_patched(self.dir)
+        # Stands in for upstream's importer: reports what the new world it was given holds, and fails.
+        fake = ("import sqlite3, sys; new = sys.argv[sys.argv.index('--import') + 2]; "
+                "c = sqlite3.connect(new + '/runtime/data/opendaoc.sqlite3.db'); "
+                "mobs = c.execute('SELECT Mob_ID, Level FROM Mob ORDER BY Mob_ID').fetchall(); "
+                "open(sys.argv[-1], 'w').write(repr(mobs)); sys.exit(1)")
+        with fx.RangeServer(self.dir) as srv:
+            with self.assertRaisesRegex(world_admin.AdminError, r"the import failed; the current world is unchanged. "
+                                                                r"Details:\n\[\('m1', 11\), \('m2', 30\)\]$"):
+                world_admin.upgrade_world(Release(srv.lock(lock), retries=1, backoff=0), self.data,
+                                          [sys.executable, "-c", fake], log=QUIET)
+
     def test_upgrade_world_refuses_same_version_by_default(self):
         self.make_sqlite_world(version="0.34b")
         with self.assertRaisesRegex(world_admin.AdminError, "already"):

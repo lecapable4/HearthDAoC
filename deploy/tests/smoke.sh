@@ -64,7 +64,7 @@ fi
 [[ "$(docker exec "$NAME" sqlite3 "$db" "SELECT COUNT(*) FROM DataQuest WHERE ID IN (990509, 990511, 990512, 990513, 990519)")" == 5 ]] \
     || fail "the level-50 Lord of Deceit quests are missing"
 echo "ok - the epic chains world fix ran (level-50 quests in the world)"
-logs_have "Quest dialogue: 145 quests rewritten" || fail "the chain's dialogue was not written"
+logs_have "Quest dialogue: 142 quests rewritten" || fail "the chain's dialogue was not written"
 [[ "$(docker exec "$NAME" sqlite3 "$db" "SELECT AcceptText FROM DataQuest WHERE ID=21500")" == errand ]] \
     || fail "the Supply Run still offers upstream's [Traveler's]"
 echo "ok - the Guild of Shadows chain has its dialogue"
@@ -73,7 +73,7 @@ docker exec "$NAME" cat /data/logs/world-fixes.log > "$T/fixes.log" || fail "no 
 [[ "$(grep -c '^=== Start ' "$T/fixes.log")" == 1 ]] || fail "world-fixes.log should hold one start: $(cat "$T/fixes.log")"
 grep -qE '^=== Start [0-9]{4}-[0-9]{2}-[0-9]{2} [0-9:]{8} UTC, release unknown, upstream [^ ]+ ===$' "$T/fixes.log" \
     || fail "world-fixes.log has no start header: $(head -1 "$T/fixes.log")"
-for line in "Epic chains: Guild of Shadows 60 links" "Quest dialogue: 145 quests rewritten" "Quest camps: copied back from upstream's archive: " "Mob fixes: 75 corrected: " \
+for line in "Epic chains: Guild of Shadows 60 links" "Quest dialogue: 142 quests rewritten" "Quest camps: copied back from upstream's archive: " "Mob fixes: 118 corrected: " \
             "Route fixes: 138 bridge crossings of 59 horse routes given points on the deck: " \
             "Start towns: 13 starting locations moved to the period's towns: "; do
     grep -q "^$line" "$T/fixes.log" || fail "world-fixes.log lacks this start's line: $line"

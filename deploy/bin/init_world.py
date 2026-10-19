@@ -2,7 +2,9 @@
 """Create or check the world in /data from the pinned upstream release.
 
 First start: download the edition's clean world database and the navmeshes (all verified), then
-write /data/world.json LAST, so an interrupted first start simply resumes on the next start.
+write /data/world.json LAST, so an interrupted first start simply resumes on the next start. For a
+release made of a base and an upstream patch (the lock's "patch"), the clean world is the base's
+world (kept, verified, in /data/upstream-cache) plus the patch's world update (world_update.py).
 Later starts: refuse if HEARTHDAOC_EDITION or the image's upstream version differs from the world's.
 Every start: make sure the release's server data files (the lock's server_files, which the server
 reads from its own folder) are in /data/server-files/<upstream version>, and with --server-dir link
@@ -18,6 +20,7 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path[:0] = [HERE, os.path.join(HERE, "..", "..", "tools", "linux")]
 
+import world_update  # noqa: E402
 from odaoc_fetch import FetchError, Release, sha256_file  # noqa: E402
 
 EXIT_DOWNLOAD = 2
@@ -32,7 +35,8 @@ def not_writable_hint(data):
         os.makedirs(data, exist_ok=True)
     except OSError:
         pass
-    paths = [data] + [os.path.join(data, d) for d in ("world", "navmesh", "server-files", "logs", "state", "backups")]
+    paths = [data] + [os.path.join(data, d) for d in ("world", "navmesh", "server-files", "upstream-cache", "logs",
+                                                      "state", "backups")]
     paths.append(world_paths(data)["db"])
     bad = [p for p in paths if os.path.exists(p) and not os.access(p, os.W_OK)]
     if not bad and os.access(data, os.W_OK):
@@ -112,6 +116,21 @@ def ensure_navmesh(release, navmesh_dir, seed=None, log=print):
     return len(files), fetched
 
 
+def world_cache_dir(data):
+    """Where a patched release keeps its base's clean worlds, the patched world's source."""
+    return os.path.join(data, "upstream-cache")
+
+
+def prune_world_cache(data, release):
+    """Remove the cached worlds of other base releases (the world is on this release)."""
+    root = world_cache_dir(data)
+    keep = release.root.rstrip("/") if release.lock.get("patch") else None
+    if os.path.isdir(root):
+        for name in os.listdir(root):
+            if name != keep:
+                shutil.rmtree(os.path.join(root, name), ignore_errors=True)
+
+
 def server_files_dir(data, version):
     return os.path.join(data, "server-files", version)
 
@@ -178,7 +197,7 @@ def init(release, data, edition, skip_navmesh=False, seed_navmesh=None, log=prin
             write_meta(p["meta"], meta)
         return 0
     log(f"Creating a new '{edition}' world from upstream {release.version}...")
-    release.extract(release.edition(edition)["world_db"], p["db"])
+    world_update.build_world(release, edition, p["db"], world_cache_dir(data), log)
     log("  world database ready")
     ensure_server_files(release, data, log)
     navmesh = False
@@ -214,6 +233,7 @@ def main(argv=None):
         rc = init(release, a.data, a.edition, a.skip_navmesh, a.seed_navmesh)
         if rc == 0:  # the world is on this release's version, so other versions' files are stale
             prune_server_files(a.data, release.version)
+            prune_world_cache(a.data, release)
             if a.server_dir:
                 link_server_files(release, a.data, a.server_dir)
         return rc

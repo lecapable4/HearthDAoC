@@ -8,11 +8,12 @@ Write what you saw on each check's "Result:" line: pass or fail, and anything od
 - Release (`HEARTHDAOC_TAG` in `~/hearthdaoc/.env`):
 
 What changes: a gamebot killed in RvR or a battleground and released waits at a safe spot (its realm's arrival point in
-a battleground, its bind in the frontier, or its warband's slot at the border keep). It leaves when its time left is no
-more than its trip back, so it arrives just as it is worth realm points again, 300 s after its last death. The timer
-itself is unchanged. A bot resurrected where it fell fights on. Waiting bots rest and rebuff and fight back when they
-or a realm-mate near them are attacked, but don't run at enemies they only see. In this stage every battleground bot
-leaves at its own moment (no waves).
+a battleground, its bind in the frontier, its realm's portal outpost in an enemy frontier for an attacker of a keep
+there, or its warband's slot at the border keep). It leaves when its time left is no more than its trip back, so it
+arrives just as it is worth realm points again, 300 s after its last death. The timer itself is unchanged. A bot
+resurrected where it fell fights on. Waiting bots rest and rebuff and fight back when they or a realm-mate near them
+are attacked, but don't run at enemies they only see. In this stage every battleground bot leaves at its own moment
+(no waves).
 
 ## Reading the server log
 
@@ -128,9 +129,12 @@ Result:
 ### 7. Frontier, over a day of play
 
 In the counts (above): `start case=frontier` and `start case=siege` for defenders near their home binds (Fensalir
-Faste, Mjollner Faste, Dun Ailinne …); `skip … reason=other-region` for invaders, who release in their capital;
-`start case=warband` with a `group=`, one per released member at the warband's slots, and one `leave` each when the
-warband sets out together:
+Faste, Mjollner Faste, Dun Ailinne …); for attackers of a keep in an enemy frontier, who release at their realm's
+portal outpost in that frontier (where its frontier teleporter lands; upstream 0.37), `start case=siege` there, or
+`skip … reason=trip` when the walk to the keep is longer than their time left (most of them, after upstream's 240 s
+wait for a raise); `skip … reason=other-region` for other invaders, who release in their capital; `start case=warband`
+with a `group=`, one per released member at the warband's slots, and one `leave` each when the warband sets out
+together:
 
 ```bash
 docker exec hearthdaoc-server sh -c 'cat $(ls -tr /data/logs/server*)' | grep 'case=warband'

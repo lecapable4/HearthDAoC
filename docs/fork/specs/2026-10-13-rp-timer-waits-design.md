@@ -179,6 +179,16 @@ The code showed these; each is settled below and can be changed.
   a seventh upstream line, left out.
 - **A side effect.** A healer waiting in the same region makes its dead group mates lie 90 s instead of 20 s before
   release (GB:994-995; the check at GB:1034-1039 has no distance limit). Their timers are not changed by it.
+- **Siege attackers wait at their frontier muster (added 2026-10-18, the sync to upstream 0.37b).** Upstream 0.37
+  releases an attacker of a running siege that has no bind of its realm nearby at its realm's muster for the keep's
+  frontier, the portal outpost where its frontier teleporter lands, not in its capital (`bots/GameBot.cs:1100-1105`,
+  `AutonomousRvrEventLayer.TrySiegeRelease`, `AutonomousRvrStaging.TryGetSiegeMuster`, at the merge). Its first look
+  is then in the region of its fight, so it waits there as a siege member (3.3, `start case=siege`), or goes at once
+  when the walk to the keep is longer than its time left (`skip reason=trip`): most do, since with a healer of its
+  army near it now lies 240 s before it releases (`bots/GameBot.cs:1000-1003`). No code changes: the rule already
+  lets a siege member wait. Where this spec says attackers of a keep in an enemy frontier release in their capital and
+  never wait (the bullet "Only bots released in the region of their fight wait", 2.5's "Siege attacker" row, 3.3,
+  section 5), that was upstream 0.35b; other invaders still release in their capital and skip with `other-region`.
 
 ## 2. The rule
 

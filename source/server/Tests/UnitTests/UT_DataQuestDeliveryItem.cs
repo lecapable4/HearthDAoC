@@ -171,6 +171,50 @@ public sealed class UT_DataQuestDeliveryItem
         });
     }
 
+    // HearthDAoC (0.37 sync): upstream 0.36 hands a Deliver step's item to a player on that step who lacks it, at every
+    // refresh (ClassicQuests.GiveDeliveryItem). A first delivery back to the giver is the item the giver wants the player
+    // to bring: on the clean 0.37b world all 11 "bring me" quests' step-1 templates exist, so each would be handed free.
+    [TestCase(20098, "Gridash", "Gridash")] // Sveabone Hilt Sword: "Run along and buy me a bronze short sword"
+    [TestCase(20781, "Duana", "Duana")]     // Seek the Moonstone C (20781-20784): the collar an earlier quest gave
+    [TestCase(21008, "Audun", "Audun")]     // An End to the Daggers (21008-21013): the Red Dagger Map
+    public void TheRefreshHandsNoFirstDeliveryBackToTheGiver(int quest, string target, string giver)
+        => Assert.That(QuestDeliveryItems.BringsToGiver(1, target, giver), Is.True, $"quest {quest}");
+
+    [Test]
+    public void TheRefreshFindsTheGiverWithoutCaseAndWithoutTheRegion()
+    {
+        Assert.Multiple(() =>
+        {
+            Assert.That(QuestDeliveryItems.BringsToGiver(1, "audun", "Audun"), Is.True);
+            Assert.That(QuestDeliveryItems.BringsToGiver(1, "Audun;101", "Audun"), Is.True);
+            Assert.That(QuestDeliveryItems.BringsToGiver(1, " Audun ", "AUDUN"), Is.True);
+        });
+    }
+
+    // 21008's step 4 takes Audun the note that Arica's kill (step 2) handed: the quest gave it, so a lost one is handed
+    // again, as upstream does.
+    [Test]
+    public void ALaterDeliveryBackToTheGiverIsHandedOnRefresh()
+        => Assert.That(QuestDeliveryItems.BringsToGiver(4, "Audun", "Audun"), Is.False);
+
+    [Test]
+    public void AFirstDeliveryToSomeoneElseIsHandedOnRefresh()
+    {
+        Assert.Multiple(() =>
+        {
+            Assert.That(QuestDeliveryItems.BringsToGiver(1, "Gyda", "Gridash"), Is.False);
+            Assert.That(QuestDeliveryItems.BringsToGiver(1, "Gridash the Elder", "Gridash"), Is.False);
+            Assert.That(QuestDeliveryItems.BringsToGiver(1, null, Giver), Is.False);
+            Assert.That(QuestDeliveryItems.BringsToGiver(1, "", ""), Is.False);
+            Assert.That(QuestDeliveryItems.BringsToGiver(1, Target, null), Is.False);
+        });
+    }
+
+    [TestCase(0)]
+    [TestCase(-1)]
+    public void NoStepIsTheFirstStep(int step)
+        => Assert.That(QuestDeliveryItems.BringsToGiver(step, "Gridash", "Gridash"), Is.False);
+
     private const string Stone = "cq_crediac_stone";
     private static readonly (string, int)[] NoOthers = Array.Empty<(string, int)>();
 

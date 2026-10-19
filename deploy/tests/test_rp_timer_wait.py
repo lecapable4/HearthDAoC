@@ -36,6 +36,8 @@ GC = os.path.join(BOTS, "AutonomousBotGroupCoordinator.cs")
 KEEP_TRAVEL = os.path.join(BOTS, "AutonomousWorldBotController.KeepTravel.cs")
 SIEGE = os.path.join(BOTS, "AutonomousWorldBotController.Siege.cs")
 ARPR = os.path.join(BOTS, "AutonomousBotRealmPointRewards.cs")
+EVENT_LAYER = os.path.join(BOTS, "AutonomousRvrEventLayer.cs")
+GAME_BOT = os.path.join(GAME_SERVER, "bots", "GameBot.cs")
 
 
 def read(name):
@@ -60,6 +62,16 @@ def marked(test, body, call):
     test.assertEqual(body.count(call), 1, call)
     above = body[:body.index(call)].rsplit("\n", 2)[-2]
     test.assertIn("// HearthDAoC:", above, call)
+
+
+def ending(raw):
+    """A file's line ending, "CRLF" or "LF" (also for a file of one line), or None for a file of both or a lone CR."""
+    lf, crlf = raw.count(b"\n"), raw.count(b"\r\n")
+    if raw.count(b"\r") != crlf:
+        return None
+    if crlf == 0:
+        return "LF"
+    return "CRLF" if crlf == lf else None
 
 
 def cs_files(top):
@@ -238,6 +250,18 @@ class UpstreamFactTests(unittest.TestCase):
         self.assertIn("public static Vector3 RendezvousFormationPoint(GameBot bot, string groupId, Vector3 center, bool tight)",
                       source(GC))
 
+    def test_a_released_siege_attacker_comes_back_at_its_frontier_muster(self):
+        # Since upstream 0.37 an attacker of a running siege with no bind of its realm nearby releases at its realm's
+        # muster for the keep's frontier, not in its capital, so its first look is in the region of its fight (spec 1,
+        # departures; the in-game guide's check 7).
+        release = between(source(GAME_BOT), "Point3D release = FindNearestBindPoint();",
+                          "release = new Point3D(capital.X, capital.Y, capital.Z);")
+        self.assertIn("AutonomousRvrEventLayer.TrySiegeRelease(AutonomousBotGroupCoordinator.RvrForceId(this), Realm,", release)
+        self.assertLess(release.index("TrySiegeRelease("), release.index("SafeCapitalFor(Realm)"))
+        siege = between(source(EVENT_LAYER), "public static bool TrySiegeRelease(", "\n    }")
+        self.assertIn("realm == entry.AttackerRealm && entry.Attackers.ContainsKey(forceId)", siege)
+        self.assertIn("AutonomousRvrStaging.TryGetSiegeMuster(realm, target.RegionId, out", siege)
+
 
 class ControllerHookTests(unittest.TestCase):
     def test_the_battleground_wait_comes_after_the_region_check_and_before_every_role(self):
@@ -246,7 +270,7 @@ class ControllerHookTests(unittest.TestCase):
         marked(self, tour, call)
         self.assertLess(tour.index("BotOverCap("), tour.index(call))
         self.assertLess(tour.index("bot.CurrentRegionID != bracket.RegionId"), tour.index(call))
-        self.assertLess(tour.index("_rvrIntent = assault ?"), tour.index(call))
+        self.assertLess(tour.index("_rvrIntent = assault && !tooFew ?"), tour.index(call))
         self.assertLess(tour.index(call), tour.index("TryRunSiegeJob(bot)"))
         self.assertLess(tour.index(call), tour.index("return RoamBattleground("))
 
@@ -295,12 +319,22 @@ class ControllerHookTests(unittest.TestCase):
 
 
 class EndingsTests(unittest.TestCase):
-    def test_the_upstream_files_keep_their_endings(self):
-        for path, crlf in ((BG, True), (WBC, False), (GC, False), (FT, False)):
+    def test_the_upstream_files_keep_one_ending(self):
+        # Upstream's endings, whichever they are (it turned GC to CRLF in 0.36), but one per file: a fork line in the
+        # other ending makes a file of both.
+        for path in (BG, WBC, GC, FT):
             with open(path, "rb") as f:
                 raw = f.read()
-            self.assertEqual(raw.count(b"\r\n"), raw.count(b"\n") if crlf else 0, path)
+            self.assertIsNotNone(ending(raw), path)
             self.assertFalse(raw.startswith(b"\xef\xbb\xbf"), path)
+
+    def test_a_file_of_both_endings_fails(self):
+        self.assertEqual(ending(b"a\r\nb\r\n"), "CRLF")
+        self.assertEqual(ending(b"a\nb\n"), "LF")
+        self.assertEqual(ending(b"a"), "LF")
+        self.assertIsNone(ending(b"a\r\nb\n"))
+        self.assertIsNone(ending(b"a\nb\r\n"))
+        self.assertIsNone(ending(b"a\rb\r\n"))
 
     def test_the_fork_files_are_lf_without_bom(self):
         tests = os.path.join(ROOT, "source", "server", "Tests", "UnitTests")
@@ -325,6 +359,15 @@ class GuideTests(unittest.TestCase):
         reads = guide.count("docker exec hearthdaoc-server")
         self.assertEqual(guide.count(self.EVERY_LOG), reads - 1)  # all but `ls /data/logs`
         self.assertIn("docker exec hearthdaoc-server ls /data/logs", guide)
+
+    def test_check_7_has_siege_attackers_wait_at_their_frontier_muster(self):
+        # A released siege attacker comes back at its realm's portal outpost in the keep's frontier (UpstreamFactTests):
+        # it waits there or goes at once; only other invaders release in their capital (ruling R8).
+        seven = between(source(self.GUIDE), "### 7. Frontier, over a day of play", "### 8. ")
+        self.assertIn("portal outpost", seven)
+        self.assertIn("`start case=siege`", seven)
+        self.assertIn("`skip … reason=trip`", seven)
+        self.assertNotIn("for invaders, who release in their capital", seven)
 
 
 if __name__ == "__main__":

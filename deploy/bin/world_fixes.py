@@ -14,8 +14,8 @@
    copy (archived first in the fork table fork_removed_mobs), only where the merchant is still at its spot.
    It also has two fighter trainers called Master Graent in Prydwen Keep, 770 units apart: remove the one among
    the merchants outside (archived the same way), only while that row is still upstream's, at its spot, and the
-   one in the keep is still in the world. The same for the realm-0 "commander" its bestiary import put on the
-   friendly Albion Commander's spot by Camelot's north gate, which attacks Albion players.
+   one in the keep is still in the world. (The realm-0 "commander" its bestiary import put on the friendly Albion
+   Commander's spot by Camelot's north gate went the same way until upstream 0.36 removed it itself.)
 5. The classic battlegrounds (levels 15 to 35, as in the Shrouded Isles era): battlegrounds.py, once per
    world (the marker classic-battlegrounds-v2 in fork_world_fixes). It runs last, under its own
    savepoint: if it fails, it undoes only itself and prints why, and the fixes above are still saved.
@@ -86,12 +86,9 @@ DUPLICATE_ROWS = [
     # keep's middle structure, by the healer and the town crier, stays (#101, the owner met both 2026-10-11).
     (("1e0dc1a7-6b01-4a38-845d-f8ef417a09e1", "Master Graent", "DOL.GS.Trainer.FighterTrainer", 1, 574886, 530169,
       2896), "deecddf1-2306-4194-a3e8-bab803d450fa"),
-    # The outpost by Camelot's north gate (Black Mountains South): upstream's bestiary import (PackageID BestiaryG9,
-    # "placed where 1.65 radar logs saw them, never inside towns", its 0.35 changelog) put a realm-0 level-49
-    # "commander", aggressive, on the friendly level-50 Albion Commander's spot; it attacked and killed the owner
-    # passing by (2026-10-13). It goes; the Commander stays.
-    (("4609f55b-83dd-5958-99dc-b24f969cabda", "commander", "DOL.GS.GameNPC", 1, 516726, 495717, 3353),
-     "62348415-4e5e-482f-a804-c504e29c20f3"),
+    # Until the 0.37b sync this also listed the hostile "commander" by Camelot's north gate (Mob_ID
+    # 4609f55b-83dd-5958-99dc-b24f969cabda): upstream 0.36 removed it ("Removed the hostile copies of friendly NPCs
+    # that 0.35's classic bestiary spawns added", its CHANGELOG).
 ]
 DUPLICATES_FIX_ID = "duplicate-townspeople"
 ARCHIVE_TABLE = battlegrounds.ARCHIVE_TABLE

@@ -120,7 +120,8 @@ namespace DOL.GS.Quests.Midgard
 
 			if (npcs.Length > 0)
 				foreach (GameNPC npc in npcs)
-					if (npc.CurrentRegionID == 100 && Math.Abs(npc.X - 803559) <= 2000 && Math.Abs(npc.Y - 723329) <= 2000 /* HearthDAoC: near where the quest creates it, so a world copy is used, not doubled */)
+					// HearthDAoC: also near where the quest creates her: the world's Danica is outside upstream's box
+					if (DOL.GS.Quests.QuestNpcPlacement.IsAt(npc, 100, 802818, 727413) || DOL.GS.Quests.QuestNpcPlacement.IsAt(npc, 100, 803559, 723329))
 					{
 						Danica = npc;
 						break;
@@ -155,7 +156,7 @@ namespace DOL.GS.Quests.Midgard
 
 			if (npcs.Length > 0)
 				foreach (GameNPC npc in npcs)
-					if (npc.CurrentRegionID == 100 && npc.X == 621577 && npc.Y == 745848)
+					if (DOL.GS.Quests.QuestNpcPlacement.IsAt(npc, 100, 621577, 745848))
 					{
 						Kelic = npc as Kelic;
 						break;

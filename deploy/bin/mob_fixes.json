@@ -153,6 +153,221 @@
    "set": {"FinalRewardItemTemplates": "cq_alb_snake_charm"},
    "why": "Allakhazam (archived 2004-10-14): \"You receive a Snake Charm from Ormgarth!\"; upstream's generator made two templates of the item from the guide's \"You receive ...\" line and put both in the final reward, which DataQuest hands in full, so the quest gave two (owner 2026-10-11: two Belts of Animation from Cleric Mulgrut). Kept: the realm template, which delves \"Classic quest reward (Outcast Ormgarth)\"; the plain one delves \"Classic quest reward ((quest item))\"."
   },
+  {"name": "Thinking Cap", "table": "DataQuest", "id": 20024,
+   "expect": {"FinalRewardItemTemplates": "cq_thinking_cap|cq_alb_thinking_cap"},
+   "set": {"FinalRewardItemTemplates": "cq_alb_thinking_cap"},
+   "why": "Allakhazam cquest 157 (Wayback capture 2003-10-19): \"Cranly ... says that her cousin named Bouditha, is abusing a family cap and that you need to get it back from her and return it to Cranly!\" Upstream's final reward names two templates of the item: cq_thinking_cap, a carried-only copy (Item_Type 40, level 1, no bonuses) that 0.35b handed alone, and cq_alb_thinking_cap, the cap itself, which 0.36 added. DataQuest hands every template the list names, so the quest gave two. Kept: the realm template, as for the ten doubles of 0.35b (owner 2026-10-11: the period gave one)."
+  },
+  {"name": "Fearan", "table": "DataQuest", "id": 20074,
+   "expect": {"FinalRewardItemTemplates": "cq_woven_grass_helm|cq_hib_woven_grass_helm"},
+   "set": {"FinalRewardItemTemplates": "cq_hib_woven_grass_helm"},
+   "why": "Allakhazam cquest 174 (Wayback capture 2003-11-27): \"She was kind enough to reward me with (about 5 dashes of xp) a woven grass helmet she had made for me.\" Upstream's final reward names two templates of the item: cq_woven_grass_helm, a carried-only copy (Item_Type 40, level 1, no bonuses) that 0.35b handed alone, and cq_hib_woven_grass_helm, the helm itself, which 0.36 added. DataQuest hands every template the list names, so the quest gave two. Kept: the realm template, as for the ten doubles of 0.35b (owner 2026-10-11: the period gave one)."
+  },
+  {"name": "Essence of Hostility", "table": "DataQuest", "id": 20078,
+   "expect": {"FinalRewardItemTemplates": "cq_stone_bracer|cq_hib_stone_bracer"},
+   "set": {"FinalRewardItemTemplates": "cq_hib_stone_bracer"},
+   "why": "Allakhazam cquest 167 (Wayback capture 2003-11-27): \"Killing the Fallen One resulted in a Stone Bracer.\" Upstream's final reward names two templates of the item: cq_stone_bracer, a carried-only copy (Item_Type 40, level 1, no bonuses) that 0.35b handed alone, and cq_hib_stone_bracer, the bracer itself, which 0.36 added. DataQuest hands every template the list names, so the quest gave two. Kept: the realm template, as for the ten doubles of 0.35b (owner 2026-10-11: the period gave one)."
+  },
+  {"name": "Smyga's Raid", "table": "DataQuest", "id": 20117,
+   "expect": {"StepItemTemplates": "cq_smyga_s_helm|", "FinalRewardItemTemplates": "cq_mid_smyga_s_helm"},
+   "set": {"StepItemTemplates": "cq_mid_smyga_s_helm|", "FinalRewardItemTemplates": ""},
+   "why": "Allakhazam cquest 414 (Wayback capture 2003-12-28): \"Kill Smyga and you will receive Smyg's helm.\" Upstream hands a carried-only copy (cq_smyga_s_helm, Item_Type 40, level 1, no bonuses) on the kill (step 1, StepItemTemplates) and the helm itself, cq_mid_smyga_s_helm, which 0.36 added, as the final reward, so the quest gave two. Kept: the kill's copy, as the period's monster dropped it, under the realm template; the final reward goes (as Minx Wiley's boots, owner 2026-10-11)."
+  },
+  {"name": "Lover's Circle", "table": "DataQuest", "id": 20124,
+   "expect": {"FinalRewardItemTemplates": "cq_ring_of_illbane|cq_mid_ring_of_illbane"},
+   "set": {"FinalRewardItemTemplates": "cq_mid_ring_of_illbane"},
+   "why": "Allakhazam cquest 137 (Wayback capture 2003-09-11): \"You give Sugnhild the Ring of Illbane. ... You receive a Ring of Illbane from Sugnhild.\" Upstream's final reward names two templates of the item: cq_ring_of_illbane, a carried-only copy (Item_Type 40, level 1, no bonuses) that 0.35b handed alone, and cq_mid_ring_of_illbane, the ring itself, which 0.36 added. DataQuest hands every template the list names, so the quest gave two. Kept: the realm template, as for the ten doubles of 0.35b (owner 2026-10-11: the period gave one)."
+  },
+  {"name": "Paranoid Guard", "table": "DataQuest", "id": 20125,
+   "expect": {"StepItemTemplates": "cq_watercast_ring|cq_squirt_s_notes", "FinalRewardItemTemplates": "cq_mid_watercast_ring"},
+   "set": {"StepItemTemplates": "cq_mid_watercast_ring|cq_squirt_s_notes", "FinalRewardItemTemplates": ""},
+   "why": "Allakhazam cquest 75 (Wayback capture 2003-12-28): \"You receive a Watercast Ring from Squirt!\" Upstream hands a carried-only copy (cq_watercast_ring, Item_Type 40, level 1, no bonuses) on the kill (step 1, StepItemTemplates) and the ring itself, cq_mid_watercast_ring, which 0.36 added, as the final reward, so the quest gave two. Kept: the kill's copy, as the period's monster dropped it, under the realm template; the final reward goes (as Minx Wiley's boots, owner 2026-10-11)."
+  },
+  {"name": "Reach of the Shadow", "table": "DataQuest", "id": 20126,
+   "expect": {"FinalRewardItemTemplates": "cq_driftspirit_cloak|cq_mid_driftspirit_cloak"},
+   "set": {"FinalRewardItemTemplates": "cq_mid_driftspirit_cloak"},
+   "why": "Allakhazam cquest 115 (Wayback capture 2003-12-28): \"You receive a Driftspirit Cloak from Ulga!\" Upstream's final reward names two templates of the item: cq_driftspirit_cloak, a carried-only copy (Item_Type 40, level 1, no bonuses) that 0.35b handed alone, and cq_mid_driftspirit_cloak, the cloak itself, which 0.36 added. DataQuest hands every template the list names, so the quest gave two. Kept: the realm template, as for the ten doubles of 0.35b (owner 2026-10-11: the period gave one)."
+  },
+  {"name": "Waking of the Fallen", "table": "DataQuest", "id": 20127,
+   "expect": {"FinalRewardItemTemplates": "cq_toe_bone_belt|cq_mid_toe_bone_belt"},
+   "set": {"FinalRewardItemTemplates": "cq_mid_toe_bone_belt"},
+   "why": "Allakhazam cquest 111 (Wayback capture 2003-10-01): \"he will also give you a magical belt that adds 2 points to your Strength, Constitution and Quickness! You don't have to return to Saydyn\". Upstream's final reward names two templates of the item: cq_toe_bone_belt, a carried-only copy (Item_Type 40, level 1, no bonuses) that 0.35b handed alone, and cq_mid_toe_bone_belt, the belt itself, which 0.36 added. DataQuest hands every template the list names, so the quest gave two. Kept: the realm template, as for the ten doubles of 0.35b (owner 2026-10-11: the period gave one)."
+  },
+  {"name": "Living Warning", "table": "DataQuest", "id": 20129,
+   "expect": {"FinalRewardItemTemplates": "cq_flame_helm|cq_mid_flame_helm"},
+   "set": {"FinalRewardItemTemplates": "cq_mid_flame_helm"},
+   "why": "Allakhazam cquest 228 (Wayback capture 2003-12-28): \"You receive a Flame Helm from Fridgeir Gestsson!\" Upstream's final reward names two templates of the item: cq_flame_helm, a carried-only copy (Item_Type 40, level 1, no bonuses) that 0.35b handed alone, and cq_mid_flame_helm, the helm itself, which 0.36 added. DataQuest hands every template the list names, so the quest gave two. Kept: the realm template, as for the ten doubles of 0.35b (owner 2026-10-11: the period gave one)."
+  },
+  {"name": "Sugnhild's Revenge", "table": "DataQuest", "id": 20131,
+   "expect": {"StepItemTemplates": "cq_gauntlets_of_the_redhand|", "FinalRewardItemTemplates": "cq_mid_gauntlets_of_the_redhand"},
+   "set": {"StepItemTemplates": "cq_mid_gauntlets_of_the_redhand|", "FinalRewardItemTemplates": ""},
+   "why": "Allakhazam cquest 229 (Wayback capture 2003-12-28): \"You receive Gauntlets of the Redhand from Konung Boltolf Redhands!\" Upstream hands a carried-only copy (cq_gauntlets_of_the_redhand, Item_Type 40, level 1, no bonuses) on the kill (step 1, StepItemTemplates) and the gauntlets itself, cq_mid_gauntlets_of_the_redhand, which 0.36 added, as the final reward, so the quest gave two. Kept: the kill's copy, as the period's monster dropped it, under the realm template; the final reward goes (as Minx Wiley's boots, owner 2026-10-11)."
+  },
+  {"name": "Stripe", "table": "DataQuest", "id": 20133,
+   "expect": {"FinalRewardItemTemplates": "cq_stripe_hide_helm|cq_mid_stripe_hide_helm"},
+   "set": {"FinalRewardItemTemplates": "cq_mid_stripe_hide_helm"},
+   "why": "Allakhazam cquest 241 (Wayback capture 2003-11-15): \"You receive a Stripe Hide Helm from Stripe!\" Upstream's final reward names two templates of the item: cq_stripe_hide_helm, a carried-only copy (Item_Type 40, level 1, no bonuses) that 0.35b handed alone, and cq_mid_stripe_hide_helm, the helm itself, which 0.36 added. DataQuest hands every template the list names, so the quest gave two. Kept: the realm template, as for the ten doubles of 0.35b (owner 2026-10-11: the period gave one)."
+  },
+  {"name": "Nimh's Secret", "table": "DataQuest", "id": 20134,
+   "expect": {"FinalRewardItemTemplates": "cq_nimh_s_curse|cq_mid_nimh_s_curse"},
+   "set": {"FinalRewardItemTemplates": "cq_mid_nimh_s_curse"},
+   "why": "Allakhazam cquest 154 (Wayback capture 2003-09-17): \"You receive a Nimh's Curse from Nimh!\" Upstream's final reward names two templates of the item: cq_nimh_s_curse, a carried-only copy (Item_Type 40, level 1, no bonuses) that 0.35b handed alone, and cq_mid_nimh_s_curse, the jewel itself, which 0.36 added. DataQuest hands every template the list names, so the quest gave two. Kept: the realm template, as for the ten doubles of 0.35b (owner 2026-10-11: the period gave one)."
+  },
+  {"name": "Furf's Reward", "table": "DataQuest", "id": 20135,
+   "expect": {"FinalRewardItemTemplates": "cq_fine_sash|cq_mid_fine_sash"},
+   "set": {"FinalRewardItemTemplates": "cq_mid_fine_sash"},
+   "why": "Allakhazam cquest 257 (Wayback capture 2003-12-28): \"You receive a Fine Sash from Furf!\" Upstream's final reward names two templates of the item: cq_fine_sash, a carried-only copy (Item_Type 40, level 1, no bonuses) that 0.35b handed alone, and cq_mid_fine_sash, the belt itself, which 0.36 added. DataQuest hands every template the list names, so the quest gave two. Kept: the realm template, as for the ten doubles of 0.35b (owner 2026-10-11: the period gave one)."
+  },
+  {"name": "Krrrck's Torment", "table": "DataQuest", "id": 20138,
+   "expect": {"FinalRewardItemTemplates": "cq_bulbous_eye|cq_mid_bulbous_eye"},
+   "set": {"FinalRewardItemTemplates": "cq_mid_bulbous_eye"},
+   "why": "Allakhazam cquest 134 (Wayback capture 2003-12-28): \"You receive a Bulbous Eye from Krrrck!\" Upstream's final reward names two templates of the item: cq_bulbous_eye, a carried-only copy (Item_Type 40, level 1, no bonuses) that 0.35b handed alone, and cq_mid_bulbous_eye, the jewel itself, which 0.36 added. DataQuest hands every template the list names, so the quest gave two. Kept: the realm template, as for the ten doubles of 0.35b (owner 2026-10-11: the period gave one)."
+  },
+  {"name": "Zrit-Zrit's Item", "table": "DataQuest", "id": 20139,
+   "expect": {"FinalRewardItemTemplates": "cq_agile_defender|cq_mid_agile_defender"},
+   "set": {"FinalRewardItemTemplates": "cq_mid_agile_defender"},
+   "why": "Allakhazam cquest 271 (Wayback capture 2003-12-28): \"kill Zrit-Zrit ... and find the item of a devoured warrior\". Upstream's final reward names two templates of the item: cq_agile_defender, a carried-only copy (Item_Type 40, level 1, no bonuses) that 0.35b handed alone, and cq_mid_agile_defender, the bracer itself, which 0.36 added. DataQuest hands every template the list names, so the quest gave two. Kept: the realm template, as for the ten doubles of 0.35b (owner 2026-10-11: the period gave one)."
+  },
+  {"name": "Cargila's Blessing", "table": "DataQuest", "id": 20142,
+   "expect": {"StepItemTemplates": "cq_boots_of_stealthy_evasion|", "FinalRewardItemTemplates": "cq_mid_boots_of_stealthy_evasion"},
+   "set": {"StepItemTemplates": "cq_mid_boots_of_stealthy_evasion|", "FinalRewardItemTemplates": ""},
+   "why": "Allakhazam cquest 372 (Wayback capture 2003-10-27): \"After you kill her, she drops Boots of Stealthy Evasion, and then go back to Geiri\". Upstream hands a carried-only copy (cq_boots_of_stealthy_evasion, Item_Type 40, level 1, no bonuses) on the kill (step 1, StepItemTemplates) and the boots itself, cq_mid_boots_of_stealthy_evasion, which 0.36 added, as the final reward, so the quest gave two. Kept: the kill's copy, as the period's monster dropped it, under the realm template; the final reward goes (as Minx Wiley's boots, owner 2026-10-11)."
+  },
+  {"name": "Seek the Moonstone, Champion", "table": "DataQuest", "id": 20243,
+   "expect": {"FinalRewardItemTemplates": "cq_fagan_s_signet_ring|cq_hib_fagan_s_signet_ring"},
+   "set": {"FinalRewardItemTemplates": "cq_hib_fagan_s_signet_ring"},
+   "why": "Allakhazam cquest 116 (Wayback capture 2003-11-27): \"He gives you a ring ... give him the signet ring. You will get the ring back\". Upstream's final reward names two templates of the item: cq_fagan_s_signet_ring, a carried-only copy (Item_Type 40, level 1, no bonuses) that 0.35b handed alone, and cq_hib_fagan_s_signet_ring, the ring itself, which 0.36 added. DataQuest hands every template the list names, so the quest gave two. Kept: the realm template, as for the ten doubles of 0.35b (owner 2026-10-11: the period gave one)."
+  },
+  {"name": "Seek the Moonstone, Enchanter", "table": "DataQuest", "id": 20244,
+   "expect": {"FinalRewardItemTemplates": "cq_fagan_s_signet_ring|cq_hib_fagan_s_signet_ring"},
+   "set": {"FinalRewardItemTemplates": "cq_hib_fagan_s_signet_ring"},
+   "why": "Allakhazam cquest 116 (Wayback capture 2003-11-27): \"He gives you a ring ... give him the signet ring. You will get the ring back\". Upstream's final reward names two templates of the item: cq_fagan_s_signet_ring, a carried-only copy (Item_Type 40, level 1, no bonuses) that 0.35b handed alone, and cq_hib_fagan_s_signet_ring, the ring itself, which 0.36 added. DataQuest hands every template the list names, so the quest gave two. Kept: the realm template, as for the ten doubles of 0.35b (owner 2026-10-11: the period gave one)."
+  },
+  {"name": "Seek the Moonstone, Bard", "table": "DataQuest", "id": 20245,
+   "expect": {"FinalRewardItemTemplates": "cq_fagan_s_signet_ring|cq_hib_fagan_s_signet_ring"},
+   "set": {"FinalRewardItemTemplates": "cq_hib_fagan_s_signet_ring"},
+   "why": "Allakhazam cquest 116 (Wayback capture 2003-11-27): \"He gives you a ring ... give him the signet ring. You will get the ring back\". Upstream's final reward names two templates of the item: cq_fagan_s_signet_ring, a carried-only copy (Item_Type 40, level 1, no bonuses) that 0.35b handed alone, and cq_hib_fagan_s_signet_ring, the ring itself, which 0.36 added. DataQuest hands every template the list names, so the quest gave two. Kept: the realm template, as for the ten doubles of 0.35b (owner 2026-10-11: the period gave one)."
+  },
+  {"name": "Seek the Moonstone, Nightshade", "table": "DataQuest", "id": 20246,
+   "expect": {"FinalRewardItemTemplates": "cq_fagan_s_signet_ring|cq_hib_fagan_s_signet_ring"},
+   "set": {"FinalRewardItemTemplates": "cq_hib_fagan_s_signet_ring"},
+   "why": "Allakhazam cquest 116 (Wayback capture 2003-11-27): \"He gives you a ring ... give him the signet ring. You will get the ring back\". Upstream's final reward names two templates of the item: cq_fagan_s_signet_ring, a carried-only copy (Item_Type 40, level 1, no bonuses) that 0.35b handed alone, and cq_hib_fagan_s_signet_ring, the ring itself, which 0.36 added. DataQuest hands every template the list names, so the quest gave two. Kept: the realm template, as for the ten doubles of 0.35b (owner 2026-10-11: the period gave one)."
+  },
+  {"name": "Protect Huginfell", "table": "DataQuest", "id": 20375,
+   "expect": {"FinalRewardItemTemplates": "cq_helm_of_the_aki|cq_mid_helm_of_the_aki"},
+   "set": {"FinalRewardItemTemplates": "cq_mid_helm_of_the_aki"},
+   "why": "Allakhazam cquest 164 (Wayback capture 2003-12-28): \"You receive a Helm of the Aki from Thegn Aki.\" Upstream's final reward names two templates of the item: cq_helm_of_the_aki, a carried-only copy (Item_Type 40, level 1, no bonuses) that 0.35b handed alone, and cq_mid_helm_of_the_aki, the helm itself, which 0.36 added. DataQuest hands every template the list names, so the quest gave two. Kept: the realm template, as for the ten doubles of 0.35b (owner 2026-10-11: the period gave one)."
+  },
+  {"name": "Taldos' Amulet", "table": "DataQuest", "id": 21053,
+   "expect": {"FinalRewardItemTemplates": "cq_taldos_amulet|cq_mid_taldos_amulet"},
+   "set": {"FinalRewardItemTemplates": "cq_mid_taldos_amulet"},
+   "why": "Allakhazam cquest 125 (Wayback capture 2003-12-28): \"Talk to him and give him the Amulet. He gives it back to you and gives you exp.\" Upstream's final reward names two templates of the item: cq_taldos_amulet, a carried-only copy (Item_Type 40, level 1, no bonuses) that 0.35b handed alone, and cq_mid_taldos_amulet, the amulet itself, which 0.36 added. DataQuest hands every template the list names, so the quest gave two. Kept: the realm template, as for the ten doubles of 0.35b (owner 2026-10-11: the period gave one)."
+  },
+  {"name": "Evenings Empty Blessing", "table": "DataQuest", "id": 21146,
+   "expect": {"FinalRewardItemTemplates": "cq_berbenet_leggings|cq_mid_berbenet_leggings"},
+   "set": {"FinalRewardItemTemplates": "cq_mid_berbenet_leggings"},
+   "why": "Allakhazam cquest 98 (Wayback capture 2003-12-28): \"You receive Berbenet Leggings from Rathis!\" Upstream's final reward names two templates of the item: cq_berbenet_leggings, a carried-only copy (Item_Type 40, level 1, no bonuses) that 0.35b handed alone, and cq_mid_berbenet_leggings, the leggings itself, which 0.36 added. DataQuest hands every template the list names, so the quest gave two. Kept: the realm template, as for the ten doubles of 0.35b (owner 2026-10-11: the period gave one)."
+  },
+  {"name": "Better Off Buried", "table": "DataQuest", "id": 21187,
+   "expect": {"FinalRewardItemTemplates": "cq_shining_crown_of_insanity|cq_mid_shining_crown_of_insanity"},
+   "set": {"FinalRewardItemTemplates": "cq_mid_shining_crown_of_insanity"},
+   "why": "Allakhazam cquest 231 (Wayback capture 2003-12-28): \"You receive a Crown of Insanity from Strykel!\" Upstream's final reward names two templates of the item: cq_shining_crown_of_insanity, a carried-only copy (Item_Type 40, level 1, no bonuses) that 0.35b handed alone, and cq_mid_shining_crown_of_insanity, the helm itself, which 0.36 added. DataQuest hands every template the list names, so the quest gave two. Kept: the realm template, as for the ten doubles of 0.35b (owner 2026-10-11: the period gave one)."
+  },
+  {"name": "Price of Excellence", "table": "DataQuest", "id": 21256,
+   "expect": {"FinalRewardItemTemplates": "cq_hammer_of_black_ice|cq_mid_hammer_of_black_ice"},
+   "set": {"FinalRewardItemTemplates": "cq_mid_hammer_of_black_ice"},
+   "why": "Allakhazam cquest 693 (Wayback capture 2003-11-15): \"Reward: Hammer of Black Ice.\" Upstream's final reward names two templates of the item: cq_hammer_of_black_ice, a carried-only copy (Item_Type 40, level 1, no bonuses) that 0.35b handed alone, and cq_mid_hammer_of_black_ice, the hammer itself, which 0.36 added. DataQuest hands every template the list names, so the quest gave two. Kept: the realm template, as for the ten doubles of 0.35b (owner 2026-10-11: the period gave one)."
+  },
+  {"name": "Impossible Mission", "table": "DataQuest", "id": 21352,
+   "expect": {"StepItemTemplates": "|||||cq_yog_s_iron_fist|", "FinalRewardItemTemplates": "cq_alb_yog_s_iron_fist"},
+   "set": {"StepItemTemplates": "|||||cq_alb_yog_s_iron_fist|", "FinalRewardItemTemplates": ""},
+   "why": "Allakhazam cquest 349 (Wayback capture 2003-10-09): \"Look in your pack nice weapon: Yog's Iron Fist\". Upstream hands a carried-only copy (cq_yog_s_iron_fist, Item_Type 40, level 1, no bonuses) on the kill (step 6, StepItemTemplates) and the weapon itself, cq_alb_yog_s_iron_fist, which 0.36 added, as the final reward, so the quest gave two. Kept: the kill's copy, as the period's monster dropped it, under the realm template; the final reward goes (as Minx Wiley's boots, owner 2026-10-11)."
+  },
+  {"name": "Ogre's Might", "table": "DataQuest", "id": 21371,
+   "expect": {"StepItemTemplates": "|cq_citadel_map||cq_first_key_piece|cq_puzzler_s_globe|cq_channeler_s_orb", "FinalRewardItemTemplates": "cq_alb_puzzler_s_globe|cq_alb_scurceol_s_bracer"},
+   "set": {"StepItemTemplates": "|cq_citadel_map||cq_first_key_piece|cq_alb_puzzler_s_globe|cq_channeler_s_orb", "FinalRewardItemTemplates": ""},
+   "why": "Allakhazam cquest 699 (Wayback capture 2003-08-18), killing Scurceol Hyrde: \"You receive a Puzzler's Globe! You receive a Channeler's Orb! You receive a Scurceol's Bracer!\"; then \"You give the Channeler's Orb to Master Xavier.\" for gold and experience. Upstream hands carried-only copies of the globe (cq_puzzler_s_globe, on the kill, step 5, StepItemTemplates) and of the bracer (cq_scurceol_s_bracer, its grant at step 6 in classic-quests.json), then both again as the final reward (cq_alb_puzzler_s_globe and cq_alb_scurceol_s_bracer, which 0.36 added), so the quest gave two of each. Kept: the kill's globe, as the period's monster dropped it, under the realm template (as Minx Wiley's boots, owner 2026-10-11), and the grant's bracer, which the Scurceol's Bracer entry makes the bracer; the final reward goes."
+  },
+  {"name": "Bria's Savior", "table": "DataQuest", "id": 21406,
+   "expect": {"FinalRewardItemTemplates": "cq_faerie_drake_hide_shield|cq_hib_faerie_drake_hide_shield"},
+   "set": {"FinalRewardItemTemplates": "cq_hib_faerie_drake_hide_shield"},
+   "why": "Allakhazam cquest 177 (Wayback capture 2003-11-27): \"kill him to obtain the shield\". Upstream's final reward names two templates of the item: cq_faerie_drake_hide_shield, a carried-only copy (Item_Type 40, level 1, no bonuses) that 0.35b handed alone, and cq_hib_faerie_drake_hide_shield, the shield itself, which 0.36 added. DataQuest hands every template the list names, so the quest gave two. Kept: the realm template, as for the ten doubles of 0.35b (owner 2026-10-11: the period gave one)."
+  },
+  {"name": "Black Plague", "table": "DataQuest", "id": 21425,
+   "expect": {"StepItemTemplates": "||cq_sealed_letter_for_keriann|cq_note_to_tiarnan|||cq_worm_fungus;60||cq_unstoppered_wondrous_potion|cq_stoppered_wondrous_potion", "FinalRewardItemTemplates": "cq_hib_unstoppered_wondrous_potion_hib"},
+   "set": {"StepItemTemplates": "||cq_sealed_letter_for_keriann|cq_note_to_tiarnan|||cq_worm_fungus;60||cq_hib_unstoppered_wondrous_potion_hib|cq_stoppered_wondrous_potion", "FinalRewardItemTemplates": ""},
+   "why": "Allakhazam cquest 1792 (Wayback capture 2003-11-27): \"After killing him, you get two items, a [Stoppered Wondrous Potion] and an Unstoppered Wondrous Potion]. ... You may keep the Unstoppered Wondrous Potion for yourself.\" Upstream hands a carried-only copy (cq_unstoppered_wondrous_potion, Item_Type 40, level 1, no bonuses) on the kill (step 9, StepItemTemplates) and the potion itself, cq_hib_unstoppered_wondrous_potion_hib, which 0.36 added, as the final reward, so the quest gave two. Kept: the kill's copy, as the period's monster dropped it, under the realm template; the final reward goes (as Minx Wiley's boots, owner 2026-10-11)."
+  },
+  {"name": "Morana's Tunic", "table": "DataQuest", "id": 21466,
+   "expect": {"FinalRewardItemTemplates": "cq_dancing_silk|cq_mid_dancing_silk"},
+   "set": {"FinalRewardItemTemplates": "cq_mid_dancing_silk"},
+   "why": "Allakhazam cquest 119 (Wayback capture 2003-12-28): \"You receive a Dancing Silk from Morana!\" Upstream's final reward names two templates of the item: cq_dancing_silk, a carried-only copy (Item_Type 40, level 1, no bonuses) that 0.35b handed alone, and cq_mid_dancing_silk, the tunic itself, which 0.36 added. DataQuest hands every template the list names, so the quest gave two. Kept: the realm template, as for the ten doubles of 0.35b (owner 2026-10-11: the period gave one)."
+  },
+  {"name": "Rock Imps", "table": "DataQuest", "id": 20512,
+   "expect": {"FinalRewardItemTemplates": "cq_alb_yellow_quartz"},
+   "set": {"FinalRewardItemTemplates": ""},
+   "why": "Allakhazam cquest 4 (Wayback capture 2003-10-26): kill rock imps, and for every part \"you get a gem\"; \"You receive a yellow quartz from Crep Pew!\" Upstream's trade (classic-quests.json) gives that quartz for a rock imp part, then the final reward handed a second one, cq_alb_yellow_quartz, which 0.36 added. The trade's own output is kept, as in Zombie Problem (owner 2026-10-11); the final reward goes."
+  },
+  {"name": "Strange Bedfellows", "table": "DataQuest", "id": 20975,
+   "expect": {"FinalRewardItemTemplates": "cq_hib_perfect_life_stone"},
+   "set": {"FinalRewardItemTemplates": ""},
+   "why": "Allakhazam cquest 2007, Strange Bedfellows (Hib) (Wayback capture 2004-04-19): \"Deliver Caisha's soul stone to Mystemas and he will reward you with a Perfect Life Stone (Necklace item with 118hp).\" \"Then report back to Waljan in TNN and give him the diplomatic documents.\" Midgard's version (cquest 1801, capture 2003-12-28): \"Return a gem to Mystenas and recieve a jewel imbued with 118 hits and large heal charge.\" Mystemas's hand-over is upstream's grant at step 8 (classic-quests.json, cq_perfect_life_stone); Waljan's final reward handed the necklace again, cq_hib_perfect_life_stone, which 0.36 added. The grant is kept: the Perfect Life Stone entry makes its template the necklace, and the final reward goes (as Zombie Problem keeps its trade's stone, owner 2026-10-11)."
+  },
+  {"name": "Perfect Life Stone", "table": "ItemTemplate", "id": "cq_perfect_life_stone",
+   "expect": {"Level": 1, "Object_Type": 0, "Item_Type": 40, "Model": 116, "Bonus1": 0, "Bonus1Type": 0, "SpellID": 0, "Charges": 0, "MaxCharges": 0},
+   "set": {"Level": 47, "Object_Type": 41, "Item_Type": 29, "Model": 623, "Bonus1": 118, "Bonus1Type": 10, "SpellID": 33033, "Charges": 1, "MaxCharges": 1},
+   "why": "The Perfect Life Stone Mystemas gives in \"Strange Bedfellows\" (Hibernia, level 45), which upstream's grant at step 8 hands: \"he will reward you with a Perfect Life Stone (Necklace item with 118hp)\" (Allakhazam cquest 2007, Wayback capture 2004-04-19). Upstream's template is a carried-only copy (Item_Type 40, level 1, no bonuses); it takes the values of cq_hib_perfect_life_stone, the necklace 0.36 added, which the quest no longer hands (Strange Bedfellows entry). A copy players already carry becomes the necklace too."
+  },
+  {"name": "Darksong's Dirge, Healer", "table": "DataQuest", "id": 21021,
+   "expect": {"FinalRewardItemTemplates": "cq_mid_pious_ring"},
+   "set": {"FinalRewardItemTemplates": ""},
+   "why": "Allakhazam cquest 71 (Wayback capture 2003-11-15): \"I gave the lock of hair to Lilib ... I was given a ring and instructions to return to the trainer ... On speaking to the trainer I was given experience and told to keep the Pious Ring.\" Lilib's ring is upstream's grant at step 3 (classic-quests.json, cq_pious_ring); the trainer's final reward handed a second ring, cq_mid_pious_ring, which 0.36 added. The grant is kept: the Pious Ring entry makes its template the ring, and the final reward goes (as Zombie Problem keeps its trade's stone, owner 2026-10-11)."
+  },
+  {"name": "Darksong's Dirge, Shaman", "table": "DataQuest", "id": 21022,
+   "expect": {"FinalRewardItemTemplates": "cq_mid_pious_ring"},
+   "set": {"FinalRewardItemTemplates": ""},
+   "why": "Allakhazam cquest 71 (Wayback capture 2003-11-15): \"I gave the lock of hair to Lilib ... I was given a ring and instructions to return to the trainer ... On speaking to the trainer I was given experience and told to keep the Pious Ring.\" Lilib's ring is upstream's grant at step 3 (classic-quests.json, cq_pious_ring); the trainer's final reward handed a second ring, cq_mid_pious_ring, which 0.36 added. The grant is kept: the Pious Ring entry makes its template the ring, and the final reward goes (as Zombie Problem keeps its trade's stone, owner 2026-10-11)."
+  },
+  {"name": "Pious Ring", "table": "ItemTemplate", "id": "cq_pious_ring",
+   "expect": {"Level": 1, "Object_Type": 0, "Item_Type": 40, "Weight": 1, "Model": 1888, "Bonus": 0, "Bonus1": 0, "Bonus2": 0, "Bonus3": 0, "Bonus4": 0, "Bonus1Type": 0, "Bonus2Type": 0, "Bonus3Type": 0, "Bonus4Type": 0, "Realm": 0, "AllowedClasses": "0"},
+   "set": {"Level": 11, "Object_Type": 41, "Item_Type": 35, "Weight": 0, "Model": 103, "Bonus": 5, "Bonus1": 4, "Bonus2": 6, "Bonus3": 1, "Bonus4": 1, "Bonus1Type": 2, "Bonus2Type": 6, "Bonus3Type": 13, "Bonus4Type": 9, "Realm": 2, "AllowedClasses": "26;28"},
+   "why": "The Pious Ring Lilib gives in \"Darksong's Dirge\" (Healer and Shaman, level 11), which upstream's grant at step 3 hands: \"I gave the lock of hair to Lilib ... I was given a ring\" (Allakhazam cquest 71, Wayback capture 2003-11-15). Upstream's template is a carried-only copy (Item_Type 40, level 1, no bonuses); it takes the values of cq_mid_pious_ring, the ring 0.36 added, which the quest no longer hands (Darksong's Dirge entries). A copy players already carry becomes the ring too."
+  },
+  {"name": "Breaking the Blade", "table": "DataQuest", "id": 21263,
+   "expect": {"StepItemTemplates": "|||cq_vigdis_s_protector||||"},
+   "set": {"StepItemTemplates": "|||||||"},
+   "why": "Allakhazam cquest 1802, Breaking the Blade (Mid) (Wayback capture 2003-12-28): \"4)You are then told to go kill Prince Abdin. 5)Return to Mysteras. 6) Receive a reward (belt).\"; the rewards it lists (capture 2005-04-28) are Vigdis's Protector and Vigdis's Singing Protector. Upstream hands a carried-only copy of one belt (cq_vigdis_s_protector, Item_Type 40) when Mystemas is spoken to at step 4, and its choice at step 8 (classic-quests.json) hands the belt the player picks, Vigdis's Protector, Singing Protector or Heroic Protector (realm templates), so a player who picked Vigdis's Protector got two. Kept: the choice, the realm templates and the period's class versions; the copy at step 4 goes. The belt now comes at the quest's end, not after Prince Abdin."
+  },
+  {"name": "Dark Places of the Soul", "table": "DataQuest", "id": 21264,
+   "expect": {"FinalRewardItemTemplates": "cq_mid_ring_of_spun_silk|cq_mid_herbalist_s_hauberk_of_ivy"},
+   "set": {"FinalRewardItemTemplates": ""},
+   "why": "Allakhazam cquest 713 (Wayback capture 2003-12-28): \"Return to Gna Faste and hand head to Jytal. You will receive the Ring of Spun Silk\" and \"Take the bowl to Besje in Huginfell. You will get a Herbalists' Hauberk of Ivy\". Those are upstream's grants at steps 6 (Jytal) and 17 (Besje) in classic-quests.json; the final reward handed both again, cq_mid_ring_of_spun_silk and cq_mid_herbalist_s_hauberk_of_ivy, which 0.36 added. The grants are kept: the Ring of Spun Silk and Herbalist's Hauberk of Ivy entries make their templates the items, and the final reward goes (as Zombie Problem keeps its trade's stone, owner 2026-10-11)."
+  },
+  {"name": "Ring of Spun Silk", "table": "ItemTemplate", "id": "cq_ring_of_spun_silk",
+   "expect": {"Level": 1, "Object_Type": 0, "Item_Type": 40, "Weight": 1, "Model": 1888, "Bonus": 0, "Bonus1": 0, "Bonus2": 0, "Bonus3": 0, "Bonus4": 0, "Bonus1Type": 0, "Bonus2Type": 0, "Bonus3Type": 0, "Bonus4Type": 0, "Realm": 0},
+   "set": {"Level": 48, "Object_Type": 41, "Item_Type": 35, "Weight": 5, "Model": 103, "Bonus": 35, "Bonus1": 3, "Bonus2": 21, "Bonus3": 10, "Bonus4": 10, "Bonus1Type": 3, "Bonus2Type": 10, "Bonus3Type": 13, "Bonus4Type": 16, "Realm": 2},
+   "why": "The Ring of Spun Silk Jytal gives in \"Dark Places of the Soul\" (Midgard, level 49), which upstream's grant at step 6 hands: \"hand head to Jytal. You will receive the Ring of Spun Silk\" (Allakhazam cquest 713, Wayback capture 2003-12-28). Upstream's template is a carried-only copy (Item_Type 40, level 1, no bonuses); it takes the values of cq_mid_ring_of_spun_silk, the ring 0.36 added, which the quest no longer hands (Dark Places of the Soul entry). A copy players already carry becomes the ring too."
+  },
+  {"name": "Herbalist's Hauberk of Ivy", "table": "ItemTemplate", "id": "cq_herbalist_s_hauberk_of_ivy",
+   "expect": {"Level": 1, "DPS_AF": 0, "SPD_ABS": 0, "Object_Type": 0, "Item_Type": 40, "Weight": 1, "Model": 2226, "Bonus": 0, "Bonus1": 0, "Bonus2": 0, "Bonus3": 0, "Bonus4": 0, "Bonus1Type": 0, "Bonus2Type": 0, "Bonus3Type": 0, "Bonus4Type": 0, "Realm": 0},
+   "set": {"Level": 50, "DPS_AF": 80, "SPD_ABS": 27, "Object_Type": 35, "Item_Type": 25, "Weight": 55, "Model": 235, "Bonus": 30, "Bonus1": 7, "Bonus2": 7, "Bonus3": 10, "Bonus4": 10, "Bonus1Type": 1, "Bonus2Type": 3, "Bonus3Type": 18, "Bonus4Type": 15, "Realm": 2},
+   "why": "The Herbalist's Hauberk of Ivy Besje gives in \"Dark Places of the Soul\" (Midgard, level 49), which upstream's grant at step 17 hands: \"Take the bowl to Besje in Huginfell. You will get a Herbalists' Hauberk of Ivy\" (Allakhazam cquest 713, Wayback capture 2003-12-28). Upstream's template is a carried-only copy (Item_Type 40, level 1, no bonuses); it takes the values of cq_mid_herbalist_s_hauberk_of_ivy, the hauberk 0.36 added, which the quest no longer hands (Dark Places of the Soul entry). A copy players already carry becomes the hauberk too."
+  },
+  {"name": "Scurceol's Bracer", "table": "ItemTemplate", "id": "cq_scurceol_s_bracer",
+   "expect": {"Level": 1, "Object_Type": 0, "Item_Type": 40, "Weight": 1, "Bonus": 0, "Bonus1": 0, "Bonus2": 0, "Bonus3": 0, "Bonus1Type": 0, "Bonus2Type": 0, "Bonus3Type": 0, "Realm": 0, "BonusLevel": 0},
+   "set": {"Level": 50, "Object_Type": 41, "Item_Type": 33, "Weight": 7, "Bonus": 25, "Bonus1": 10, "Bonus2": 10, "Bonus3": 30, "Bonus1Type": 13, "Bonus2Type": 17, "Bonus3Type": 10, "Realm": 1, "BonusLevel": 30},
+   "why": "The bracer Scurceol Hyrde drops in \"Ogre's Might\" (Albion, level 49): \"You receive a Puzzler's Globe! You receive a Channeler's Orb! You receive a Scurceol's Bracer!\" (Allakhazam cquest 699, Wayback capture 2003-08-18), which upstream's grant at step 6 hands after the kill. Upstream's template is a carried-only copy (Item_Type 40, level 1, no bonuses); it takes the values of cq_alb_scurceol_s_bracer, the bracer 0.36 added, which the quest no longer hands (Ogre's Might entry). A copy players already carry becomes the bracer too."
+  },
+  {"name": "Brack: Rollo's Story", "table": "DataQuest", "id": 21465,
+   "expect": {"FinalRewardItemTemplates": "cq_mid_brack_s_hammer"},
+   "set": {"FinalRewardItemTemplates": ""},
+   "why": "Allakhazam cquest 114 (Wayback capture 2003-12-28): Ugnof Toestubber \"drops a Brack's {something}. You have to return to Haggerfel and talk to Hilde. She says keep the hammer\"; \"Giving the deed to the trainer finishes the quest and gives more xp.\" Hilde's hand-back is upstream's grant at step 3 (classic-quests.json, cq_brack_s_hammer); the final reward handed a second hammer, cq_mid_brack_s_hammer, which 0.36 added. The grant is kept: the Brack's Hammer entry makes its template the hammer, and the final reward goes (as Zombie Problem keeps its trade's stone, owner 2026-10-11)."
+  },
+  {"name": "Brack's Hammer", "table": "ItemTemplate", "id": "cq_brack_s_hammer",
+   "expect": {"Level": 1, "DPS_AF": 0, "SPD_ABS": 0, "Type_Damage": 0, "Object_Type": 0, "Item_Type": 40, "Weight": 1, "Model": 510, "Bonus": 0, "Bonus1": 0, "Bonus2": 0, "Bonus3": 0, "Bonus4": 0, "Bonus1Type": 0, "Bonus2Type": 0, "Bonus3Type": 0, "Bonus4Type": 0, "Realm": 0, "Description": null},
+   "set": {"Level": 16, "DPS_AF": 60, "SPD_ABS": 30, "Type_Damage": 1, "Object_Type": 12, "Item_Type": 10, "Weight": 24, "Model": 320, "Bonus": 30, "Bonus1": 6, "Bonus2": 6, "Bonus3": 6, "Bonus4": 16, "Bonus1Type": 3, "Bonus2Type": 2, "Bonus3Type": 6, "Bonus4Type": 10, "Realm": 2, "Description": "Brack's own hammer, worn smooth from years of use."},
+   "why": "The hammer of \"Brack: Rollo's Story\" (dwarves, level 16): Ugnof Toestubber drops it, the player takes it to Hilde, and \"She says keep the hammer\" (Allakhazam cquest 114, Wayback capture 2003-12-28); upstream's step 2 hands this template for the delivery and its grant at step 3 hands it back. Upstream's template is a carried-only copy (Item_Type 40, level 1, no bonuses); it takes the values of cq_mid_brack_s_hammer, the hammer 0.36 added, which the quest no longer hands (Brack: Rollo's Story entry). A copy players already carry becomes the hammer too."
+  },
   {"name": "Lord of Deceit 43, Infiltrator", "table": "DataQuest", "id": 20435,
    "expect": {"StartName": "Magus Agyfen"},
    "set": {"StartName": "Master Eadig"},

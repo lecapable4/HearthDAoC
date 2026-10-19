@@ -1,56 +1,90 @@
-OFFLINE DAOC 0.35 "CLAUDE TAKEOVER III" - VERIFICATION
+OFFLINE DAOC 0.37 / 0.37b / 0.37c - VERIFICATION
+
+0.37 is the first version shipped as an update to the 0.36 base. The game
+update (both editions) and the new-client update were made by
+source/tools/make_patch.py from two clean 0.37 reference packages, which are
+built exactly like a full release but never uploaded. Every test below used
+the real downloader zips with the release assets read from disk instead of
+GitHub.
 
 Source and builds
-- Server (Release build): 2,725 automated tests passed, 0 failed.
-- Launcher: 105 automated tests passed, 0 failed.
-- The release server is built from the development server's source plus the
-  edition switch.
+- Server (Release build): 2,790 automated tests passed, 0 failed.
+- Launcher: 107 automated tests passed, 0 failed.
+- The release server is built from the development server's newest source
+  plus the edition switch: the two differ only in the four files that add
+  classes / enable_sluaghbinder. 0.37 and 0.37b run the same server program.
+- The new client is the current development client (launcher shows VERSION
+  0.37c, window "Offline DAoC Rebuilt v0.37c").
 
-Package checks (build_release_035.py)
-- The runtime was copied 1:1 from a snapshot of the 0.35 development install:
-  31,915 files, each hashed. Logs, backups, accounts and run-state files are
-  excluded.
-- The world database passes SQLite quick_check. It has the same tables as 0.34
-  and no accounts, characters, bots, inventories, houses or auctions. Keeps and
-  relics are at their original realms. GM is off, XP is 1x, the bot target is 0
-  and automatic account creation is on.
-- The 0.35 edition database has enable_sluaghbinder = False, with the
-  Sluaghbinder trainer, wisp and class skill rows removed.
-- The 0.35 edition game.dll is the normal v0.32 client with the bounty marker,
-  quest marker range, classic war map and Quest Journal button patches applied.
-  Compared byte for byte with the 0.35b client, the only differences are the
-  two Sluaghbinder patches (class label and race links) and the file checksum.
+The reference packages (build_release_037.py, build_newclient_037.py)
+- The world database passes SQLite quick_check and has no accounts,
+  characters, bots, guilds other than the three starter guilds, inventories,
+  houses or auctions. All 81 keeps have their original owner and level, all
+  421 keep doors are whole and relics are at home. GM is off, XP is 1x, the
+  bot target is 0 and automatic account creation is on. The 85 Darkness Falls
+  raid spawns, the 162 quest kill respawns and the relic pad (8) are checked.
+- The packages were scanned for developer or test accounts, the test account
+  file, DXVK and diagnostics files: none.
+- Smoke test of both editions (smoke_release_037.py): the server started with
+  the bundled .NET only, a login through connect.exe created a fresh account
+  (enable_sluaghbinder True in 0.37b, False in 0.37), and it shut down
+  cleanly.
 
-End-to-end smoke test (smoke_release_035.py), both editions
-- The launcher created the install's own account.txt.
-- The server started using only the bundled .NET runtime.
-- A login through connect.exe (as ENTER REALM does) made the server create a
-  fresh 'offline' account at player level.
-- The server shut down cleanly.
+The update
+- Game update: 203 files added or replaced, the three 0.36 edition files
+  removed, 38 MB to download. New-client update: 1,932 files, 1.67 GB in two
+  parts. game.dll does not change.
+- World data, per edition, as row statements that change or remove a row only
+  if it still has its released 0.36 values: 3 quests, 22 items, 4 new and 238
+  changed monsters, 1 new path with 11 points, and the new bot guild table
+  (empty). Save tables are never touched. make_patch.py applies each update
+  to the released 0.36 world and checks the result equals the clean 0.37
+  world.
 
-Progress transfer tests (test_release_import_035.py, real saves, copies only)
-- The owner's development save (3 characters, 6,000 bots, 107,872 inventory
-  entries) into 0.35b: exact counts for every saved table, and the old login
-  carried over. The 0.35b server then started on that save in 16 seconds and
-  the imported account logged in through connect.exe.
-- The same save into 0.35: refused, because it has a Sluaghbinder character.
-  Nothing was changed.
-- A played 0.34b save (3 characters, 6,000 bots, 73,527 inventory entries)
-  into 0.35b: exact counts. Into 0.35: refused (Sluaghbinder character).
-- A played 0.34 save (5,873 bots, 177,738 inventory entries) into 0.35 and
-  into 0.35b: exact counts.
-- A played 0.33b save (6,000 bots, 181,042 inventory entries) into 0.35b:
-  exact counts. Into 0.35: refused until the player confirms; after
-  confirmation the 127 Sluaghbinder bots and their items stayed behind and the
-  other bots transferred.
-- A played 0.33 save (5,873 bots) into 0.35: exact counts.
-- A save with no account.txt: the account was kept, with a new password stored
-  in the server's own format.
-- A clean 0.34b install (no account): the new install keeps its own.
+Update and install tests (the downloader zips, a new folder for each test)
+- New install 0.37b, 0.37 and 0.37c: each downloaded the 0.36 base, updated
+  it and then matched a fresh 0.37 package file for file (37,418 files; with
+  the new client 91,907 files), with world data equal to the clean 0.37 world.
+  0.37 had EDITION.txt "Offline DAoC 0.37 - ...".
+- Update a clean 0.36b with the 0.37b downloader, and a clean 0.36 with the
+  0.37b downloader: each became the same edition in 0.37 (0.37b and 0.37) and
+  matched file for file. Each update took about 15 seconds.
+- A played 0.36b: the development save (4 accounts, 7 characters, 8,880 bots,
+  252,238 inventory items) imported into a 0.36b, then updated: every file
+  matched, every save count was unchanged, the player's own bot target
+  stayed as set, and the 0.37b server then started on that save (30 seconds)
+  and the account logged in.
+- Run again on an updated game: "already installed", nothing downloaded.
+- A changed README.md in a 0.36b: the update listed it, changed nothing (the
+  changed file was kept as it was), installed a fresh 0.37b in a new folder
+  and brought the progress over with the progress transfer tool.
+- Rollback: a failure forced half way through the files of a 0.36 update put
+  every file back and restored the world data to its exact 0.36 content
+  (all 123 tables compared); the same update then ran normally.
+- The 0.37c downloader on a 0.37 game without the new client added the new
+  client and updated it.
+- Two clients on an updated 0.37c, through the real launchers (START SERVER,
+  RUNNING, ENTER REALM pressed by UI automation): the new client's launcher
+  showed VERSION 0.37c, the server created the account and the new client
+  logged in; the original client's launcher showed VERSION 0.37b and logged
+  in to the same account. Both used the game's one runtime\account.txt.
+
+Progress transfer tests (test_release_import_037.py, real saves, copies only)
+- The development save into 0.37b: exact counts for every saved table, the
+  old login carried over, and the 0.37b server started on it (26 seconds) and
+  the account logged in. Into 0.37: refused (223 Sluaghbinder bots); nothing
+  was changed.
+- Played 0.36b, 0.35b, 0.34b saves into 0.37b and played 0.35 and 0.33 saves
+  into 0.37: exact counts. A 0.33b save into 0.37: refused until confirmed,
+  then the 127 Sluaghbinder bots stayed behind and the other 5,873 bots
+  transferred. A save with no account.txt: the account was kept with a new
+  password in the server's own format.
 - In every case the old folder was unchanged, and every import left XP at 1x,
   GM off and every bot offline.
 
 Not claimed
-These are automated and package checks. Long live bot runs of the newest bot
-changes are not verified here, and not every Darkness Falls boss has been
-cleared by bots yet (see the Known issues discussion).
+These are automated and package checks, and the short logins above. Long
+live bot runs of the newest bot changes are not verified here, and some raid
+encounters are still being worked on (see the Known issues discussion). The
+new client is in BETA: report anything that differs from the original
+client in the Bug reports discussion.
