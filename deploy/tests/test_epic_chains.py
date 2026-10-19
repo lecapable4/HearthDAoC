@@ -36,6 +36,12 @@ LEVEL_11_IDS = [20157, 20155, 20156, 20159, 20158]  # "Entry Into Tomorrow", reb
 PERIOD_IDS = [21304, 21305, 21306, 21307, 21308, 21309, 21489, 21490, 21491, 21492, 21493, 21494,
               20476, 20477, 20478, 20479, 20480, 20481, 21295, 21296, 21297, 21298, 21299,
               20467, 20468, 20469, 20470, 20471, 20472]
+# Upstream's entries the fork lays the owner's Guild of Shadows XP shares onto (and level 43's stage-3 greeting, which
+# it drops; owner 2026-10-18, #138, deploy/tests/test_gos_xp_shares.py): levels 7, 15, 20, 40, 43 and 48 and the
+# closed Supply Runs. The Replace entries carry their own.
+SHARE_IDS = [21500, 21498, 21499, 20497, 21501, 21324, 21322, 21323, 21325, 20188, 20186, 20187, 20190, 20189,
+             20455, 20453, 20454, 20457, 20456, 20171, 20169, 20170, 20173, 20172, 20435, 20433, 20434, 20437, 20436,
+             21482, 21480, 21481, 21484, 21483]
 
 
 def read(path):
@@ -52,7 +58,8 @@ class ExtraQuestFileTests(unittest.TestCase):
             self.extra = json.load(f)
 
     def test_it_marks_the_level_50_stages_and_lord_elidyn(self):
-        self.assertEqual(sorted(int(k) for k in self.extra["Quests"]), sorted(LEVEL_50_IDS + LEVEL_11_IDS + PERIOD_IDS))
+        self.assertEqual(sorted(int(k) for k in self.extra["Quests"]),
+                         sorted(LEVEL_50_IDS + LEVEL_11_IDS + PERIOD_IDS + SHARE_IDS))
         for qid in LEVEL_50_IDS:
             quest = self.extra["Quests"][str(qid)]
             self.assertNotIn("Replace", quest)  # upstream has no entry for them
@@ -66,10 +73,11 @@ class ExtraQuestFileTests(unittest.TestCase):
     def test_level_11_replaces_upstreams_entry_for_the_period_story(self):
         # Upstream's six stages (the same for all five IDs), with three changes: stage 2's marker on Frund at the red
         # dwarf camp (where mob_fixes.json moves him), no Crediac issued at stage 4 (upstream's "Agisthil" issued one in
-        # its old design), and Omis hands another Crediac at stage 6 to a player who lost it.
+        # its old design), and Omis hands another Crediac at stage 6 to a player who lost it. And the owner's XP share,
+        # a quarter of the player's level at the last stage (#138).
         frund = next(e for e in mob_fixes.load_data()["fixes"] if e["name"] == "Frund" and e["table"] == "Mob")
         marker = lambda x, y, z: {"Region": 1, "X": x, "Y": y, "Z": z}  # noqa: E731
-        expected = {"Replace": True, "Steps": [
+        expected = {"Replace": True, "XpShares": [0.0, 0.0, 0.0, 0.0, 0.0, 0.25], "Steps": [
             None,
             {"Marker": marker(536186, 490780, 3133)},  # Captain Dillon
             {"Marker": {"Region": frund["expect"]["Region"], **frund["set"]}},  # Frund
@@ -643,7 +651,8 @@ class EpicWorldTests(unittest.TestCase):
     def test_the_extra_quest_file_names_the_level_50_quests_and_lord_elidyn(self):
         with open(EXTRA_QUESTS, encoding="utf-8") as f:
             extra = json.load(f)
-        added = sorted(int(k) for k, quest in extra["Quests"].items() if not quest.get("Replace"))
+        added = sorted(int(k) for k, quest in extra["Quests"].items()
+                       if not quest.get("Replace") and int(k) not in SHARE_IDS)
         self.assertEqual(added, sorted(self.data["steps"]["50"]["ids"]))
         replaced = sorted(int(k) for k, quest in extra["Quests"].items() if quest.get("Replace"))  # the rebuilt level 11
         self.assertEqual(replaced, sorted([qid for qid in self.data["steps"]["11"]["ids"] if qid is not None] + PERIOD_IDS))
