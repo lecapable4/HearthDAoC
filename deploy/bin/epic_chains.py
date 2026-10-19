@@ -22,8 +22,10 @@ epic_chains_data.json, beside this file.
    values or the higher fixed XP 0.36 gave six steps ("pay_guard_036").
 5. Necromancer 11: one reward for each version.
 6. Texts: the Reaver's level-40 list without the two weapons that don't exist; the level-30 speech's source tags.
-7. Items: the missing rewards and level-40 weapons, inserted where missing; fixes to existing rows (the level-50
-   armour, upstream's broken rewards, every Guild of Shadows reward locked to its class).
+7. Items: the missing rewards and level-40 weapons, inserted where missing. Upstream 0.36 added all 41 with its own
+   stats; the fork's replace a row of upstream's while it holds upstream's 0.36 values ("item_guards_036"; owner
+   2026-10-18), keeping its ItemTemplate_ID, and a row that holds neither those nor the file's is named. Fixes to
+   existing rows (the level-50 armour, upstream's broken rewards, every Guild of Shadows reward locked to its class).
 8. The five level-50 quests ("Lord of Deceit", given by Captain Rhodri after the class's 48), and Lord Elidyn's camp
    copied back from upstream's archive (offline_classic165_removed_mobs), Mob_IDs kept.
 9. Old Shadows_50 progress: a finished one becomes the character's finished level-50 step (no second armour set),
@@ -43,6 +45,8 @@ SAVEPOINT = "epic_chains"
 NEEDED_TABLES = ("DataQuest", "ItemTemplate", "Mob", "offline_classic165_removed_mobs", "Quest",
                  "CharacterXDataQuest", "DOLCharacters", "Inventory")
 NOT_APPLIED = "Epic chains: not applied ({}); the quests stay as upstream ships them"
+KEPT_ITEMS = ("Epic chains: Guild of Shadows items left as the world has them (they hold neither upstream's 0.36 "
+              "values nor this file's): {}")
 CLASSIC = "DOL.GS.Quests.ClassicQuestStep"
 REALM_NAMES = {1: "Albion", 2: "Midgard", 3: "Hibernia"}  # eRealm's names, as AccountVaultKeeper.GetOwner writes them
 ARCHIVE = "offline_classic165_removed_mobs"
@@ -79,7 +83,7 @@ def apply(conn, now=None, data=None):
         conn.execute(f"RELEASE {SAVEPOINT}")
         return [NOT_APPLIED.format(str(e) or type(e).__name__)]
     conn.execute(f"RELEASE {SAVEPOINT}")
-    return [summary(counts)]
+    return [summary(counts)] + ([KEPT_ITEMS.format(", ".join(counts["kept"]))] if counts.get("kept") else [])
 
 
 def summary(counts):
@@ -87,8 +91,8 @@ def summary(counts):
     c = lambda key: counts.get(key, 0)  # noqa: E731
     return (f"Epic chains: Guild of Shadows {c('links')} links, {c('pay')} XP and coin, {c('closed')} Supply Runs "
             f"closed, {c('rewards')} rewards and {c('texts')} texts fixed; {c('pinned')} other links; "
-            f"{c('items')} items added, {c('fixes')} item fixes; {c('level50')} level-50 quests, "
-            f"Lord Elidyn's camp {c('camp')} restored; Shadows_50: {c('carried')} finished carried, "
+            f"{c('items')} items added, {c('replaced')} replaced, {c('fixes')} item fixes; {c('level50')} level-50 "
+            f"quests, Lord Elidyn's camp {c('camp')} restored; Shadows_50: {c('carried')} finished carried, "
             f"{c('removed')} removed, {c('vests')} epic vests recharged")
 
 
@@ -227,10 +231,29 @@ def _item_columns(conn, names):
     return names
 
 
+def _holds(conn, id_nb, values):
+    """Whether the item's row holds these {column: value}, compared NULL-safely (SQL IS) with the columns' affinity."""
+    where = " AND ".join(f'"{c}" IS ?' for c in values)
+    found = conn.execute(f"SELECT 1 FROM ItemTemplate WHERE Id_nb=? AND {where}", (id_nb, *values.values())).fetchone()
+    return found is not None
+
+
 def _items(conn, now, data):
-    added = 0
+    added = replaced = 0
+    kept = []
     for item in data["items"]:
         if conn.execute("SELECT 1 FROM ItemTemplate WHERE Id_nb=?", (item["Id_nb"],)).fetchone():
+            ours = {c: item[c] for c in _item_columns(conn, [c for c in item if c != "Id_nb"])}
+            upstream = data.get("item_guards_036", {}).get(item["Id_nb"])  # where upstream 0.36's row differs
+            if _holds(conn, item["Id_nb"], ours):
+                pass  # the file's already
+            elif upstream and _holds(conn, item["Id_nb"], dict(ours, **upstream)):
+                sets = ", ".join(f'"{c}"=?' for c in ours)  # the entry's columns; ItemTemplate_ID stays upstream's
+                conn.execute(f"UPDATE ItemTemplate SET {sets}, LastTimeRowUpdated=? WHERE Id_nb=?",
+                             (*ours.values(), now, item["Id_nb"]))
+                replaced += 1
+            else:
+                kept.append(item["Id_nb"])
             continue
         # A stable ItemTemplate_ID, so the same item has the same row ID in every world.
         row = dict(item, ItemTemplate_ID=str(uuid.uuid5(uuid.NAMESPACE_URL, "hearthdaoc:item:" + item["Id_nb"])),
@@ -248,7 +271,7 @@ def _items(conn, now, data):
         conn.execute(f"UPDATE ItemTemplate SET {sets}, LastTimeRowUpdated=? WHERE Id_nb=?",
                      (*fix["set"].values(), now, fix["Id_nb"]))
         fixed += 1
-    return {"items": added, "fixes": fixed}
+    return {"items": added, "replaced": replaced, "kept": kept, "fixes": fixed}
 
 
 def _level50(conn, now, data):

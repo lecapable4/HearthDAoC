@@ -224,10 +224,11 @@ class EpicSourceTests(unittest.TestCase):
 
 CLASSIC = "DOL.GS.Quests.ClassicQuestStep"
 NOW = "2026-10-09 12:00:00"
-# The clean 0.35 world's summary line. Tasks 6 and 7 update it as they add steps.
+# The clean 0.37b world's summary line: upstream 0.36 added the 41 items itself, with its own stats (owner answer 2.a,
+# 2026-10-18: the fork's replace them).
 SUMMARY = ("Epic chains: Guild of Shadows 60 links, 60 XP and coin, 4 Supply Runs closed, 2 rewards and 7 texts fixed; "
-           "87 other links; 41 items added, 36 item fixes; 5 level-50 quests, Lord Elidyn's camp 17 restored; "
-           "Shadows_50: 0 finished carried, 0 removed, 0 epic vests recharged")
+           "87 other links; 0 items added, 41 replaced, 36 item fixes; 5 level-50 quests, Lord Elidyn's camp 17 "
+           "restored; Shadows_50: 0 finished carried, 0 removed, 0 epic vests recharged")
 # Every other line's steps pinned on the clean 0.35 world: (name, level) -> rows (spec 2.5).
 EXPECTED_PINS = {
     ("A War of Old", 20): 2, ("A War of Old", 25): 2, ("A War of Old", 30): 2,
@@ -330,6 +331,17 @@ class EpicDataTests(unittest.TestCase):
         self.assertEqual(steps["50"]["ids"], LEVEL_50_IDS)
         self.assertEqual([i is None for i in steps["7closed"]["ids"]], [False, False, False, True, False])
 
+    def test_every_item_has_its_0_36_guard(self):
+        # Upstream 0.36 added all 41 items with its own stats; the fork's replace them (owner answer 2.a, 2026-10-18).
+        guards = self.data["item_guards_036"]
+        items = {item["Id_nb"]: item for item in self.data["items"]}
+        self.assertEqual(sorted(guards), sorted(items))
+        for id_nb, guard in guards.items():
+            with self.subTest(id_nb):
+                self.assertTrue(guard)
+                self.assertLessEqual(set(guard), set(items[id_nb]) - {"Id_nb"})
+                self.assertEqual([column for column, value in guard.items() if value == items[id_nb][column]], [])
+
 
 class EpicPayGuardTests(unittest.TestCase):
     """The pay step (spec 3.4, step 4) changes a row while it holds upstream's 0.35b XP and coin, or the higher fixed XP
@@ -378,6 +390,9 @@ class EpicWorldTests(unittest.TestCase):
         cls.conn = sqlite3.connect(cls.db)
         cls.before = {r["ID"]: r for r in rows(cls.conn, "SELECT * FROM DataQuest")}
         cls.data = epic_chains.load_data()
+        ids = [item["Id_nb"] for item in cls.data["items"]]
+        cls.item_ids = dict(cls.conn.execute(  # upstream's rows of them, by ItemTemplate_ID
+            f"SELECT Id_nb, ItemTemplate_ID FROM ItemTemplate WHERE Id_nb IN ({', '.join('?' * len(ids))})", ids))
         cls.result = epic_chains.apply(cls.conn, NOW)
         cls.conn.commit()
         cls.after = {r["ID"]: r for r in rows(cls.conn, "SELECT * FROM DataQuest")}
@@ -547,7 +562,9 @@ class EpicWorldTests(unittest.TestCase):
             with self.subTest(item["Id_nb"]):
                 row = rows(self.conn, "SELECT * FROM ItemTemplate WHERE Id_nb=?", (item["Id_nb"],))[0]
                 self.assertEqual({k: row[k] for k in item}, item)
-                self.assertEqual(row["ItemTemplate_ID"], str(uuid.uuid5(uuid.NAMESPACE_URL, "hearthdaoc:item:" + item["Id_nb"])))
+                # An added row gets a stable ID; a replaced one keeps upstream's (Inventory refers to Id_nb).
+                self.assertEqual(row["ItemTemplate_ID"], self.item_ids.get(
+                    item["Id_nb"], str(uuid.uuid5(uuid.NAMESPACE_URL, "hearthdaoc:item:" + item["Id_nb"]))))
                 self.assertEqual(row["LastTimeRowUpdated"], NOW)
 
     def test_the_item_fixes(self):
@@ -685,15 +702,31 @@ class EpicSafetyTests(unittest.TestCase):
         self.assertEqual(epic_chains.apply(empty, NOW), [])
 
     def test_items_that_exist_are_left_alone(self):
-        # Upstream added one meanwhile (or the owner edited it), and the owner set a vest's charges.
-        self.conn.execute("INSERT INTO ItemTemplate (Id_nb, Name) VALUES ('cq_alb_ring_of_shades', 'Their Ring')")
+        # An item row at neither upstream's 0.36 values nor the file's (upstream changed it again, or the owner edited
+        # it) stays and is named, and the owner set a vest's charges.
+        self.conn.execute("UPDATE ItemTemplate SET Name='Their Ring' WHERE Id_nb='cq_alb_ring_of_shades'")
         self.conn.execute("UPDATE ItemTemplate SET SpellID=999, Charges=1, MaxCharges=1 WHERE Id_nb='ReaverEpicVest'")
         result = epic_chains.apply(self.conn, NOW)
-        self.assertIn("40 items added, 35 item fixes", result[0])
+        self.assertIn("0 items added, 40 replaced, 35 item fixes", result[0])
+        self.assertEqual(result[1:], [epic_chains.KEPT_ITEMS.format("cq_alb_ring_of_shades")])
         self.assertEqual(self.conn.execute("SELECT Name FROM ItemTemplate WHERE Id_nb='cq_alb_ring_of_shades'").fetchone(),
                          ("Their Ring",))
         self.assertEqual(self.conn.execute("SELECT SpellID, Charges FROM ItemTemplate WHERE Id_nb='ReaverEpicVest'").fetchone(),
                          (999, 1))
+
+    def test_a_missing_item_is_added_and_one_that_is_already_the_files_is_left_quietly(self):
+        import uuid
+        items = {item["Id_nb"]: item for item in epic_chains.load_data()["items"]}
+        self.conn.execute("DELETE FROM ItemTemplate WHERE Id_nb='cq_alb_ring_of_shades'")
+        cloak = items["cq_alb_spirit_threaded_cloak"]
+        columns = [column for column in cloak if column != "Id_nb"]
+        self.conn.execute(f"UPDATE ItemTemplate SET {', '.join(f'{c}=?' for c in columns)} "
+                          "WHERE Id_nb='cq_alb_spirit_threaded_cloak'", [cloak[c] for c in columns])
+        result = epic_chains.apply(self.conn, NOW)
+        self.assertEqual(len(result), 1)
+        self.assertIn("1 items added, 39 replaced, 36 item fixes", result[0])
+        self.assertEqual(self.conn.execute("SELECT ItemTemplate_ID FROM ItemTemplate WHERE Id_nb='cq_alb_ring_of_shades'")
+                         .fetchone(), (str(uuid.uuid5(uuid.NAMESPACE_URL, "hearthdaoc:item:cq_alb_ring_of_shades")),))
 
 
 @unittest.skipUnless(TEST_WORLD, "needs HDC_TEST_WORLD (a clean classic world database)")

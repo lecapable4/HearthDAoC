@@ -308,8 +308,8 @@ class FixesTests(unittest.TestCase):
             "Battlegrounds: Atlas leftovers archived in fork_removed_mobs and removed (15 training dummies, "
             "3 Void Merchants, the stray Wizard)",
             "Epic chains: Guild of Shadows 60 links, 60 XP and coin, 4 Supply Runs closed, 2 rewards and 7 texts "
-            "fixed; 87 other links; 41 items added, 36 item fixes; 5 level-50 quests, Lord Elidyn's camp 17 restored; "
-            "Shadows_50: 0 finished carried, 0 removed, 0 epic vests recharged",
+            "fixed; 87 other links; 0 items added, 41 replaced, 36 item fixes; 5 level-50 quests, Lord Elidyn's camp "
+            "17 restored; Shadows_50: 0 finished carried, 0 removed, 0 epic vests recharged",
             "Quest dialogue: 145 quests rewritten",
             "Quest camps: copied back from upstream's archive: Delfina's camp (22), the isolationist camp (39), "
             "the Ellyll Seer's village (30), Lieutenant Grimarth (1); added: Lieutenant Cian; archived in "
