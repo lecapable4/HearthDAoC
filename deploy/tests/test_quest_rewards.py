@@ -14,6 +14,7 @@ deploy/hearthdaoc-quests.json, merged as ClassicQuests merges them.
 """
 import json
 import os
+import re
 import shutil
 import sqlite3
 import sys
@@ -24,6 +25,9 @@ from collections import defaultdict
 HERE = os.path.dirname(os.path.abspath(__file__))
 DEPLOY = os.path.dirname(HERE)
 CLASSIC_QUESTS = os.path.join(DEPLOY, "..", "source", "server", "GameServer", "quests", "QuestsMgr", "ClassicQuests.cs")
+QUEST_GRANTS = os.path.join(os.path.dirname(CLASSIC_QUESTS), "QuestGrants.cs")
+HANDOFF = os.path.join(DEPLOY, "HANDOFF.md")
+FORK = os.path.join(DEPLOY, "..", "docs", "fork", "FORK.md")
 sys.path.insert(0, os.path.join(DEPLOY, "bin"))
 
 import mob_fixes  # noqa: E402
@@ -279,6 +283,35 @@ class RefreshSourceTests(unittest.TestCase):
         self.assertIn(hook, body)
         self.assertLess(body.index("string id = step.Grant[i];"), body.index(hook))
         self.assertLess(body.index(hook), body.index("if (string.IsNullOrEmpty(id) || player.Inventory.GetFirstItemByID(id"))
+
+
+class GrantRowDocsTests(unittest.TestCase):
+    """Where the fork tells the owner to delete a character's hearthdaoc_quest_grant row to hand a reward again, it says
+    to stop the server first: QuestGrants' CustomParamStore reads a character's rows once and keeps them in memory while
+    the server runs, so a row deleted then hands nothing until the next start (the fix pass's check, 2026-10-19)."""
+
+    @staticmethod
+    def paragraphs(path):
+        with open(path, encoding="utf-8-sig") as f:
+            text = f.read()
+        return [p for p in re.split(r"\n\s*\n|\n(?=\|)", text) if "hearthdaoc_quest_grant" in p or "QuestGrants" in p]
+
+    def test_the_handoff_tells_how_to_hand_a_once_only_reward_again(self):
+        told = [p for p in self.paragraphs(HANDOFF) if re.search(r"\bdelete\b", p, re.I)]
+        self.assertEqual(len(told), 1, told)
+        self.assertIn("./hdc stop", told[0])
+        self.assertIn("./hdc up", told[0])
+        self.assertIn("DELETE FROM DOLCharactersXCustomParam WHERE KeyName='hearthdaoc_quest_grant'", told[0])
+
+    def test_every_note_to_delete_a_grant_row_says_to_stop_the_server_first(self):
+        told = 0
+        for path in (HANDOFF, FORK, QUEST_GRANTS):
+            for paragraph in self.paragraphs(path):
+                if re.search(r"\bdelet(e|ing)\b", paragraph, re.I) and "hearthdaoc_quest_grant" in paragraph:
+                    told += 1
+                    with self.subTest(path=path, paragraph=paragraph[:80]):
+                        self.assertRegex(paragraph, r"(?i)server (is )?stopped|stop the server|\./hdc stop")
+        self.assertGreaterEqual(told, 3)
 
 
 @unittest.skipUnless(TEST_WORLD and UPSTREAM_QUESTS,

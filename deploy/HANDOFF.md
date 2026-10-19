@@ -209,6 +209,25 @@ names the group at every start (`1 group left as it is (...): Strange Bedfellows
 log says `Mob fixes: not applied (...)`, the monsters keep the values they have, and it tries again at the next
 start.
 
+**Quest rewards handed once.** Seven classic quest rewards are handed during the quest, by an NPC or as a named
+monster's drop (upstream's grants): Mystemas's Perfect Life Stone in "Strange Bedfellows", Lilib's Pious Ring in both
+versions of "Darksong's Dirge", Jytal's Ring of Spun Silk and Besje's Herbalist's Hauberk of Ivy in "Dark Places of
+the Soul", the bracer Scurceol Hyrde drops in "Ogre's Might" and Hilde's Brack's Hammer in "Brack: Rollo's Story".
+Each is handed once per character and quest, also when it is put in the account vault, sold or destroyed, or the
+quest is given up and taken again: a row of the character's in `DOLCharactersXCustomParam`, KeyName
+`hearthdaoc_quest_grant`, remembers it (its value is `<quest ID>:<item>`, such as `20975:cq_perfect_life_stone`). To
+hand one again, a GM can make the item (`/item create cq_perfect_life_stone`) and trade it, or delete that row, but
+only with the server stopped: the running server reads a character's rows once and keeps them in memory, so a row
+deleted while it runs hands nothing until the next start. With your `HEARTHDAOC_TAG` and the character's name:
+```bash
+./hdc stop
+docker run --rm --network none --user 1000:1000 -v hearthdaoc-data:/data --entrypoint sqlite3 \
+  ghcr.io/lometur/hearthdaoc:<HEARTHDAOC_TAG> /data/world/opendaoc.sqlite3.db \
+  "DELETE FROM DOLCharactersXCustomParam WHERE KeyName='hearthdaoc_quest_grant' AND Value='20975:cq_perfect_life_stone'
+   AND DOLCharactersObjectId=(SELECT DOLCharacters_ID FROM DOLCharacters WHERE Name='<character>')"
+./hdc up
+```
+
 **Route fixes.** A stable horse rides in a straight line from one point of its route to the next, and most routes
 crossed the Magical Bridge north of Camelot, the Prydwen Keep bridge (PKB) and nine other bridges on
 bank-to-bank stretches, up to 456 under the walkway, so the horse swam in the river below. The start adds points along

@@ -19,7 +19,9 @@ namespace DOL.GS.Quests;
 public static class QuestGrants
 {
     /// <summary>The character custom parameter (<see cref="DbCoreCharacterXCustomParam"/>) of a handed grant: one row per
-    /// quest and item, the value <see cref="Entry"/>.</summary>
+    /// quest and item, the value <see cref="Entry"/>. To hand one again, stop the server first, then delete the row
+    /// (deploy/HANDOFF.md): <see cref="CustomParamStore"/> reads a character's rows once and keeps them in memory while
+    /// the server runs, so a row deleted then hands nothing until the next start.</summary>
     public const string Key = "hearthdaoc_quest_grant";
 
     private const int ValueLength = 255; // CustomParam.Value is a VARCHAR(255)
