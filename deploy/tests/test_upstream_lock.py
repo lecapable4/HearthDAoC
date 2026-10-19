@@ -54,6 +54,17 @@ def manifest(path):
         return {line[66:].rstrip("\r\n"): line[:64] for line in f if line[64:66] == "  "}
 
 
+def client_patch_files(lock):
+    """(release path, SHA-256 before patching) of every file client/patches' sets patch, at the release paths CI's
+    "Fetch the classic client files" step reads: the classic edition's game.dll, the rest under the client prefix."""
+    out = []
+    for name in ("classic-creation.json", "default-layout.json"):
+        for f in load(os.path.join(REPO, "client", "patches", name))["files"]:
+            rel = lock["editions"]["classic"]["game_dll"] if f["path"] == "game.dll" else lock["client_prefix"] + f["path"]
+            out.append((rel, f["before"]))
+    return out
+
+
 class LockTests(unittest.TestCase):
     def setUp(self):
         self.lock = load(LOCK)
@@ -123,6 +134,16 @@ class LockTests(unittest.TestCase):
         for name in ("roads.json", "seams.json", "pockets.json", "zone001.nav"):  # pockets.json: the patch replaces it
             self.assertTrue(self.lock["navmesh_prefix"] + name in files, f"{name} is not in the base's manifest")
 
+    def test_the_client_patch_sets_patch_the_releases_own_client_files(self):
+        # client/patches' sets patch each player's own client: a file's "before" must be what the lock's release has
+        # at that path (the classic edition's game.dll, the client's pregame files and default.ini), or no player's
+        # client is patched ("Not patched"). The base's manifest gives them; RealPatchTests checks that the patch
+        # replaces none of them.
+        files = manifest(BASE_MANIFEST)
+        for rel, before in client_patch_files(self.lock):
+            with self.subTest(rel):
+                self.assertEqual(files.get(rel), before)
+
 
 @unittest.skipUnless(PATCH_ZIP, "needs HDC_TEST_PATCH_ZIP (upstream's OfflineDAoC-v0.37-game-patch.zip)")
 class RealPatchTests(unittest.TestCase):
@@ -149,6 +170,10 @@ class RealPatchTests(unittest.TestCase):
         self.assertEqual((version, classic["Version"]), ("0.37", "0.37"))
         self.assertEqual(self.release.world_update("b")[1], classic)
         self.assertEqual([t["Table"] for t in classic["NewTables"]], ["offline_world_bot_guild"])
+
+    def test_the_patch_replaces_no_client_file_the_patch_sets_patch(self):
+        listed = set(self.release.patch()["files"]) | set(self.release.patch()["removed"])
+        self.assertEqual([rel for rel, _ in client_patch_files(load(LOCK)) if rel in listed], [])
 
     def test_the_server_files_from_the_patch_match_patch_json(self):
         for rel, sha in (("runtime/server/classic-quests.json", "8ff88f60017541cf8717bbf8ee412aaa67ee105be75595a7bb2f9680a20f413e"),
