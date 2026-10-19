@@ -1,17 +1,31 @@
 {
   "upstream_repo": "shadowofze/OfflineDAoC",
-  "version": "0.35b",
-  "tag": "v0.35b",
-  "commit": "d337d184034f4c84e1e1748fda7f5b2deef135b8",
-  "root_folder": "OfflineDAoC-v0.35b/",
+  "version": "0.37b",
+  "tag": "v0.37b",
+  "commit": "ab4df02a1ad26192357477dbc912756c6703fb66",
+  "base_version": "0.36b",
+  "base_tag": "v0.36b",
+  "base_commit": "d88b7b2078bafb3a9b3c767f287a4c26155a14bb",
+  "root_folder": "OfflineDAoC-v0.36b/",
   "parts": [
-    {"url": "https://github.com/shadowofze/OfflineDAoC/releases/download/v0.35b/OfflineDAoC-v0.35b.zip.001", "size": 1900000000, "sha256": "02fcffc21ac66e7cbd714e698927fb28be289df4c9c159164e24db9aabd2109d"},
-    {"url": "https://github.com/shadowofze/OfflineDAoC/releases/download/v0.35b/OfflineDAoC-v0.35b.zip.002", "size": 1900000000, "sha256": "4710e99c73a58e82129bc10a3e0d358b4365b8d2521212b0ba9267d7d06d4241"},
-    {"url": "https://github.com/shadowofze/OfflineDAoC/releases/download/v0.35b/OfflineDAoC-v0.35b.zip.003", "size": 1299005010, "sha256": "95f11848419a150d65b4e3b7c853449d4f0b29e9b67a58ec2769365aa7d61bf7"}
+    {"url": "https://github.com/shadowofze/OfflineDAoC/releases/download/v0.36b/OfflineDAoC-v0.36b.zip.001", "size": 1900000000, "sha256": "90d56a536af3e389a7073fbf140ab9f801e744488726e9ad716b896598d80b1f"},
+    {"url": "https://github.com/shadowofze/OfflineDAoC/releases/download/v0.36b/OfflineDAoC-v0.36b.zip.002", "size": 1900000000, "sha256": "ba6ffa2b8912dd75602f612544db79b6c0770b2463dd1d75fcb7a2ddec9928e0"},
+    {"url": "https://github.com/shadowofze/OfflineDAoC/releases/download/v0.36b/OfflineDAoC-v0.36b.zip.003", "size": 1303650363, "sha256": "6c9c1c870a19eb60e4cbcabe77a5bb9e1fc0173143b65a4ab85157497a39a992"}
   ],
-  "archive_sha256": "5a1d77df4168dbe286f4161ca93e608422a9cd91ebd693d1cf1e88767234e7b6",
+  "archive_sha256": "fc7772c11f309cdd16ddbb4a610864dbc294b82c4a336ccdbf866cb5c5ae6469",
   "manifest_path": "PACKAGE MANIFEST.sha256",
-  "manifest_sha256": "ff0294a76145357517acefa7250bf6952e49d04d4f0368b4a48622a25c993ebb",
+  "manifest_sha256": "046018357ea876a4fcbcaafa13f9bc4b0d41c5ff09d90a79160eb1b2687d7bac",
+  "patch": {
+    "url": "https://github.com/shadowofze/OfflineDAoC/releases/download/v0.37b/OfflineDAoC-v0.37-game-patch.zip",
+    "size": 38084367,
+    "sha256": "48fd6482433c4e66748bee4842cb811df87a16e8b82b65fd017b91dd46d769c1",
+    "root_folder": "OfflineDAoC-v0.37-game-patch/",
+    "patch_json_sha256": "9ad8740e939be96d92ab0ee53fa7a366d904eecfeda7c22d73e9400fe3acfbe6",
+    "world_updates": {
+      "b": {"database": "b", "path": "db-0.37b.json", "sha256": "edce00002f7a5b2cdd41c9157659324275b891d8ebf4af7585c8bcadf5f013a7"},
+      "classic": {"database": "plain", "path": "db-0.37.json", "sha256": "edce00002f7a5b2cdd41c9157659324275b891d8ebf4af7585c8bcadf5f013a7"}
+    }
+  },
   "client_prefix": "runtime/client-opendaoc/app/",
   "navmesh_prefix": "runtime/server/navmesh/",
   "config_prefix": "runtime/server/config/",
@@ -24,8 +38,8 @@
       "game_dll": "runtime/client-opendaoc/app/game.dll"
     },
     "classic": {
-      "world_db": "editions/0.35-no-custom-class/runtime/data/opendaoc.sqlite3.db",
-      "game_dll": "editions/0.35-no-custom-class/runtime/client-opendaoc/app/game.dll"
+      "world_db": "editions/0.36-no-custom-class/runtime/data/opendaoc.sqlite3.db",
+      "game_dll": "editions/0.36-no-custom-class/runtime/client-opendaoc/app/game.dll"
     }
   }
 }

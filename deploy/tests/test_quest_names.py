@@ -7,6 +7,7 @@ his kill never counted (owner test 2026-10-10). The server now compares these na
 the source checks below). With HDC_TEST_WORLD (a clean classic world), world_fixes runs on a copy and every name a
 quest waits for must be spawned in its region, ignoring case, except the names listed here.
 """
+import json
 import os
 import re
 import shutil
@@ -22,6 +23,8 @@ BIN = os.path.join(HERE, "..", "bin")
 sys.path.insert(0, BIN)
 
 import world_fixes as wf  # noqa: E402
+from tests import endings  # noqa: E402
+from tests.test_quest_reachability import UPSTREAM_QUESTS  # noqa: E402
 
 TEST_WORLD = os.environ.get("HDC_TEST_WORLD")
 QUESTS = os.path.join(ROOT, "source", "server", "GameServer", "quests", "QuestsMgr")
@@ -33,11 +36,15 @@ TARGET_STEPS = {0, 1, 2, 3, 4, 5, 6, 7, 10, 11}
 
 # Not in the world data: upstream's classic-quests.json (a server file the first start downloads, not in this
 # repository) spawns each one under this exact name, in the step's region, when a player reaches the step
-# (ClassicQuests.TrySpawnEvent; checked against the 0.35 file on 2026-10-10).
+# (ClassicQuests.TrySpawnEvent; checked against the 0.35 file on 2026-10-10, and the 0.37 file on 2026-10-18).
 EVENT_SPAWNED = {
     "Anklebiter", "Arawnite Assassin", "Archdruid Cadwallen", "Cadoc", "Calikana", "Ceriallen", "Dash", "Driss",
     "Enraged Bwca", "Fasius Previlus", "Gashir", "Ghostwalker's Apprentice", "Little Wind", "Lunaris Primus Pilus",
     "Neophyte Spirit", "Sephucoth", "Shade of Harish", "Shyene Muire", "Sockburn worm", "Spicket", "Straw", "Widower",
+    # Upstream 0.36 corrected these six targets' names and spawns them at the step ("Six targets were misspelled or in
+    # the wrong place", its CHANGELOG): Arica (21008-21013), Broch (20127), Eibhlin (21086), Klippa (20119), Nimh
+    # (20134), Ulfgar (21256).
+    "Arica", "Broch", "Eibhlin", "Klippa", "Nimh", "Ulfgar",
     # deploy/hearthdaoc-quests.json's own: SI 11 "Shades and Shadows" (#124); his standing copy is archived.
     "Martley",
 }
@@ -168,14 +175,40 @@ class SourceTests(unittest.TestCase):
         self.assertIn("if (!QuestNames.Same(quest.StartName, obj.Name))", giver)
         self.assertNotIn("quest.StartName != obj.Name", giver)
 
+    def test_upstreams_new_quest_npc_code_uses_it(self):
+        # Upstream 0.36 compared exactly in its new code: the hostile-faction truce (QuestTalkTruce: its name set and
+        # the step check) and ClassicQuests' arrival line and whisper links. They skipped the quest rows QuestNames
+        # unblocked, such as interact "Elder Tidal Sheerie" and "Dverge Smith" (0.37 sync).
+        truce = read(os.path.join(QUESTS, "QuestTalkTruce.cs"))
+        self.assertIn("QuestNames.Same(dataQuest.TargetName, npc.Name)", truce)
+        self.assertIn("HashSet<string> names = new(StringComparer.OrdinalIgnoreCase);", truce)
+        self.assertNotIn("StringComparer.Ordinal)", truce)
+        classic = read(os.path.join(QUESTS, "ClassicQuests.cs"))
+        self.assertEqual(classic.count("!QuestNames.Same(quest.TargetName, npc.Name)"), 2)
+        for name, text in (("QuestTalkTruce.cs", truce), ("ClassicQuests.cs", classic)):
+            with self.subTest(file=name):
+                self.assertIsNone(re.search(r"TargetName\s*[!=]=|[!=]=\s*TargetName", text))
+
     def test_the_files_keep_their_endings(self):
+        # Upstream's, line by line (tests/endings.py). ClassicQuests.cs, which the fork edits most, is an LF file with
+        # upstream's 14 CRLF lines (ScaleXP): a fork line must not be CRLF in its LF part, nor the file normalised.
         for path in (os.path.join(QUESTS, "DataQuest.cs"), os.path.join(GAME_OBJECTS, "GameNPC.cs"),
-                     os.path.join(GAME_OBJECTS, "GameObject.cs")):
-            with open(path, "rb") as f:
-                raw = f.read()
-            self.assertEqual(raw.count(b"\r\n"), raw.count(b"\n"), path)
+                     os.path.join(GAME_OBJECTS, "GameObject.cs"), os.path.join(QUESTS, "QuestTalkTruce.cs"),
+                     os.path.join(QUESTS, "ClassicQuests.cs")):
+            with self.subTest(path=path):
+                endings.check(self, path)
         with open(os.path.join(QUESTS, "DataQuest.cs"), "rb") as f:
             self.assertTrue(f.read().startswith(b"\xef\xbb\xbf"))
+
+
+@unittest.skipUnless(UPSTREAM_QUESTS, "needs upstream's classic-quests.json (HDC_CLASSIC_QUESTS)")
+class EventSpawnTests(unittest.TestCase):
+    def test_upstreams_quest_file_spawns_every_listed_name_but_the_forks_own(self):
+        with open(UPSTREAM_QUESTS, encoding="utf-8") as f:
+            quests = json.load(f)["Quests"]
+        spawned = {step["Spawn"]["Name"] for quest in quests.values() for step in quest.get("Steps") or []
+                   if step and step.get("Spawn") and step["Spawn"].get("Name")}
+        self.assertEqual(sorted(EVENT_SPAWNED - spawned), ["Martley"])
 
 
 @unittest.skipUnless(TEST_WORLD, "needs HDC_TEST_WORLD (a clean classic world database)")

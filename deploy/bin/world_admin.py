@@ -21,6 +21,7 @@ import backup  # noqa: E402
 import carry_rvr  # noqa: E402
 import init_world  # noqa: E402
 import spawns  # noqa: E402
+import world_update  # noqa: E402
 from odaoc_fetch import FetchError, Release  # noqa: E402
 
 CLEAN_WORLD = "upgrade-clean-world.db"
@@ -281,11 +282,12 @@ def carry_rvr_from_archive(data, name, log=print):
 
 
 def fetch_clean(release, data, log=print):
-    """Download (verified, resumable) this release's clean world for the world's edition. Kept separate
-    from upgrade_world so the download can run with the network and the import without it."""
+    """Download (verified, resumable) this release's clean world for the world's edition: for a release made of a
+    base and an upstream patch, the base's world with the patch's world update. Kept separate from upgrade_world so
+    the download can run with the network and the import without it."""
     meta = _meta(data)
     dest = os.path.join(data, CLEAN_WORLD)
-    release.extract(release.edition(meta["edition"])["world_db"], dest)
+    world_update.build_world(release, meta["edition"], dest, init_world.world_cache_dir(data), log)
     log(f"Clean {meta['edition']} world for upstream {release.version} ready.")
     return dest
 
@@ -323,7 +325,7 @@ def upgrade_world(release, data, importer_cmd, clean_world=None, same_version_ok
         shutil.copyfile(clean_world, new_db)
     else:
         log(f"Fetching the clean {meta['edition']} world for upstream {release.version}...")
-        release.extract(release.edition(meta["edition"])["world_db"], new_db)
+        world_update.build_world(release, meta["edition"], new_db, init_world.world_cache_dir(data), log)
     report = os.path.join(stage, "import-report.txt")
     cmd = list(importer_cmd) + ["--import", os.path.join(stage, "old"), os.path.join(stage, "new"), "--replace-progress", report]
     log("Importing progress with upstream's import engine...")

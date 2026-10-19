@@ -11,7 +11,9 @@ namespace DOL.GS.Quests
     /// Item template ids compare without case, as <c>DataQuest.OnPlayerGiveItem</c> compares them.
     /// Accepting a quest whose first step is a delivery hands that step's item too (<see cref="FirstStepItem"/>): upstream
     /// never did, because nothing "begins" step 1, so 56 classic quests could not be finished. A first delivery back to
-    /// the giver hands nothing: the giver wants the player to bring the item (11 more classic quests).
+    /// the giver hands nothing: the giver wants the player to bring the item (11 more classic quests), and upstream's
+    /// refresh, which hands a delivery step's item to a player without it (0.36), leaves it alone too
+    /// (<see cref="BringsToGiver"/>).
     /// A turn-in can need several items: a CollectItemTemplate entry "id;N" (<see cref="CollectEntry"/>,
     /// <see cref="OthersToTake"/>).
     /// </summary>
@@ -76,6 +78,15 @@ namespace DOL.GS.Quests
             string template = stepItemTemplates[0]?.Trim();
             return ShouldHand(template, carried, null) ? template : null;
         }
+
+        /// <summary>True when upstream's refresh (<c>ClassicQuests.GiveDeliveryItem</c>, 0.36: a player on a Deliver or
+        /// DeliverFinish step without its item is handed one) must leave the step alone: it is the first
+        /// (<paramref name="step"/> 1) and goes back to the giver, the delivery <see cref="FirstStepItem"/> hands nothing
+        /// for. The player brings that item; the refresh would hand it free (20098 "Sveabone Hilt Sword": a bronze short
+        /// sword). <paramref name="targetName"/> is the step's target (the part before ';' counts),
+        /// <paramref name="giverName"/> the quest's StartName; names compare without case.</summary>
+        public static bool BringsToGiver(int step, string targetName, string giverName)
+            => step == 1 && IsGiver(targetName, giverName);
 
         /// <summary>A CollectItemTemplate entry's item id and the number of items its step needs. "id;N" with N a whole
         /// number of 2 or more needs N items of id (both parts trimmed): an NPC is only ever handed one item, so a step

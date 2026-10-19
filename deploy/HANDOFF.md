@@ -38,7 +38,7 @@ hearthdaoc → Package settings → visibility Public) and wait.
   `rsync -a ~/Games/OfflineDAoC/runtime/server/navmesh/ <user>@<this machine>:hearthdaoc/seed-navmesh/`
   then: `./hdc init --seed-navmesh ~/hearthdaoc/seed-navmesh` (verifies every file; downloads only the
   world database and the server data files, ~33 MB). Afterwards `rm -rf ~/hearthdaoc/seed-navmesh`.
-- **Download:** `./hdc init` (about 600 MB from GitHub, verified, resumable).
+- **Download:** `./hdc init` (about 630 MB from GitHub, verified, resumable).
 
 Then bring back the leveling monsters upstream archived (the owner chose levels 1-20, OpenDAoC's
 density; takes a few seconds and is re-applied automatically by new-world and upgrade-world):
@@ -67,7 +67,7 @@ machine uses another firewall, describe it to the owner rather than changing it.
 
 ```bash
 sleep 90 && ./hdc status                       # running (healthy), edition classic, navmesh True
-docker exec hearthdaoc-server grep -c "Loading NavMesh successful" /data/logs/server.log   # 103 (upstream 0.35b)
+docker exec hearthdaoc-server grep -c "Loading NavMesh successful" /data/logs/server.log   # 103 (upstream 0.35b to 0.37b)
 docker exec hearthdaoc-server grep "Server is now listening" /data/logs/server.log | tail -1   # 0.0.0.0:10301
 docker exec hearthdaoc-server sqlite3 /data/world/opendaoc.sqlite3.db "SELECT DISTINCT Port FROM Regions"   # 10401
 docker ps --format '{{.Names}} {{.Status}}' | grep -i opendaoc   # OpenDAoC still up, unchanged
@@ -201,9 +201,32 @@ entry says why, with its source). After each start, `./hdc fixes` shows `Mob fix
 changed, and nothing when they are up to date. There is no marker: a row (a `Mob` row, the `NpcTemplate` rows of
 a template, an `ItemTemplate` row or a `DataQuest` row) changes only while it still holds every value upstream shipped, so a monster you changed yourself is
 kept; kept rows are named at every start (`M left as they are (they hold neither upstream's values nor this
-file's): Frund (Mob 3ce2...)`). If it fails (for example, a column the file names is not in the table), the start
+file's): Frund (Mob 3ce2...)`). The entries that together decide one quest's rewards (say, a carried-only copy
+made the reward and the quest's second copy dropped) form a group, which changes only whole: if one of its rows
+holds neither value, none of them changes, so a quest never hands two real rewards, or none, and the start log
+names the group at every start (`1 group left as it is (...): Strange Bedfellows' reward (Perfect Life Stone
+(ItemTemplate cq_perfect_life_stone))`). If it fails (for example, a column the file names is not in the table), the start
 log says `Mob fixes: not applied (...)`, the monsters keep the values they have, and it tries again at the next
 start.
+
+**Quest rewards handed once.** Seven classic quest rewards are handed during the quest, by an NPC or as a named
+monster's drop (upstream's grants): Mystemas's Perfect Life Stone in "Strange Bedfellows", Lilib's Pious Ring in both
+versions of "Darksong's Dirge", Jytal's Ring of Spun Silk and Besje's Herbalist's Hauberk of Ivy in "Dark Places of
+the Soul", the bracer Scurceol Hyrde drops in "Ogre's Might" and Hilde's Brack's Hammer in "Brack: Rollo's Story".
+Each is handed once per character and quest, also when it is put in the account vault, sold or destroyed, or the
+quest is given up and taken again: a row of the character's in `DOLCharactersXCustomParam`, KeyName
+`hearthdaoc_quest_grant`, remembers it (its value is `<quest ID>:<item>`, such as `20975:cq_perfect_life_stone`). To
+hand one again, a GM can make the item (`/item create cq_perfect_life_stone`) and trade it, or delete that row, but
+only with the server stopped: the running server reads a character's rows once and keeps them in memory, so a row
+deleted while it runs hands nothing until the next start. With your `HEARTHDAOC_TAG` and the character's name:
+```bash
+./hdc stop
+docker run --rm --network none --user 1000:1000 -v hearthdaoc-data:/data --entrypoint sqlite3 \
+  ghcr.io/lometur/hearthdaoc:<HEARTHDAOC_TAG> /data/world/opendaoc.sqlite3.db \
+  "DELETE FROM DOLCharactersXCustomParam WHERE KeyName='hearthdaoc_quest_grant' AND Value='20975:cq_perfect_life_stone'
+   AND DOLCharactersObjectId=(SELECT DOLCharacters_ID FROM DOLCharacters WHERE Name='<character>')"
+./hdc up
+```
 
 **Route fixes.** A stable horse rides in a straight line from one point of its route to the next, and most routes
 crossed the Magical Bridge north of Camelot, the Prydwen Keep bridge (PKB) and nine other bridges on
@@ -253,8 +276,9 @@ It always backs up the world first (`-pre-update` in `./hdc backups`).
 **A release for another upstream version** (the version at the start of its tag changes, for example from
 0.35b to 0.36b).
 `./hdc update` upgrades the world itself, with the same steps as `./hdc upgrade-world`:
-- it backs up again (`-pre-upgrade`), downloads the new version's clean world (about 30 MB) and moves all
-  progress into it, keeping bans and permissions;
+- it backs up again (`-pre-upgrade`), downloads the new version's clean world (about 37 MB for 0.37b:
+  upstream ships it as the 0.36b world plus an update, which the upgrade applies) and moves all progress into it,
+  keeping bans and permissions;
 - it keeps the RvR state that came from play too. A keep in play (held by another realm than its own, or
   claimed by a guild) keeps its realm, level and claiming guild, its doors' health and whether they are
   broken open (the health at most the door's full health in the new version at that level), and the items
@@ -268,9 +292,10 @@ It always backs up the world first (`-pre-update` in `./hdc backups`).
   keeps it could not match) and of the server settings to re-check, then starts the server and prints how
   to read the report:
   `docker exec hearthdaoc-server cat /data/archive/world-pre-upgrade-<time>/upgrade-report.txt`;
-- the first start on the new version downloads the navmeshes that changed (about 570 MB for 0.35b) and
-  the new version's server data files. `./hdc logs` shows the progress; report the new
-  "Loading NavMesh successful" count (step 5) to the owner.
+- the first start on the new version downloads the navmeshes that changed and the new version's server data
+  files (about 570 MB for 0.35b; about 3.2 MB for 0.37b, whose zone navmeshes are 0.35b's: only its road map and
+  pocket list are new). `./hdc logs` shows the progress; report the new "Loading NavMesh successful" count
+  (step 5) to the owner.
 
 If the upgrade fails, the world stays as it was and the server is not started. Fix the cause it names,
 then run `./hdc upgrade-world` and `./hdc up`. Or go back to the release you had: `./hdc update <old tag>`

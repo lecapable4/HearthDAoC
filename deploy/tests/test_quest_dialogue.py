@@ -532,45 +532,48 @@ class RealDialogueTests(unittest.TestCase):
 
 # The classic quests whose Description lost the line that offers their first keyword, and that line (the guides'
 # words): level 5's "Cleric Mulgrut" (the owner's report: Hugh Gallen showed only his wares), "Evenings Empty
-# Blessing" and "Better Off Buried".
+# Blessing" and "Better Off Buried". Upstream 0.37 has them again, so the file leaves these quests alone (R5).
 LOST_LINES = {
     20207: "I have a [bit of information] you might be interested in should you wish to hear it.",
     21146: "It seems there is much amiss to the north around Fort Veldon. Kell sent word earlier that he required "
            "[information and assistance].",
     21187: "Welcome back. I have not seen you in a long time. I hope all has been [well] with you.",
 }
-# The names upstream's generator replaced with <Player> in the classic quests' texts.
-PERIOD_NAMES = {"Askheim", "Averrius", "Catla", "Coplin", "Darrius", "Freya", "Gunnar", "Ibicus", "Jango", "Keriann",
-                "Morana", "Nisse", "Ove", "Runil", "Thulin"}
+# The names upstream's generator replaced with <Player> in the classic quests' texts. (Svan's sons Gunnar and Ove left
+# Grenlock Clan's texts with 0.36's staging: Anrid names them in her Chat reply to [kept a piece].)
+PERIOD_NAMES = {"Askheim", "Averrius", "Catla", "Coplin", "Darrius", "Freya", "Ibicus", "Jango", "Keriann", "Morana",
+                "Nisse", "Runil", "Thulin"}
 # The plain words it took for names (Soul Hunt's "Now", Silver Run's "Well"), and the keyword [name] (Trapper's Pride's
 # "What is your [name]?", Amora's Aid's "may I ask your [name]?").
 PERIOD_WORDS = {"Now", "Well", "[name]"}
 # The fixed stages that still speak to the player, and how many <Player> each keeps: Kaisa's "Come in, come in,
-# <Player>" and "Good job <Player>!" ("Solving the Argument"), and Crace's "Well, <Player>, did you get the sporites?"
-# and "I hope you find it useful, <Player>!" ("Silver Run").
-ADDRESSES_THE_PLAYER = {(21142, "TargetText", 1): 3, (21142, "TargetText", 6): 3}
-ADDRESSES_THE_PLAYER.update({(qid, "TargetText", stage): 2 for qid in (20288, 20289, 20290, 20291) for stage in (1, 5)})
+# <Player>" and "Oh, <Player>, you should be thankful" ("Solving the Argument"), and Crace's "Well, <Player>, did you get
+# the sporites?" ("Silver Run"). Since 0.36 each stage says only its own part of the conversation.
+ADDRESSES_THE_PLAYER = {(21142, "TargetText", 1): 2}
+ADDRESSES_THE_PLAYER.update({(qid, "TargetText", 1): 1 for qid in (20288, 20289, 20290, 20291)})
 # The class the guides' authors were called by, which upstream's generator kept as plain text, so every class of a quest
 # open to others read the author's (class-word scan, 2026-10-11), and the guides' placeholders for it ("(class name)").
 # The fix is <Class>, which the server replaces with the player's class (female names included). New Crest's accept
 # keyword, which DataQuest compares as it is, is each row's own class instead (Runemaster at Etta Greavers,
 # Spiritmaster at Palda; Teija's Bonedancer row stays). Each: the quests, the column, its stages, upstream's words, the
 # fork's, and the class they name (eCharacterClass; None for a placeholder). Only these words change: a stage keeps
-# upstream's <Player>.
+# upstream's <Player>. Since 0.36 (staged speech) a stage says only its own part of the conversation, so some words are
+# on fewer stages, and what Mystemas, Iohannes Aldar and Siv Alfevson say after a keyword is their Chat reply
+# (test_quest_reachability.py).
 CLASS_WORD_FIXES = [
-    ((20008,), "TargetText", (1, 3),
+    ((20008,), "TargetText", (1,),
      "I see, you're a fighter. Has Mistress Laws", "I see, you're a <Class>. Has Mistress Laws", 14),
     ((20009,), "TargetText", (1,),
      "Greetings young Disciple. What be thy name?", "Greetings young <Class>. What be thy name?", 20),
     ((20100,), "Description", (1,),
      "even more dangerous for a your Viking like you", "even more dangerous for a your <Class> like you", 35),
-    ((20100,), "TargetText", (1, 3), "Lo, I see a young Viking before me.", "Lo, I see a young <Class> before me.", 35),
-    ((20101,), "TargetText", (1, 3),
+    ((20100,), "TargetText", (1,), "Lo, I see a young Viking before me.", "Lo, I see a young <Class> before me.", 35),
+    ((20101,), "TargetText", (1,),
      "Mystic, here to do some [exploring]?", "<Class>, here to do some [exploring]?", 36),
-    ((20101,), "TargetText", (1, 3),
+    ((20101,), "TargetText", (3,),
      "Here you are! Good working with your Mystic.", "Here you are! Good working with your <Class>.", 36),
     ((20104,), "SourceText", (1,), "Ah a brave Mystic you are! Great!", "Ah a brave <Class> you are! Great!", 36),
-    ((20192, 20193, 20195), "TargetText", (1, 4),
+    ((20192, 20193, 20195), "TargetText", (1,),
      "Greetings Friar. I see that your trainer received", "Greetings <Class>. I see that your trainer received", 10),
     ((20349,), "AcceptText", (1,), "Bonedancer", "Runemaster", 30),
     ((20349,), "Description", (1,),
@@ -580,11 +583,9 @@ CLASS_WORD_FIXES = [
      "Ah, [Bonedancer]. You've aided Karle before", "Ah, [Spiritmaster]. You've aided Karle before", 30),
     ((20373,), "TargetText", (1,),
      "You look like a (your class here) with a purpose", "You look like a <Class> with a purpose", None),
-    ((20639,), "TargetText", (2, 13), "Here, take these instructions to aid you. Good luck to thee Theurgist.",
+    ((20639,), "TargetText", (13,), "Here, take these instructions to aid you. Good luck to thee Theurgist.",
      "Here, take these instructions to aid you. Good luck to thee <Class>.", 5),
-    ((20702,), "TargetText", (1, 3, 6),
-     "Bring me Caisha like a good little (minstrel)", "Bring me Caisha like a good little <Class>", None),
-    ((20811,), "TargetText", (2, 3),
+    ((20811,), "TargetText", (2,),
      "What can I do for you, fine Forester?", "What can I do for you, fine <Class>?", 57),
     ((21023, 21025, 21026, 21027), "FinishText", (1,), "I sent word to Elizabeth that a Berserker was helping me",
      "I sent word to Elizabeth that a <Class> was helping me", 31),
@@ -595,13 +596,9 @@ CLASS_WORD_FIXES = [
      "You are indeed a great <Class>! You don't have another do you?", 27),
     ((21096, 21098), "FinishText", (1,),
      "will be restored. Safe journey Spiritmaster.", "will be restored. Safe journey <Class>.", 27),
-    ((21096, 21098), "TargetText", (1,), "I can assist you no more Spiritmaster. May the gods guard you",
-     "I can assist you no more <Class>. May the gods guard you", 27),
     ((21282,), "Description", (1,),
      "Hello there Shaman. MightI interest you", "Hello there <Class>. MightI interest you", 28),
-    ((21354,), "TargetText", (1, 12), "This is great (class name)!", "This is great <Class>!", None),
-    ((21354,), "TargetText", (1, 12), "Good luck (class name)!", "Good luck <Class>!", None),
-    ((21354,), "TargetText", (1, 12), "I welcome your return (class name).", "I welcome your return <Class>.", None),
+    ((21354,), "TargetText", (12,), "I welcome your return (class name).", "I welcome your return <Class>.", None),
 ]
 CLASS_WORDS = {}  # (quest id, column, stage): [(upstream's words, the fork's)]
 for _ids, _column, _stages, _old, _new, _class in CLASS_WORD_FIXES:
@@ -618,9 +615,10 @@ BILIOUS_NOTE = "Allakhazam spells the monster 'billious goo'; the server's monst
 YEARLING_NOTE = "Allakhazam: the yearlings live in the Plains of Gwyddneau (level 42-44)."
 # Other leftovers of the period guides that upstream's generator copied into the texts (2026-10-11): the guides'
 # placeholders for the player's class ("(character class)") and name ("(your name here)", and Gavon Montgomery's
-# whisper keyword "<your name>" in The Lost Stone, which no whisper matched), now <Class> and <Player>; the web page
-# scraped after Mystemas's last line, cut (the guide's line ends there, without a stop); and the kill tasks' editors'
-# notes on Allakhazam, now a plain hint. Each: the quests, the column, its stages, upstream's words, the fork's.
+# whisper keyword "<your name>" in The Lost Stone, which no whisper matched), now <Class> and <Player>; the kill tasks'
+# editors' notes on Allakhazam, now a plain hint; and an editor's "(sic)" in Spicket, Spackit and Spykit, cut. Each: the
+# quests, the column, its stages, upstream's words, the fork's. (The web page upstream scraped after Mystemas's last
+# line went with 0.36's staging: that line is his Chat reply now.)
 LEFTOVER_FIXES = [
     ((20071,), "Description", (1,), "Blessings upon you this day, noble (character class).",
      "Blessings upon you this day, noble <Class>."),
@@ -631,10 +629,10 @@ LEFTOVER_FIXES = [
     ((20694,), "StepText", (1,), BILIOUS_NOTE, "Bilious goo are found in the Dales of Devwy."),
     ((20695,), "SourceText", (1,), YEARLING_NOTE, "The yearlings live in Gwyddneau."),
     ((20695,), "StepText", (1,), YEARLING_NOTE, "The yearlings live in Gwyddneau."),
-    ((20702,), "TargetText", (1, 3, 6), "ugly (your characters race)?", "ugly <Race>?"),
-    ((20702,), "TargetText", (1, 3, 6), SCRAPED_PAGE, ""),
+    ((20702,), "TargetText", (1,), "ugly (your characters race)?", "ugly <Race>?"),
     (tuple(range(20983, 20995)), "Description", (1,), "(your name here), it is time", "<Player>, it is time"),
-    ((21397,), "TargetText", (2, 4), "You're a brave (character class), to have", "You're a brave <Class>, to have"),
+    ((21397,), "TargetText", (2,), "You're a brave (character class), to have", "You're a brave <Class>, to have"),
+    ((21397,), "TargetText", (2,), "seem to posess (sic) this strange ability", "seem to posess this strange ability"),
 ]
 LEFTOVER_WORDS = {}  # (quest id, column, stage): [(upstream's words, the fork's)]
 for _ids, _column, _stages, _old, _new in LEFTOVER_FIXES:
@@ -648,8 +646,10 @@ TEXT_COLUMNS = ("AcceptText", "Description", "SourceText", "StepText", "TargetTe
 # test_quest_reachability checks the Chat against the same lists.
 GUIDE_PLACEHOLDERS = ("(character class)", "(class name)", "(your class here)", "(your name here)", "<your name>",
                       "(player name)", "(your characters race)", "(your character's race)", "(your race)")
-# A web page's text, and the site the guides were taken from: no one's words in the world.
-SCRAPED_WORDS = ("Free account required", "You must log in", "Fanbyte", "Privacy Policy", "Allakhazam")
+# A web page's text, the site the guides were taken from, and the notes of the guides' editors (an editor's "(sic)", a
+# walkthrough's "gain ... experience as well" and "Conclusion:"): no one's words in the world.
+SCRAPED_WORDS = ("Free account required", "You must log in", "Fanbyte", "Privacy Policy", "Allakhazam", "(sic)",
+                 "experience as well", "Conclusion:")
 BEHAVIOUR_UTILS = os.path.join(HERE, "..", "..", "source", "server", "GameServer", "behaviour", "BehaviourUtils.cs")
 DATA_QUEST = os.path.join(HERE, "..", "..", "source", "server", "GameServer", "quests", "QuestsMgr", "DataQuest.cs")
 
@@ -710,19 +710,19 @@ class ClassicQuestTextTests(unittest.TestCase):
         cls.clean.close()
         cls.tmp.cleanup()
 
-    def test_the_lost_lines_follow_upstreams_descriptions(self):
+    def test_upstreams_descriptions_end_with_the_lost_lines_again(self):
+        rewritten = {qid for entry in qd.load_data()["quests"] for qid in entry.get("ids", [])}
         for qid, line in LOST_LINES.items():
             with self.subTest(quest=qid):
-                old, new = self.changed[(qid, "Description", 1)]
-                self.assertEqual(new, f"{old} {line}")
+                self.assertNotIn(qid, rewritten)
+                description, = self.clean.execute("SELECT Description FROM DataQuest WHERE ID=?", (qid,)).fetchone()
+                self.assertTrue(description.endswith(f" {line}"), description)
 
     def test_every_other_text_is_upstreams_with_period_names_and_words_for_player(self):
         # Only the <Player> slots, the class words and the guides' leftovers change; every other character stays
         # upstream's.
         names = set()
         for (qid, column, stage), (old, new) in self.changed.items():
-            if column == "Description" and qid in LOST_LINES:
-                continue
             with self.subTest(quest=qid, column=column, stage=stage):
                 old = with_class_words(old, FIXED_WORDS.get((qid, column, stage), []))
                 slots = "|".join(re.escape(slot) for slot in ["<Player>"] + sorted(PERIOD_NAMES | PERIOD_WORDS))
@@ -730,10 +730,11 @@ class ClassicQuestTextTests(unittest.TestCase):
                 self.assertTrue(match, new)
                 names |= set(match.groups())
         self.assertEqual(names - {"<Player>"}, PERIOD_NAMES | PERIOD_WORDS)
-        # Names: 37 stages of 21 texts; words: 27 stages of 4 texts (Silver Run's and Amora's Aid's in every class
-        # row); class words: 44 stages of 24 rows of 16 quests, none of them among the others; the guides' leftovers:
-        # 31 more stages of 20 rows (Strange Bedfellows' 3 are among the class words').
-        self.assertEqual(len(self.changed), 37 + 27 + len(LOST_LINES) + 44 + 31)
+        # Names: 28 stages of 17 rows; words: 22 stages, one in each of 22 rows (Soul Hunt's, Trapper's Pride's, and
+        # Silver Run's and Amora's Aid's in every class row); class words: 31 stages of 23 rows, none of them among the
+        # others; the guides' leftovers: 31 more stages of 21 rows. Since 0.36 each stage says only its own part of the
+        # conversation, so fewer stages hold a fixed word (on the 0.35b world: 37, 27, 44 and 31).
+        self.assertEqual(len(self.changed), 28 + 22 + 31 + 31)
 
     def test_no_fixed_text_still_says_player(self):
         # A stage changed for its listed words alone keeps upstream's <Player> (a class said as a title is <Player>
@@ -792,14 +793,15 @@ class ClassicQuestTextTests(unittest.TestCase):
 
     def test_cristin_and_tethra_call_the_player_by_their_class(self):
         # The guides' "(character class)" (Cristin's Supplies, Spicket, Spackit and Spykit; both open to every class).
+        # Since 0.36 Tethra's stage 2 ends with her question and stage 4, which said it all again, is empty: the rest of
+        # her conversation, where she names the player, is her Chat reply to [no more heads] (test_quest_reachability).
         self.assertTrue(self.stage(20071, "Description", 1).startswith(
             "Blessings upon you this day, noble <Class>. I have the finest wares in all of Connacht"))
-        for stage in (2, 4):
-            with self.subTest(stage=stage):
-                text = self.stage(21397, "TargetText", stage)
-                self.assertIn("I suppose it matters not. You're a brave <Class>, to have defeated this infamous "
-                              "spraggon. Have you defeated [many more]?", text)
-                self.assertEqual(text.count("<Player>"), 2)
+        text = self.stage(21397, "TargetText", 2)
+        self.assertTrue(text.endswith("I suppose it matters not. You're a brave <Class>, to have defeated this infamous "
+                                      "spraggon. Have you defeated [many more]?"), text)
+        self.assertIn("there are some that seem to posess this strange ability", text)  # without the editor's (sic)
+        self.assertEqual(self.stage(21397, "TargetText", 4), "")
 
     def test_the_traveler_s_way_trainers_send_the_player_out_by_name(self):
         # The guide's "(your name here)", in every class's row (Midgard).
@@ -822,13 +824,18 @@ class ClassicQuestTextTests(unittest.TestCase):
                 self.assertIn(" What is your name? We have quite a task ahead of us.", self.stage(qid, "TargetText", 1))
         self.assertTrue(self.stage(20194, "TargetText", 1).startswith("Greetings Friar. "))
 
-    def test_mystemas_s_last_line_ends_where_the_guide_s_does(self):
-        # The guide's line has no stop after "(minstrel)"; the page around it is no one's words.
-        for stage in (1, 3, 6):
+    def test_mystemas_s_last_line_is_his_chat_reply(self):
+        # Since 0.36 stage 1 ends where Mystemas speaks of the [threat], and stages 3 and 6, which said it all again,
+        # are empty. His last line ("Bring me Caisha like a good little <Class>", the guide's, without a stop) is his
+        # Chat reply to [Understand] (test_quest_reachability), and the page upstream scraped after it is gone.
+        self.assertTrue(self.stage(20702, "TargetText", 1).endswith(
+            "convince your king that the main threat to Albion from the other realms is far greater than the [threat] "
+            "darkness falls presents."))
+        for stage in (3, 6):
             with self.subTest(stage=stage):
-                self.assertTrue(self.stage(20702, "TargetText", stage).endswith(
-                    "Do you [Understand] me? Good. Now get going before someone sees us talking. Bring me Caisha like a "
-                    "good little <Class>"))
+                self.assertEqual(self.stage(20702, "TargetText", stage), "")
+        clean, = self.clean.execute("SELECT TargetText FROM DataQuest WHERE ID=20702").fetchone()
+        self.assertNotIn(SCRAPED_PAGE.strip(), clean)
 
     def test_the_kill_tasks_say_where_without_the_editors_notes(self):
         for qid, text in ((20694, "Kill bilious goo and bring Achae Smith the Billious Goo Piece. Bilious goo are found "
@@ -882,6 +889,35 @@ class WhisperKeywordSourceTests(unittest.TestCase):
         self.assertIn("QuestWhispers.Advances(AdvanceText, BehaviourUtils.GetPersonalizedMessage(AdvanceText, p), text)",
                       body)
         self.assertNotIn("AdvanceText == text", body)
+
+    CLASSIC_QUESTS = os.path.join(os.path.dirname(DATA_QUEST), "ClassicQuests.cs")
+
+    def test_the_whisper_link_shows_the_keyword_as_the_player_reads_it(self):
+        # Upstream 0.36 shows a whisper step's keyword as a [link] when the player talks to the step's NPC
+        # (ClassicQuests.OfferWhisperLinks). The Lost Stone's (20192-20195) keyword is <Player>: sent as it is, the link
+        # read "[<Player>]". Personalized, it is the player's name, which a click whispers and Advances accepts.
+        with open(self.CLASSIC_QUESTS, encoding="utf-8-sig") as f:
+            source = f.read()
+        body = source.split("private static void OfferWhisperLinks(GamePlayer player, GameNPC npc)", 1)[1]
+        body = body.split("\n        }\n", 1)[0]
+        self.assertIn("BehaviourUtils.GetPersonalizedMessage(WhisperPrompt(quest.CurrentStepText, keyword), player)", body)
+        self.assertNotIn("CL_PopupWindow, WhisperPrompt(", body)
+
+
+class StagedSpeechSourceTests(unittest.TestCase):
+    """A quest text staged with {next} (upstream 0.36: the NPC says one turn per interaction) waits for the NPC that
+    said it: DataQuest.SendMessage queues the later turns on DataQuest._speaker, which upstream sets only when the
+    player interacts with an NPC or hands it an item (source check: a unit test would need a live player)."""
+
+    def test_an_accepted_offer_stages_its_first_text_on_the_giver(self):
+        # The fork's "Do you accept?" (DataQuestOffers) starts the quest from the prompt's answer, through StartOffered,
+        # where no interaction set _speaker: the first text's later turns were lost, or queued on another NPC.
+        with open(DATA_QUEST, encoding="utf-8-sig") as f:
+            source = f.read()
+        body = source.split("public virtual void StartOffered(GamePlayer player, GameLiving living)", 1)[1]
+        body = body.split("\n\t\t}\n", 1)[0]
+        self.assertIn("_speaker = living;", body)
+        self.assertLess(body.index("_speaker = living;"), body.index("SendMessage(player, m_sourceTexts[0]"))
 
 
 @unittest.skipUnless(TEST_WORLD, "needs HDC_TEST_WORLD (a clean classic world database)")

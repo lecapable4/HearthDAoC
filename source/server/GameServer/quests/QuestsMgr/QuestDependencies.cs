@@ -7,7 +7,7 @@ namespace DOL.GS.Quests
     /// <summary>
     /// HearthDAoC: the forms of a data quest's QuestDependency entries ('|'-separated; every entry must be met):
     /// <list type="bullet">
-    /// <item><c>Name</c>: a finished data quest has that name (upstream's form).</item>
+    /// <item><c>Name</c>: a finished quest has that name (upstream's form; since upstream 0.37 a scripted quest counts too).</item>
     /// <item><c>#20188</c>: the data quest with that ID is finished.</item>
     /// <item><c>#20157/20469</c>: at least one of these is finished.</item>
     /// <item><c>!#20478</c> or <c>!#20478/21324</c>: none of these is active or finished.</item>
