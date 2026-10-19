@@ -210,6 +210,28 @@ class QuestRewardTests(unittest.TestCase):
                 with self.subTest(qid, item=item):
                     self.assertEqual(len(quests[qid][item]), 1, quests[qid][item])
 
+    def test_the_realm_rewards_are_handed_once_under_the_realm_template(self):
+        # 0.35b's plain cq_X is a carried-only copy (Item_Type 40, level 1, no bonuses); the realm template is the item.
+        quests = handed(self.conn, self.steps)
+        for qid, items in REALM_REWARDS.items():
+            for item in items:
+                with self.subTest(qid, item=item):
+                    self.assertEqual(len(quests[qid][item]), 1, quests[qid][item])
+                    self.assertRegex(quests[qid][item][0], r": cq_(alb|hib|mid)_")
+
+    def test_a_monsters_drop_comes_on_its_kill(self):
+        # "Kill Smyga and you will receive Smyg's helm." (Allakhazam cquest 414, Wayback capture 2003-12-28)
+        quests = handed(self.conn, self.steps)
+        for qid, item, copy in ((20117, "smyga's helm", "step 1: cq_mid_smyga_s_helm"),
+                                (20125, "watercast ring", "step 1: cq_mid_watercast_ring"),
+                                (20131, "gauntlets of the redhand", "step 1: cq_mid_gauntlets_of_the_redhand"),
+                                (20142, "boots of stealthy evasion", "step 1: cq_mid_boots_of_stealthy_evasion"),
+                                (21352, "yog's iron fist", "step 6: cq_alb_yog_s_iron_fist"),
+                                (21371, "puzzler's globe", "step 5: cq_alb_puzzler_s_globe"),
+                                (21425, "unstoppered wondrous potion", "step 9: cq_hib_unstoppered_wondrous_potion_hib")):
+            with self.subTest(qid, item=item):
+                self.assertEqual(quests[qid][item], [copy])
+
     def test_the_kept_items_delve_their_quest(self):
         # A delve's first line is the template's Description: upstream's plain templates read
         # "Classic quest reward ((quest item))".
