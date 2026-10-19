@@ -1,7 +1,8 @@
 """The Guild of Shadows epic follow-ups (owner 2026-10-13, after the in-game check of the spots): #121 Captain Rhodri,
 Lt. Brude and Lt. Cian on Snowdonia Fortress's north wall and Sir Tilian in Castle Sauvage's north-west corner, with
 the map markers on their old spots; #126 the supply run's first step at Bline Tengit; #124 Martley appearing at the
-single-tent camp; #119 the linked camps' data.
+single-tent camp; #119 the linked camps' data; and (#101, the 0.37 sync) the markers of Fortune of Few on the Master
+Graent who stays in Prydwen Keep.
 
 The world tests run world_fixes on a copy of a clean classic world (HDC_TEST_WORLD) and read upstream's
 classic-quests.json (HDC_CLASSIC_QUESTS) merged with the fork's file, as ClassicQuests merges them (the moved markers
@@ -32,8 +33,11 @@ GENERATED_BLINE = "97c5b723-b48d-50a5-b4a2-d7fe0f0cd73e"
 STANDING_MARTLEY = "b94c9ac2-ba75-493e-a90c-65a5c62a839e"
 COURIER = "29945a96-6a08-51f5-8df9-f63612026614"
 WIZARDESS = "80e60247-caa8-465d-bbba-dcbb22f6cfc1"
+GRAENT = "deecddf1-2306-4194-a3e8-bab803d450fa"  # in Prydwen Keep's middle structure, by the healer and the town crier
+TWIN_GRAENT = "1e0dc1a7-6b01-4a38-845d-f8ef417a09e1"  # among the merchants outside, which world_fixes removes (#101)
 OLD = {"rhodri": (1, 528239, 359818, 9088), "tilian": (1, 586282, 476329, 3480), "bline": (1, 508535, 477271, 2284),
-       "brude": (1, 528519, 359799, 9088)}
+       "brude": (1, 528519, 359799, 9088), "graent": (1, 574886, 530169, 2896)}
+FORTUNE_OF_FEW = [20163, 20164, 20165, 20166]
 SUPPLY_RUN = [21500, 21498, 21499, 20497, 21501]
 SHADES = [20467, 20468, 20469, 20470, 20471, 20472]
 
@@ -161,6 +165,22 @@ class EpicFollowupTests(unittest.TestCase):
     def test_the_wizardess_stands_by_the_couriers_fire(self):
         self.assertLessEqual(math.dist(self.mob(WIZARDESS, "X", "Y"), self.mob(COURIER, "X", "Y")), 200)
         self.assertEqual(self.mob(WIZARDESS, "Z"), self.mob(COURIER, "Z"))
+
+    # #101
+    def test_fortune_of_few_points_at_the_master_graent_who_stays(self):
+        # Upstream's markers (stages 1-6 and 8) stand on the twin world_fixes removes; stage 8's issuer is named.
+        self.assertIsNone(self.mob(TWIN_GRAENT, "Name"))
+        graent = self.mob(GRAENT, "Region", "X", "Y", "Z")
+        unmoved, _ = merged_quests(move=False)
+
+        def stages_at(quests, qid, spot):
+            return [n for n, step in enumerate(quests[qid]["Steps"])
+                    if step and step.get("Marker") and point(step["Marker"]) == spot]
+
+        for qid in FORTUNE_OF_FEW:
+            with self.subTest(qid):
+                self.assertEqual(stages_at(unmoved, qid, OLD["graent"]), [1, 2, 3, 4, 5, 6, 8])
+                self.assertEqual(stages_at(self.quests, qid, graent), [1, 2, 3, 4, 5, 6, 8])
 
 
 if __name__ == "__main__":
