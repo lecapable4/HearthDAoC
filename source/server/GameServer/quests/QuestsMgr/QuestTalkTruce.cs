@@ -25,8 +25,9 @@ namespace DOL.GS.Quests
 
             foreach (var pair in player.QuestList) // not .Keys: that copies the keys on every aggro check
             {
+                // HearthDAoC: names compare without case (QuestNames.Same): upstream's quest data spells many targets differently from their spawns.
                 if (pair.Key is DataQuest dataQuest && TalksTo(dataQuest.StepType) &&
-                    dataQuest.TargetName == npc.Name && (dataQuest.TargetRegion == 0 || dataQuest.TargetRegion == npc.CurrentRegionID))
+                    QuestNames.Same(dataQuest.TargetName, npc.Name) && (dataQuest.TargetRegion == 0 || dataQuest.TargetRegion == npc.CurrentRegionID))
                     return true;
             }
 
@@ -48,10 +49,11 @@ namespace DOL.GS.Quests
             DataQuest.eStepType.Interact or DataQuest.eStepType.InteractFinish or DataQuest.eStepType.Whisper or
             DataQuest.eStepType.WhisperFinish or DataQuest.eStepType.Collect or DataQuest.eStepType.CollectFinish;
 
-        /// <summary>Start NPCs and talk/whisper/hand-in targets of every data quest (names compared exactly, as DataQuest does).</summary>
+        /// <summary>Start NPCs and talk/whisper/hand-in targets of every data quest (HearthDAoC: names compared without
+        /// case, as the fork's DataQuest compares them: QuestNames.Same).</summary>
         private static HashSet<string> LoadQuestNpcNames()
         {
-            HashSet<string> names = new(StringComparer.Ordinal);
+            HashSet<string> names = new(StringComparer.OrdinalIgnoreCase); // HearthDAoC: as QuestNames.Same
 
             foreach (DbDataQuest quest in GameServer.Database.SelectAllObjects<DbDataQuest>())
             {

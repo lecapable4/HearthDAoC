@@ -664,7 +664,8 @@ namespace DOL.GS.Quests
             {
                 if (!_config.Quests.TryGetValue(quest.ID, out QuestInfo info) || quest.Step <= 0 || quest.Step >= info.Steps.Count) continue;
                 string greet = info.Steps[quest.Step]?.Greet;
-                if (string.IsNullOrWhiteSpace(greet) || quest.TargetName != npc.Name ||
+                // HearthDAoC: names compare without case (QuestNames.Same): upstream's quest data spells many targets differently from their spawns.
+                if (string.IsNullOrWhiteSpace(greet) || !QuestNames.Same(quest.TargetName, npc.Name) ||
                     quest.TargetRegion != 0 && quest.TargetRegion != npc.CurrentRegionID) continue;
                 npc.SayTo(player, PacketHandler.eChatLoc.CL_PopupWindow, DOL.GS.Behaviour.BehaviourUtils.GetPersonalizedMessage(greet, player));
                 return;
@@ -675,9 +676,10 @@ namespace DOL.GS.Quests
         {
             foreach (DataQuest quest in player.QuestList.Keys.OfType<DataQuest>())
             {
+                // HearthDAoC: names compare without case (QuestNames.Same): upstream's quest data spells many targets differently from their spawns.
                 if (!_config.Quests.ContainsKey(quest.ID) || quest.Step <= 0 ||
                     quest.StepType is not (DataQuest.eStepType.Whisper or DataQuest.eStepType.WhisperFinish) ||
-                    quest.TargetName != npc.Name || quest.TargetRegion != 0 && quest.TargetRegion != npc.CurrentRegionID)
+                    !QuestNames.Same(quest.TargetName, npc.Name) || quest.TargetRegion != 0 && quest.TargetRegion != npc.CurrentRegionID)
                     continue;
                 string keyword = quest.CurrentAdvanceText;
                 if (string.IsNullOrWhiteSpace(keyword) || (quest.CurrentTargetText ?? string.Empty).Contains("[" + keyword + "]"))

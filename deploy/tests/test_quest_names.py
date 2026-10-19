@@ -174,9 +174,23 @@ class SourceTests(unittest.TestCase):
         self.assertIn("if (!QuestNames.Same(quest.StartName, obj.Name))", giver)
         self.assertNotIn("quest.StartName != obj.Name", giver)
 
+    def test_upstreams_new_quest_npc_code_uses_it(self):
+        # Upstream 0.36 compared exactly in its new code: the hostile-faction truce (QuestTalkTruce: its name set and
+        # the step check) and ClassicQuests' arrival line and whisper links. They skipped the quest rows QuestNames
+        # unblocked, such as interact "Elder Tidal Sheerie" and "Dverge Smith" (0.37 sync).
+        truce = read(os.path.join(QUESTS, "QuestTalkTruce.cs"))
+        self.assertIn("QuestNames.Same(dataQuest.TargetName, npc.Name)", truce)
+        self.assertIn("HashSet<string> names = new(StringComparer.OrdinalIgnoreCase);", truce)
+        self.assertNotIn("StringComparer.Ordinal)", truce)
+        classic = read(os.path.join(QUESTS, "ClassicQuests.cs"))
+        self.assertEqual(classic.count("!QuestNames.Same(quest.TargetName, npc.Name)"), 2)
+        for name, text in (("QuestTalkTruce.cs", truce), ("ClassicQuests.cs", classic)):
+            with self.subTest(file=name):
+                self.assertIsNone(re.search(r"TargetName\s*[!=]=|[!=]=\s*TargetName", text))
+
     def test_the_files_keep_their_endings(self):
         for path in (os.path.join(QUESTS, "DataQuest.cs"), os.path.join(GAME_OBJECTS, "GameNPC.cs"),
-                     os.path.join(GAME_OBJECTS, "GameObject.cs")):
+                     os.path.join(GAME_OBJECTS, "GameObject.cs"), os.path.join(QUESTS, "QuestTalkTruce.cs")):
             with open(path, "rb") as f:
                 raw = f.read()
             self.assertEqual(raw.count(b"\r\n"), raw.count(b"\n"), path)
